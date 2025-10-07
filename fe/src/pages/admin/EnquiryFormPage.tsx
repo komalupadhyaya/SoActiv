@@ -1,0 +1,333 @@
+// src/pages/admin/EnquiryFormPage.tsx
+import React, { useEffect, useState } from 'react';
+import { Save, ArrowLeft } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Card, CardHeader, CardContent } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
+import { Select } from '../../components/ui/Select';
+import { useStaff } from '../../hooks/useStaff';
+import { useEnquiry } from '../../hooks/useEnquiry';
+import { Staff } from '../../hooks/useStaff';
+import { IEnquiry } from '../../hooks/useEnquiry'; // Ensure IEnquiry is exported
+
+export const EnquiryFormPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const isEditing = !!id;
+
+  type EnquiryStatus = 'new' | 'contacted' | 'interested' | 'converted' | 'lost';
+
+  const [formData, setFormData] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    source: '',
+    status: 'new' as EnquiryStatus,
+    assignedStaff: '',
+    followUpDate: '',
+    comments: '',
+    interests: '',
+    budget: '',
+  });
+
+  const { staff, loading: loadingStaff, error: staffError } = useStaff();
+  const { createEnquiry, updateEnquiry, getEnquiryById, error: enquiryError } = useEnquiry();
+
+  const [submitting, setSubmitting] = useState(false);
+  const [loadingForm, setLoadingForm] = useState(isEditing);
+
+  // Type guard for staff object
+  const isStaffObject = (obj: any): obj is { _id: string } => {
+    return obj && typeof obj === 'object' && '_id' in obj;
+  };
+
+  // Safely extract staff ID
+  const getAssignedStaffId = (assignedStaff: IEnquiry['assignedStaff']): string => {
+    if (!assignedStaff) return '';
+    if (typeof assignedStaff === 'string') return assignedStaff;
+    if (isStaffObject(assignedStaff)) return assignedStaff._id;
+    return '';
+  };
+
+  // Load enquiry data if editing
+  useEffect(() => {
+    if (isEditing && id) {
+      const loadEnquiry = async () => {
+        setLoadingForm(true);
+        try {
+          const enquiry = await getEnquiryById(id);
+          if (enquiry) {
+            setFormData({
+              name: enquiry.name,
+              phone: enquiry.phone,
+              email: enquiry.email || '',
+              source: enquiry.source,
+              status: enquiry.status,
+              assignedStaff: getAssignedStaffId(enquiry.assignedStaff),
+              followUpDate: enquiry.followUpDate ? enquiry.followUpDate.split('T')[0] : '',
+              comments: enquiry.comments || '',
+              interests: enquiry.interests || '',
+              budget: enquiry.budget || '',
+            });
+          } else {
+            alert('Failed to load enquiry.');
+            navigate('/admin/enquiries');
+          }
+        } catch (err) {
+          console.error('Error loading enquiry:', err);
+          alert('Failed to load enquiry data.');
+          navigate('/admin/enquiries');
+        } finally {
+          setLoadingForm(false);
+        }
+      };
+
+      loadEnquiry();
+    }
+  }, [isEditing, id]); // ✅ Only depend on id and isEditing
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!formData.name || !formData.phone || !formData.source) {
+      alert('Name, phone, and source are required.');
+      return;
+    }
+
+    if (!formData.assignedStaff) {
+      alert('Please assign a staff member.');
+      return;
+    }
+
+    const enquiryData = {
+      name: formData.name,
+      phone: formData.phone,
+      email: formData.email || undefined,
+      source: formData.source,
+      status: formData.status,
+      assignedStaff: formData.assignedStaff,
+      followUpDate: formData.followUpDate || undefined,
+      comments: formData.comments || undefined,
+      interests: formData.interests || undefined,
+      budget: formData.budget || undefined,
+    };
+
+    setSubmitting(true);
+
+    try {
+      const result = isEditing
+        ? await updateEnquiry(id!, enquiryData)
+        : await createEnquiry(enquiryData);
+
+      if (result) {
+        alert(`Enquiry ${isEditing ? 'updated' : 'created'} successfully!`);
+        navigate('/admin/enquiries');
+      }
+    } catch (err) {
+      console.error('Submission failed:', err);
+      alert(`Failed to ${isEditing ? 'update' : 'create'} enquiry. Please try again.`);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const staffOptions = [
+    { value: '', label: 'Select Staff Member' },
+    ...staff
+      .filter((s) => s.status === 'active')
+      .map((s: Staff) => ({
+        value: s._id,
+        label: s.fullName,
+      })),
+  ];
+
+  if (loadingForm) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <p className="text-lg text-gray-600 dark:text-gray-400">Loading enquiry...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center space-x-4">
+        <Button variant="ghost" onClick={() => navigate('/admin/enquiries')} className="p-2">
+          <ArrowLeft size={20} />
+        </Button>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            {isEditing ? 'Edit Enquiry' : 'Add New Enquiry'}
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            {isEditing
+              ? 'Update the details of this customer enquiry'
+              : 'Manually add a new customer enquiry to the system'}
+          </p>
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Enquiry Details</h3>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">
+                Contact Information
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  label="Full Name"
+                  placeholder="Enter customer name"
+                  value={formData.name}
+                  onChange={(e) => handleInputChange('name', e.target.value)}
+                  required
+                />
+                <Input
+                  label="Phone Number"
+                  placeholder="Enter phone number"
+                  value={formData.phone}
+                  onChange={(e) => handleInputChange('phone', e.target.value)}
+                  required
+                />
+                <Input
+                  label="Email Address"
+                  type="email"
+                  placeholder="Enter email address"
+                  value={formData.email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
+                />
+                <Select
+                  label="Source"
+                  options={[
+                    { value: '', label: 'Select Source' },
+                    { value: 'website', label: 'Website' },
+                    { value: 'social-media', label: 'Social Media' },
+                    { value: 'referral', label: 'Referral' },
+                    { value: 'walk-in', label: 'Walk-in' },
+                    { value: 'advertisement', label: 'Advertisement' },
+                    { value: 'other', label: 'Other' },
+                  ]}
+                  value={formData.source}
+                  onChange={(value) => handleInputChange('source', value)}
+                />
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">
+                Enquiry Management
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Select
+                  label="Status"
+                  options={[
+                    { value: 'new', label: 'New' },
+                    { value: 'contacted', label: 'Contacted' },
+                    { value: 'interested', label: 'Interested' },
+                    { value: 'converted', label: 'Converted' },
+                    { value: 'lost', label: 'Lost' },
+                  ]}
+                  value={formData.status}
+                  onChange={(value) => handleInputChange('status', value as EnquiryStatus)}
+                />
+
+                <Select
+                  label="Assigned Staff"
+                  options={staffOptions}
+                  value={formData.assignedStaff}
+                  onChange={(value) => handleInputChange('assignedStaff', value)}
+                />
+
+                <Input
+                  label="Follow-up Date"
+                  type="date"
+                  value={formData.followUpDate}
+                  onChange={(e) => handleInputChange('followUpDate', e.target.value)}
+                />
+              </div>
+
+              {loadingStaff && (
+                <p className="text-sm text-gray-500 dark:text-gray-400">Loading staff...</p>
+              )}
+              {staffError && (
+                <p className="text-sm text-red-500 dark:text-red-400">
+                  Failed to load staff: {staffError}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">
+                Additional Information
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  label="Areas of Interest"
+                  placeholder="e.g., Weight training, Cardio, Yoga"
+                  value={formData.interests}
+                  onChange={(e) => handleInputChange('interests', e.target.value)}
+                />
+                <Input
+                  label="Budget Range"
+                  placeholder="e.g., $50-100/month"
+                  value={formData.budget}
+                  onChange={(e) => handleInputChange('budget', e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Comments & Notes
+              </label>
+              <textarea
+                rows={4}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors dark:bg-gray-800 dark:border-gray-600 dark:text-white dark:placeholder-gray-500"
+                placeholder="Add any additional notes or comments about this enquiry..."
+                value={formData.comments}
+                onChange={(e) => handleInputChange('comments', e.target.value)}
+              />
+            </div>
+
+            {enquiryError && (
+              <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg text-sm">
+                <strong>Error:</strong> {enquiryError}
+              </div>
+            )}
+
+            <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => navigate('/admin/enquiries')}
+                disabled={submitting}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submitting || loadingStaff}>
+                {submitting ? (
+                  <>Saving...</>
+                ) : (
+                  <>
+                    <Save size={16} className="mr-2" />
+                    {isEditing ? 'Update Enquiry' : 'Save Enquiry'}
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default EnquiryFormPage;

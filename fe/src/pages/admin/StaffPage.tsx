@@ -1,0 +1,356 @@
+// pages/StaffPage.tsx
+import React, { useState } from 'react';
+import { Plus, Search, Filter, User, Phone, Calendar, DollarSign, Trash2 } from 'lucide-react';
+import { Card, CardHeader, CardContent } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
+import { Select } from '../../components/ui/Select';
+import { Badge } from '../../components/ui/Badge';
+import { StaffRegistrationForm } from '../../components/forms/newStaffForm';
+import { Modal } from '../../components/ui/Modal';
+import { useStaff } from '../../hooks/useStaff';
+import { Staff } from '../../hooks/useStaff';
+import { useNavigate } from 'react-router-dom';
+
+const statusColors = {
+  active: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+  inactive: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+};
+
+export const StaffPage: React.FC = () => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [isAddStaffModalOpen, setIsAddStaffModalOpen] = useState(false);
+  const [editingStaff, setEditingStaff] = useState<any>(null);
+  const [deletingStaff, setDeletingStaff] = useState<Staff | null>(null); // Track staff to delete
+  const navigate = useNavigate();
+
+  // ✅ Use real data and update/delete functions from hook
+  const { staff, createStaff, updateStaff, deleteStaff, loading, error } = useStaff();
+
+  // ✅ Filter staff by search, role, status
+  const filteredStaff = staff.filter((member) => {
+    const matchesSearch =
+      member.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      member.contactNumber.includes(searchQuery) ||
+      member.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      member.position.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesRole = !roleFilter || member.position.toLowerCase().includes(roleFilter.toLowerCase());
+    const matchesStatus = !statusFilter || member.status === statusFilter;
+
+    return matchesSearch && matchesRole && matchesStatus;
+  });
+
+  // ✅ Handler for form submit (handles both create and update)
+  const handleSaveStaff = async (formData: any) => {
+    let result;
+
+    if (editingStaff) {
+      // Update existing staff
+      result = await updateStaff(editingStaff._id, formData);
+    } else {
+      // Create new staff
+      result = await createStaff(formData);
+    }
+
+    if (result.success) {
+      setIsAddStaffModalOpen(false);
+      setEditingStaff(null);
+    }
+  };
+
+  // ✅ Handle Delete Confirmation
+  const handleDeleteClick = (staff: Staff) => {
+    setDeletingStaff(staff);
+  };
+
+  // ✅ Confirm Delete
+  const handleConfirmDelete = async () => {
+    if (!deletingStaff) return;
+
+    const result = await deleteStaff(deletingStaff._id);
+
+    if (result.success) {
+      setDeletingStaff(null); // Close modal
+    }
+  };
+
+  // Show loading state
+  if (loading && staff.length === 0) {
+    return <div className="p-6">Loading staff...</div>;
+  }
+
+  // Show error 
+  if (error) {
+    return <div className="p-6 text-red-500">Error: {error}</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Staff</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">Manage your gym staff and their information</p>
+        </div>
+        <div className="flex space-x-3 mt-4 sm:mt-0">
+          <Button variant="outline" onClick={()=>navigate("/admin/staff-attendance")}>Mark Attendance</Button>
+          <Button onClick={() => {
+            setEditingStaff(null);
+            setIsAddStaffModalOpen(true);
+          }}>
+            <Plus size={16} className="mr-2" />
+            Add New Staff
+          </Button>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Staff</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{staff.length}</p>
+              </div>
+              <User className="w-8 h-8 text-blue-500" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Active</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {staff.filter((s) => s.status === 'active').length}
+                </p>
+              </div>
+              <User className="w-8 h-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Trainers</p>
+                <p className="text-2xl font-bold text-orange-600">
+                  {staff.filter((s) => s.position.toLowerCase().includes('trainer')).length}
+                </p>
+              </div>
+              <User className="w-8 h-8 text-orange-500" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Payroll</p>
+                <p className="text-2xl font-bold text-teal-600">
+                  ₹{staff.reduce((sum, s) => sum + s.salary, 0).toLocaleString()}
+                </p>
+              </div>
+              <DollarSign className="w-8 h-8 text-teal-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex-1">
+              <Input
+                placeholder="Search by name, phone, email, or position..."
+                leftIcon={<Search size={16} />}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className='!w-[20rem]'
+              />
+            </div>
+            <Select
+              options={[
+                { value: '', label: 'All Roles' },
+                { value: 'trainer', label: 'Trainers' },
+                { value: 'receptionist', label: 'Receptionists' },
+                { value: 'manager', label: 'Managers' },
+                { value: 'sales', label: 'Sales' },
+                { value: 'housekeep', label: 'Housekeeps'}
+              ]}
+              value={roleFilter}
+              onChange={(value) => setRoleFilter(value)}
+              // className="lg:w-48"
+            />
+            <Select
+              options={[
+                { value: '', label: 'All Status' },
+                { value: 'active', label: 'Active' },
+                { value: 'inactive', label: 'Inactive' },
+              ]}
+              value={statusFilter}
+              onChange={(value) => setStatusFilter(value)}
+              // className="lg:w-48"
+            />
+            <Button variant="outline">
+              <Filter size={16} className="mr-2" />
+              More Filters
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Staff Table */}
+      <Card>
+        <CardHeader>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+            All Staff ({filteredStaff.length})
+          </h3>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-800">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Staff Member
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Contact
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Joining Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Salary
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {filteredStaff.map((member) => (
+                  <tr key={member._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center">
+                          <User size={20} className="text-gray-600 dark:text-gray-300" />
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">{member.fullName}</div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">{member.position}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="space-y-1">
+                        <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                          <Phone size={12} className="mr-1" />
+                          {member.contactNumber}
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">{member.email}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                        <Calendar size={12} className="mr-1" />
+                        {new Date(member.joiningDate).toLocaleDateString()}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center text-sm font-medium text-gray-900 dark:text-white">
+                        ₹ {member.salary.toLocaleString()}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Badge className={statusColors[member.status]}>{member.status}</Badge>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setEditingStaff(member);
+                            setIsAddStaffModalOpen(true);
+                          }}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-red-500 hover:bg-red-100 dark:hover:bg-red-900"
+                          onClick={() => handleDeleteClick(member)}
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Add/Edit Staff Modal */}
+      <Modal
+        isOpen={isAddStaffModalOpen}
+        onClose={() => {
+          setIsAddStaffModalOpen(false);
+          setEditingStaff(null);
+        }}
+        title={editingStaff ? "Edit Staff Member" : "Add New Staff"}
+        size="xl"
+      >
+        <div className="flex flex-col h-full max-h-[90vh]">
+          <StaffRegistrationForm
+            onClose={() => {
+              setIsAddStaffModalOpen(false);
+              setEditingStaff(null);
+            }}
+            onSubmit={handleSaveStaff}
+            initialData={editingStaff || undefined}
+          />
+        </div>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      {deletingStaff && (
+        <Modal
+          isOpen={true}
+          onClose={() => setDeletingStaff(null)}
+          title="Confirm Delete"
+          size="md"
+        >
+          <div className="p-6">
+            <p className="text-gray-700 dark:text-gray-300 mb-6">
+              Are you sure you want to delete <strong>{deletingStaff.fullName}</strong>? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <Button variant="outline" onClick={() => setDeletingStaff(null)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleConfirmDelete}>
+                Delete
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+};
+
+export default StaffPage;
