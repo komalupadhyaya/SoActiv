@@ -1,0 +1,32 @@
+fullName,position,email,contactNumber,joiningDate,salary,status,notificationSMS,notificationEmail,notificationPush,notificationWhatsApp
+John Trainer,Personal Trainer,john.trainer@example.com,+1234567890,2024-01-15,45000,active,true,true,true,true
+Sarah Manager,Gym Manager,sarah.manager@example.com,+1987654321,2023-06-01,55000,active,true,true,true,true
+Mike Receptionist,Receptionist,mike.reception@example.com,+1122334455,2024-03-10,30000,active,true,true,false,true
+Lisa Yoga,Yoga Instructor,lisa.yoga@example.com,+1555666777,2024-02-20,42000,active,true,true,true,true
+David Strength,Strength Coach,david.strength@example.com,+1444555666,2023-09-15,48000,active,true,true,true,true
+Emma Cardio,Cardio Specialist,emma.cardio@example.com,+1333444555,2024-04-05,43000,active,true,true,true,false
+Robert Nutrition,Nutritionist,robert.nutrition@example.com,+1222333444,2023-11-20,50000,active,true,true,true,true
+Jennifer Pilates,Pilates Instructor,jennifer.pilates@example.com,+1111222333,2024-01-25,41000,active,true,true,false,true
+Michael Crossfit,CrossFit Coach,michael.crossfit@example.com,+1999888777,2023-08-10,47000,active,true,true,true,true
+Amanda Spin,Spin Instructor,amanda.spin@example.com,+1888777666,2024-05-15,40000,active,true,true,true,true
+Christopher Maintenance,Maintenance Staff,chris.maintenance@example.com,+1777666555,2023-12-01,35000,active,true,true,false,false
+Jessica Sales,Sales Representative,jessica.sales@example.com,+1666555444,2024-02-10,38000,active,true,true,true,true
+Daniel Boxing,Boxing Coach,daniel.boxing@example.com,+1555444333,2023-10-05,46000,active,true,true,true,true
+Lauren Zumba,Zumba Instructor,lauren.zumba@example.com,+1444333222,2024-03-20,39000,active,true,true,true,false
+Joshua Physio,Physiotherapist,joshua.physio@example.com,+1333222111,2023-07-15,52000,active,true,true,true,true
+Megan Cleaning,Cleaning Staff,megan.cleaning@example.com,+1222111000,2024-04-25,28000,active,true,false,false,true
+Ryan Swimming,Swimming Coach,ryan.swimming@example.com,+1111000999,2023-11-10,44000,active,true,true,true,true
+Nicole Martial,Martial Arts Instructor,nicole.martial@example.com,+1999000888,2024-01-30,45000,active,true,true,true,true
+Brandon Assistant,Assistant Manager,brandon.assistant@example.com,+1888000777,2023-09-25,49000,active,true,true,true,true
+Stephanie Aerobics,Aerobics Instructor,stephanie.aerobics@example.com,+1777000666,2024-05-05,40000,active,true,true,false,true
+Kevin Security,Security Guard,kevin.security@example.com,+1666000555,2023-12-15,32000,active,true,true,false,false
+Rachel Dance,Dance Instructor,rachel.dance@example.com,+1555000444,2024-02-28,41000,active,true,true,true,true
+Tyler Functional,Functional Training Coach,tyler.functional@example.com,+1444000333,2023-10-20,46000,active,true,true,true,true
+Samantha Wellness,Wellness Coordinator,samantha.wellness@example.com,+1333000222,2024-03-15,43000,active,true,true,true,true
+Justin Bootcamp,Bootcamp Instructor,justin.bootcamp@example.com,+1222000111,2023-08-25,44000,active,true,true,true,false
+Brittany Stretching,Stretching Specialist,brittany.stretching@example.com,+1111000000,2024-04-10,40000,active,true,true,true,true
+Eric HIIT,HIIT Instructor,eric.hiit@example.com,+1999111222,2023-11-30,45000,active,true,true,true,true
+Melissa Barre,Barre Instructor,melissa.barre@example.com,+1888111222,2024-01-20,39000,active,true,true,false,true
+Adam TRX,TRX Trainer,adam.trx@example.com,+1777111222,2023-09-05,43000,active,true,true,true,true
+Heather Recovery,Recovery Specialist,heather.recovery@example.com,+1666111222,2024-05-20,48000,active,true,true,true,true
+

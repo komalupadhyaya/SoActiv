@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<clients>
+  <client>
+    <fullName>Alexander Turner</fullName>
+    <email>alex.turner@example.com</email>
+    <contactNumber>+1444444444</contactNumber>
+    <gender>male</gender>
+    <startDate>2025-01-05</startDate>
+    <endDate>2026-01-05</endDate>
+    <packagePrice>5800</packagePrice>
+    <plan>premium</plan>
+    <timing>Morning (6AM-10AM)</timing>
+    <status>active</status>
+    <hasPersonalTraining>true</hasPersonalTraining>
+    <personalTrainingDurationWeeks>12</personalTrainingDurationWeeks>
+    <personalTrainingPrice>3000</personalTrainingPrice>
+    <dateOfBirth>1989-03-15</dateOfBirth>
+    <address>100 Olympic Way</address>
+    <emergencyContactName>Emma Turner</emergencyContactName>
+    <emergencyContactNumber>+1444444445</emergencyContactNumber>
+    <emergencyContactRelation>spouse</emergencyContactRelation>
+  </client>
+  <client>
+    <fullName>Olivia Parker</fullName>
+    <email>olivia.parker@example.com</email>
+    <contactNumber>+1333333333</contactNumber>
+    <gender>female</gender>
+    <startDate>2025-01-08</startDate>
+    <endDate>2025-07-08</endDate>
+    <packagePrice>3100</packagePrice>
+    <plan>basic</plan>
+    <timing>Evening (5PM-9PM)</timing>
+    <status>active</status>
+    <hasPersonalTraining>false</hasPersonalTraining>
+    <dateOfBirth>1994-06-22</dateOfBirth>
+    <address>200 Fitness Blvd</address>
+    <emergencyContactName>James Parker</emergencyContactName>
+    <emergencyContactNumber>+1333333334</emergencyContactNumber>
+    <emergencyContactRelation>sibling</emergencyContactRelation>
+  </client>
+  <client>
+    <fullName>Ethan Cooper</fullName>
+    <email>ethan.cooper@example.com</email>
+    <contactNumber>+1222222222</contactNumber>
+    <gender>male</gender>
+    <startDate>2025-01-12</startDate>
+    <endDate>2026-01-12</endDate>
+    <packagePrice>6200</packagePrice>
+    <plan>premium</plan>
+    <timing>Afternoon (12PM-4PM)</timing>
+    <status>active</status>
+    <hasPersonalTraining>true</hasPersonalTraining>
+    <personalTrainingDurationWeeks>16</personalTrainingDurationWeeks>
+    <personalTrainingPrice>4000</personalTrainingPrice>
+    <dateOfBirth>1986-09-10</dateOfBirth>
+    <address>300 Strength St</address>
+    <emergencyContactName>Sophia Cooper</emergencyContactName>
+    <emergencyContactNumber>+1222222223</emergencyContactNumber>
+    <emergencyContactRelation>spouse</emergencyContactRelation>
+  </client>
+  <client>
+    <fullName>Sophia Bennett</fullName>
+    <email>sophia.bennett@example.com</email>
+    <contactNumber>+1111111111</contactNumber>
+    <gender>female</gender>
+    <startDate>2025-02-01</startDate>
+    <endDate>2025-08-01</endDate>
+    <packagePrice>2900</packagePrice>
+    <plan>basic</plan>
+    <timing>Morning (6AM-10AM)</timing>
+    <status>active</status>
+    <hasPersonalTraining>false</hasPersonalTraining>
+    <dateOfBirth>1997-11-05</dateOfBirth>
+    <address>400 Wellness Ave</address>
+    <emergencyContactName>William Bennett</emergencyContactName>
+    <emergencyContactNumber>+1111111112</emergencyContactNumber>
+    <emergencyContactRelation>parent</emergencyContactRelation>
+  </client>
+  <client>
+    <fullName>Noah Richardson</fullName>
+    <email>noah.richardson@example.com</email>
+    <contactNumber>+1999999999</contactNumber>
+    <gender>male</gender>
+    <startDate>2025-01-15</startDate>
+    <endDate>2026-01-15</endDate>
+    <packagePrice>5400</packagePrice>
+    <plan>premium</plan>
+    <timing>Evening (5PM-9PM)</timing>
+    <status>active</status>
+    <hasPersonalTraining>true</hasPersonalTraining>
+    <personalTrainingDurationWeeks>10</personalTrainingDurationWeeks>
+    <personalTrainingPrice>2500</personalTrainingPrice>
+    <dateOfBirth>1992-04-18</dateOfBirth>
+    <address>500 Cardio Circle</address>
+    <emergencyContactName>Ava Richardson</emergencyContactName>
+    <emergencyContactNumber>+1999999998</emergencyContactNumber>
+    <emergencyContactRelation>spouse</emergencyContactRelation>
+  </client>
+  <client>
+    <fullName>Isabella Foster</fullName>
+    <email>isabella.foster@example.com</email>
+    <contactNumber>+1888888888</contactNumber>
+    <gender>female</gender>
+    <startDate>2025-02-05</startDate>
+    <endDate>2026-02-05</endDate>
+    <packagePrice>5900</packagePrice>
+    <plan>premium</plan>
+    <timing>Afternoon (12PM-4PM)</timing>
+    <status>active</status>
+    <hasPersonalTraining>true</hasPersonalTraining>
+    <personalTrainingDurationWeeks>14</personalTrainingDurationWeeks>
+    <personalTrainingPrice>3500</personalTrainingPrice>
+    <dateOfBirth>1988-07-28</dateOfBirth>
+    <address>600 Yoga Lane</address>
+    <emergencyContactName>Liam Foster</emergencyContactName>
+    <emergencyContactNumber>+1888888887</emergencyContactNumber>
+    <emergencyContactRelation>spouse</emergencyContactRelation>
+  </client>
+  <client>
+    <fullName>Mason Hughes</fullName>
+    <email>mason.hughes@example.com</email>
+    <contactNumber>+1777777777</contactNumber>
+    <gender>male</gender>
+    <startDate>2025-01-20</startDate>
+    <endDate>2025-07-20</endDate>
+    <packagePrice>3200</packagePrice>
+    <plan>basic</plan>
+    <timing>Morning (6AM-10AM)</timing>
+    <status>active</status>
+    <hasPersonalTraining>false</hasPersonalTraining>
+    <dateOfBirth>1995-12-14</dateOfBirth>
+    <address>700 Pilates Plaza</address>
+    <emergencyContactName>Charlotte Hughes</emergencyContactName>
+    <emergencyContactNumber>+1777777776</emergencyContactNumber>
+    <emergencyContactRelation>sibling</emergencyContactRelation>
+  </client>
+  <client>
+    <fullName>Mia Coleman</fullName>
+    <email>mia.coleman@example.com</email>
+    <contactNumber>+1666666666</contactNumber>
+    <gender>female</gender>
+    <startDate>2025-02-10</startDate>
+    <endDate>2026-02-10</endDate>
+    <packagePrice>5600</packagePrice>
+    <plan>premium</plan>
+    <timing>Evening (5PM-9PM)</timing>
+    <status>active</status>
+    <hasPersonalTraining>true</hasPersonalTraining>
+    <personalTrainingDurationWeeks>12</personalTrainingDurationWeeks>
+    <personalTrainingPrice>3000</personalTrainingPrice>
+    <dateOfBirth>1990-02-09</dateOfBirth>
+    <address>800 CrossFit Court</address>
+    <emergencyContactName>Lucas Coleman</emergencyContactName>
+    <emergencyContactNumber>+1666666665</emergencyContactNumber>
+    <emergencyContactRelation>spouse</emergencyContactRelation>
+  </client>
+  <client>
+    <fullName>Logan Jenkins</fullName>
+    <email>logan.jenkins@example.com</email>
+    <contactNumber>+1555555555</contactNumber>
+    <gender>male</gender>
+    <startDate>2025-01-25</startDate>
+    <endDate>2025-12-25</endDate>
+    <packagePrice>4900</packagePrice>
+    <plan>premium</plan>
+    <timing>Afternoon (12PM-4PM)</timing>
+    <status>active</status>
+    <hasPersonalTraining>true</hasPersonalTraining>
+    <personalTrainingDurationWeeks>8</personalTrainingDurationWeeks>
+    <personalTrainingPrice>2000</personalTrainingPrice>
+    <dateOfBirth>1991-05-21</dateOfBirth>
+    <address>900 Spin Street</address>
+    <emergencyContactName>Harper Jenkins</emergencyContactName>
+    <emergencyContactNumber>+1555555554</emergencyContactNumber>
+    <emergencyContactRelation>spouse</emergencyContactRelation>
+  </client>
+  <client>
+    <fullName>Emma Peterson</fullName>
+    <email>emma.peterson@example.com</email>
+    <contactNumber>+1444433333</contactNumber>
+    <gender>female</gender>
+    <startDate>2025-02-15</startDate>
+    <endDate>2025-08-15</endDate>
+    <packagePrice>2700</packagePrice>
+    <plan>basic</plan>
+    <timing>Morning (6AM-10AM)</timing>
+    <status>active</status>
+    <hasPersonalTraining>false</hasPersonalTraining>
+    <dateOfBirth>1998-08-03</dateOfBirth>
+    <address>1000 Zumba Zone</address>
+    <emergencyContactName>Benjamin Peterson</emergencyContactName>
+    <emergencyContactNumber>+1444433334</emergencyContactNumber>
+    <emergencyContactRelation>parent</emergencyContactRelation>
+  </client>
+  <client>
+    <fullName>Jackson Barnes</fullName>
+    <email>jackson.barnes@example.com</email>
+    <contactNumber>+1333322222</contactNumber>
+    <gender>male</gender>
+    <startDate>2025-01-28</startDate>
+    <endDate>2026-01-28</endDate>
+    <packagePrice>6000</packagePrice>
+    <plan>premium</plan>
+    <timing>Evening (5PM-9PM)</timing>
+    <status>active</status>
+    <hasPersonalTraining>true</hasPersonalTraining>
+    <personalTrainingDurationWeeks>16</personalTrainingDurationWeeks>
+    <personalTrainingPrice>4000</personalTrainingPrice>
+    <dateOfBirth>1987-10-12</dateOfBirth>
+    <address>1100 Boxing Boulevard</address>
+    <emergencyContactName>Amelia Barnes</emergencyContactName>
+    <emergencyContactNumber>+1333322223</emergencyContactNumber>
+    <emergencyContactRelation>spouse</emergencyContactRelation>
+  </client>
+  <client>
+    <fullName>Ava Russell</fullName>
+    <email>ava.russell@example.com</email>
+    <contactNumber>+1222211111</contactNumber>
+    <gender>female</gender>
+    <startDate>2025-02-18</startDate>
+    <endDate>2026-02-18</endDate>
+    <packagePrice>5300</packagePrice>
+    <plan>premium</plan>
+    <timing>Afternoon (12PM-4PM)</timing>
+    <status>active</status>
+    <hasPersonalTraining>true</hasPersonalTraining>
+    <personalTrainingDurationWeeks>12</personalTrainingDurationWeeks>
+    <personalTrainingPrice>3000</personalTrainingPrice>
+    <dateOfBirth>1993-01-27</dateOfBirth>
+    <address>1200 Martial Arts Mile</address>
+    <emergencyContactName>Elijah Russell</emergencyContactName>
+    <emergencyContactNumber>+1222211112</emergencyContactNumber>
+    <emergencyContactRelation>spouse</emergencyContactRelation>
+  </client>
+  <client>
+    <fullName>Lucas Griffin</fullName>
+    <email>lucas.griffin@example.com</email>
+    <contactNumber>+1111100000</contactNumber>
+    <gender>male</gender>
+    <startDate>2025-01-30</startDate>
+    <endDate>2025-07-30</endDate>
+    <packagePrice>3000</packagePrice>
+    <plan>basic</plan>
+    <timing>Morning (6AM-10AM)</timing>
+    <status>active</status>
+    <hasPersonalTraining>false</hasPersonalTraining>
+    <dateOfBirth>1996-06-19</dateOfBirth>
+    <address>1300 Swimming Street</address>
+    <emergencyContactName>Evelyn Griffin</emergencyContactName>
+    <emergencyContactNumber>+1111100001</emergencyContactNumber>
+    <emergencyContactRelation>sibling</emergencyContactRelation>
+  </client>
+  <client>
+    <fullName>Charlotte Hayes</fullName>
+    <email>charlotte.hayes@example.com</email>
+    <contactNumber>+1999988888</contactNumber>
+    <gender>female</gender>
+    <startDate>2025-02-20</startDate>
+    <endDate>2026-02-20</endDate>
+    <packagePrice>5700</packagePrice>
+    <plan>premium</plan>
+    <timing>Evening (5PM-9PM)</timing>
+    <status>active</status>
+    <hasPersonalTraining>true</hasPersonalTraining>
+    <personalTrainingDurationWeeks>14</personalTrainingDurationWeeks>
+    <personalTrainingPrice>3500</personalTrainingPrice>
+    <dateOfBirth>1989-09-08</dateOfBirth>
+    <address>1400 Running Road</address>
+    <emergencyContactName>Henry Hayes</emergencyContactName>
+    <emergencyContactNumber>+1999988889</emergencyContactNumber>
+    <emergencyContactRelation>spouse</emergencyContactRelation>
+  </client>
+  <client>
+    <fullName>Aiden Murphy</fullName>
+    <email>aiden.murphy@example.com</email>
+    <contactNumber>+1888877777</contactNumber>
+    <gender>male</gender>
+    <startDate>2025-02-22</startDate>
+    <endDate>2026-02-22</endDate>
+    <packagePrice>6100</packagePrice>
+    <plan>premium</plan>
+    <timing>Afternoon (12PM-4PM)</timing>
+    <status>active</status>
+    <hasPersonalTraining>true</hasPersonalTraining>
+    <personalTrainingDurationWeeks>16</personalTrainingDurationWeeks>
+    <personalTrainingPrice>4000</personalTrainingPrice>
+    <dateOfBirth>1985-11-30</dateOfBirth>
+    <address>1500 Cycling Circle</address>
+    <emergencyContactName>Abigail Murphy</emergencyContactName>
+    <emergencyContactNumber>+1888877778</emergencyContactNumber>
+    <emergencyContactRelation>spouse</emergencyContactRelation>
+  </client>
+</clients>
+

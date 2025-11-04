@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<enquiries>
+  <enquiry>
+    <name>Alex Turner</name>
+    <phone>+14155551111</phone>
+    <email>alex.turner@gmail.com</email>
+    <source>website</source>
+    <status>new</status>
+    <comments>Interested in Olympic weightlifting program</comments>
+    <interests>Olympic lifting and strength sports</interests>
+    <budget>1000-1500</budget>
+    <followUpDate>2025-12-01</followUpDate>
+  </enquiry>
+  <enquiry>
+    <name>Olivia Parker</name>
+    <phone>+14155552222</phone>
+    <email>olivia.parker@yahoo.com</email>
+    <source>social-media</source>
+    <status>contacted</status>
+    <comments>Wants to join women-only fitness classes</comments>
+    <interests>Women's fitness and empowerment</interests>
+    <budget>500-700</budget>
+    <followUpDate>2025-12-03</followUpDate>
+  </enquiry>
+  <enquiry>
+    <name>Ethan Cooper</name>
+    <phone>+14155553333</phone>
+    <email>ethan.cooper@outlook.com</email>
+    <source>referral</source>
+    <status>interested</status>
+    <comments>Friend is a personal trainer here</comments>
+    <interests>Athletic performance training</interests>
+    <budget>1200-1800</budget>
+    <followUpDate>2025-12-05</followUpDate>
+  </enquiry>
+  <enquiry>
+    <name>Sophia Bennett</name>
+    <phone>+14155554444</phone>
+    <email>sophia.bennett@gmail.com</email>
+    <source>walk-in</source>
+    <status>new</status>
+    <comments>Looking for flexible membership options</comments>
+    <interests>Flexible schedule fitness</interests>
+    <budget>400-600</budget>
+    <followUpDate>2025-12-02</followUpDate>
+  </enquiry>
+  <enquiry>
+    <name>Mason Rivera</name>
+    <phone>+14155555555</phone>
+    <email>mason.rivera@hotmail.com</email>
+    <source>advertisement</source>
+    <status>contacted</status>
+    <comments>Saw TV commercial during sports game</comments>
+    <interests>Sports conditioning</interests>
+    <budget>800-1100</budget>
+    <followUpDate>2025-12-04</followUpDate>
+  </enquiry>
+  <enquiry>
+    <name>Isabella Foster</name>
+    <phone>+14155556666</phone>
+    <email>isabella.foster@gmail.com</email>
+    <source>website</source>
+    <status>interested</status>
+    <comments>Wants virtual training options</comments>
+    <interests>Online fitness coaching</interests>
+    <budget>300-500</budget>
+    <followUpDate>2025-12-06</followUpDate>
+  </enquiry>
+  <enquiry>
+    <name>Logan Hughes</name>
+    <phone>+14155557777</phone>
+    <email>logan.hughes@yahoo.com</email>
+    <source>referral</source>
+    <status>new</status>
+    <comments>Colleague recommended for stress relief</comments>
+    <interests>Stress management and wellness</interests>
+    <budget>500-750</budget>
+    <followUpDate>2025-12-08</followUpDate>
+  </enquiry>
+  <enquiry>
+    <name>Mia Coleman</name>
+    <phone>+14155558888</phone>
+    <email>mia.coleman@gmail.com</email>
+    <source>social-media</source>
+    <status>contacted</status>
+    <comments>Active on our YouTube channel</comments>
+    <interests>HIIT and circuit training</interests>
+    <budget>600-900</budget>
+    <followUpDate>2025-12-07</followUpDate>
+  </enquiry>
+  <enquiry>
+    <name>Noah Peterson</name>
+    <phone>+14155559999</phone>
+    <email>noah.peterson@outlook.com</email>
+    <source>walk-in</source>
+    <status>interested</status>
+    <comments>Wants to prepare for marathon</comments>
+    <interests>Running and endurance training</interests>
+    <budget>700-1000</budget>
+    <followUpDate>2025-12-09</followUpDate>
+  </enquiry>
+  <enquiry>
+    <name>Ava Simmons</name>
+    <phone>+14155550000</phone>
+    <email>ava.simmons@gmail.com</email>
+    <source>website</source>
+    <status>new</status>
+    <comments>Looking for post-injury rehabilitation</comments>
+    <interests>Injury recovery and prevention</interests>
+    <budget>900-1300</budget>
+    <followUpDate>2025-12-10</followUpDate>
+  </enquiry>
+  <enquiry>
+    <name>Liam Barnes</name>
+    <phone>+14155551122</phone>
+    <email>liam.barnes@yahoo.com</email>
+    <source>advertisement</source>
+    <status>contacted</status>
+    <comments>Interested in senior citizen discount</comments>
+    <interests>Senior fitness programs</interests>
+    <budget>300-450</budget>
+    <followUpDate>2025-12-11</followUpDate>
+  </enquiry>
+  <enquiry>
+    <name>Emma Russell</name>
+    <phone>+14155552233</phone>
+    <email>emma.russell@gmail.com</email>
+    <source>referral</source>
+    <status>interested</status>
+    <comments>Sister lost 30 pounds here</comments>
+    <interests>Weight loss and nutrition</interests>
+    <budget>800-1200</budget>
+    <followUpDate>2025-12-12</followUpDate>
+  </enquiry>
+  <enquiry>
+    <name>William Griffin</name>
+    <phone>+14155553344</phone>
+    <email>william.griffin@hotmail.com</email>
+    <source>social-media</source>
+    <status>new</status>
+    <comments>Follows us on Twitter</comments>
+    <interests>Functional movement training</interests>
+    <budget>550-800</budget>
+    <followUpDate>2025-12-13</followUpDate>
+  </enquiry>
+  <enquiry>
+    <name>Charlotte Hayes</name>
+    <phone>+14155554455</phone>
+    <email>charlotte.hayes@gmail.com</email>
+    <source>walk-in</source>
+    <status>contacted</status>
+    <comments>Wants family package for 4 people</comments>
+    <interests>Family fitness activities</interests>
+    <budget>1500-2000</budget>
+    <followUpDate>2025-12-14</followUpDate>
+  </enquiry>
+  <enquiry>
+    <name>James Powell</name>
+    <phone>+14155555566</phone>
+    <email>james.powell@outlook.com</email>
+    <source>website</source>
+    <status>interested</status>
+    <comments>Corporate wellness program inquiry</comments>
+    <interests>Corporate fitness solutions</interests>
+    <budget>2000-3000</budget>
+    <followUpDate>2025-12-15</followUpDate>
+  </enquiry>
+  <enquiry>
+    <name>Amelia Jenkins</name>
+    <phone>+14155556677</phone>
+    <email>amelia.jenkins@gmail.com</email>
+    <source>referral</source>
+    <status>new</status>
+    <comments>Personal trainer recommended our facility</comments>
+    <interests>Competition prep and bodybuilding</interests>
+    <budget>1500-2000</budget>
+    <followUpDate>2025-12-16</followUpDate>
+  </enquiry>
+  <enquiry>
+    <name>Benjamin Perry</name>
+    <phone>+14155557788</phone>
+    <email>benjamin.perry@yahoo.com</email>
+    <source>advertisement</source>
+    <status>contacted</status>
+    <comments>Podcast sponsorship brought him in</comments>
+    <interests>Mindfulness and meditation</interests>
+    <budget>400-600</budget>
+    <followUpDate>2025-12-17</followUpDate>
+  </enquiry>
+  <enquiry>
+    <name>Harper Long</name>
+    <phone>+14155558899</phone>
+    <email>harper.long@gmail.com</email>
+    <source>social-media</source>
+    <status>interested</status>
+    <comments>Pinterest board inspired her</comments>
+    <interests>Barre and ballet fitness</interests>
+    <budget>500-700</budget>
+    <followUpDate>2025-12-18</followUpDate>
+  </enquiry>
+  <enquiry>
+    <name>Lucas Richardson</name>
+    <phone>+14155559900</phone>
+    <email>lucas.richardson@hotmail.com</email>
+    <source>walk-in</source>
+    <status>new</status>
+    <comments>Wants to train for Spartan Race</comments>
+    <interests>Obstacle course training</interests>
+    <budget>900-1200</budget>
+    <followUpDate>2025-12-19</followUpDate>
+  </enquiry>
+  <enquiry>
+    <name>Evelyn Cox</name>
+    <phone>+14155550011</phone>
+    <email>evelyn.cox@gmail.com</email>
+    <source>website</source>
+    <status>contacted</status>
+    <comments>Interested in nutrition coaching package</comments>
+    <interests>Nutrition and meal planning</interests>
+    <budget>600-900</budget>
+    <followUpDate>2025-12-20</followUpDate>
+  </enquiry>
+</enquiries>
+

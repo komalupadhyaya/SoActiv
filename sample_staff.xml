@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<staff>
+  <staff>
+    <fullName>Alexander Fitness</fullName>
+    <position>Fitness Director</position>
+    <email>alex.fitness@example.com</email>
+    <contactNumber>+1555111222</contactNumber>
+    <joiningDate>2023-05-01</joiningDate>
+    <salary>60000</salary>
+    <status>active</status>
+    <notificationSMS>true</notificationSMS>
+    <notificationEmail>true</notificationEmail>
+    <notificationPush>true</notificationPush>
+    <notificationWhatsApp>true</notificationWhatsApp>
+  </staff>
+  <staff>
+    <fullName>Olivia Performance</fullName>
+    <position>Performance Coach</position>
+    <email>olivia.performance@example.com</email>
+    <contactNumber>+1444222333</contactNumber>
+    <joiningDate>2023-07-15</joiningDate>
+    <salary>47000</salary>
+    <status>active</status>
+    <notificationSMS>true</notificationSMS>
+    <notificationEmail>true</notificationEmail>
+    <notificationPush>true</notificationPush>
+    <notificationWhatsApp>true</notificationWhatsApp>
+  </staff>
+  <staff>
+    <fullName>Ethan Mobility</fullName>
+    <position>Mobility Specialist</position>
+    <email>ethan.mobility@example.com</email>
+    <contactNumber>+1333444555</contactNumber>
+    <joiningDate>2024-01-10</joiningDate>
+    <salary>44000</salary>
+    <status>active</status>
+    <notificationSMS>true</notificationSMS>
+    <notificationEmail>true</notificationEmail>
+    <notificationPush>false</notificationPush>
+    <notificationWhatsApp>true</notificationWhatsApp>
+  </staff>
+  <staff>
+    <fullName>Sophia Kettlebell</fullName>
+    <position>Kettlebell Instructor</position>
+    <email>sophia.kettlebell@example.com</email>
+    <contactNumber>+1222555666</contactNumber>
+    <joiningDate>2023-09-20</joiningDate>
+    <salary>42000</salary>
+    <status>active</status>
+    <notificationSMS>true</notificationSMS>
+    <notificationEmail>true</notificationEmail>
+    <notificationPush>true</notificationPush>
+    <notificationWhatsApp>false</notificationWhatsApp>
+  </staff>
+  <staff>
+    <fullName>Noah Powerlifting</fullName>
+    <position>Powerlifting Coach</position>
+    <email>noah.powerlifting@example.com</email>
+    <contactNumber>+1111666777</contactNumber>
+    <joiningDate>2023-06-05</joiningDate>
+    <salary>49000</salary>
+    <status>active</status>
+    <notificationSMS>true</notificationSMS>
+    <notificationEmail>true</notificationEmail>
+    <notificationPush>true</notificationPush>
+    <notificationWhatsApp>true</notificationWhatsApp>
+  </staff>
+  <staff>
+    <fullName>Isabella Mindfulness</fullName>
+    <position>Mindfulness Coach</position>
+    <email>isabella.mindfulness@example.com</email>
+    <contactNumber>+1999777888</contactNumber>
+    <joiningDate>2024-02-15</joiningDate>
+    <salary>41000</salary>
+    <status>active</status>
+    <notificationSMS>true</notificationSMS>
+    <notificationEmail>true</notificationEmail>
+    <notificationPush>true</notificationPush>
+    <notificationWhatsApp>true</notificationWhatsApp>
+  </staff>
+  <staff>
+    <fullName>Mason Calisthenics</fullName>
+    <position>Calisthenics Trainer</position>
+    <email>mason.calisthenics@example.com</email>
+    <contactNumber>+1888888999</contactNumber>
+    <joiningDate>2023-10-10</joiningDate>
+    <salary>43000</salary>
+    <status>active</status>
+    <notificationSMS>true</notificationSMS>
+    <notificationEmail>true</notificationEmail>
+    <notificationPush>false</notificationPush>
+    <notificationWhatsApp>true</notificationWhatsApp>
+  </staff>
+  <staff>
+    <fullName>Mia Rehabilitation</fullName>
+    <position>Rehabilitation Specialist</position>
+    <email>mia.rehabilitation@example.com</email>
+    <contactNumber>+1777999000</contactNumber>
+    <joiningDate>2023-08-20</joiningDate>
+    <salary>51000</salary>
+    <status>active</status>
+    <notificationSMS>true</notificationSMS>
+    <notificationEmail>true</notificationEmail>
+    <notificationPush>true</notificationPush>
+    <notificationWhatsApp>true</notificationWhatsApp>
+  </staff>
+  <staff>
+    <fullName>Logan Olympic</fullName>
+    <position>Olympic Lifting Coach</position>
+    <email>logan.olympic@example.com</email>
+    <contactNumber>+1666000111</contactNumber>
+    <joiningDate>2024-03-05</joiningDate>
+    <salary>48000</salary>
+    <status>active</status>
+    <notificationSMS>true</notificationSMS>
+    <notificationEmail>true</notificationEmail>
+    <notificationPush>true</notificationPush>
+    <notificationWhatsApp>true</notificationWhatsApp>
+  </staff>
+  <staff>
+    <fullName>Emma Prenatal</fullName>
+    <position>Prenatal Fitness Instructor</position>
+    <email>emma.prenatal@example.com</email>
+    <contactNumber>+1555111000</contactNumber>
+    <joiningDate>2023-11-25</joiningDate>
+    <salary>40000</salary>
+    <status>active</status>
+    <notificationSMS>true</notificationSMS>
+    <notificationEmail>true</notificationEmail>
+    <notificationPush>true</notificationPush>
+    <notificationWhatsApp>false</notificationWhatsApp>
+  </staff>
+  <staff>
+    <fullName>Jackson Senior</fullName>
+    <position>Senior Fitness Specialist</position>
+    <email>jackson.senior@example.com</email>
+    <contactNumber>+1444222111</contactNumber>
+    <joiningDate>2024-01-18</joiningDate>
+    <salary>42000</salary>
+    <status>active</status>
+    <notificationSMS>true</notificationSMS>
+    <notificationEmail>true</notificationEmail>
+    <notificationPush>false</notificationPush>
+    <notificationWhatsApp>true</notificationWhatsApp>
+  </staff>
+  <staff>
+    <fullName>Ava Youth</fullName>
+    <position>Youth Fitness Coach</position>
+    <email>ava.youth@example.com</email>
+    <contactNumber>+1333333000</contactNumber>
+    <joiningDate>2023-12-10</joiningDate>
+    <salary>39000</salary>
+    <status>active</status>
+    <notificationSMS>true</notificationSMS>
+    <notificationEmail>true</notificationEmail>
+    <notificationPush>true</notificationPush>
+    <notificationWhatsApp>true</notificationWhatsApp>
+  </staff>
+  <staff>
+    <fullName>Lucas Endurance</fullName>
+    <position>Endurance Coach</position>
+    <email>lucas.endurance@example.com</email>
+    <contactNumber>+1222444000</contactNumber>
+    <joiningDate>2024-02-22</joiningDate>
+    <salary>45000</salary>
+    <status>active</status>
+    <notificationSMS>true</notificationSMS>
+    <notificationEmail>true</notificationEmail>
+    <notificationPush>true</notificationPush>
+    <notificationWhatsApp>true</notificationWhatsApp>
+  </staff>
+  <staff>
+    <fullName>Charlotte Flexibility</fullName>
+    <position>Flexibility Trainer</position>
+    <email>charlotte.flexibility@example.com</email>
+    <contactNumber>+1111555000</contactNumber>
+    <joiningDate>2023-10-30</joiningDate>
+    <salary>40000</salary>
+    <status>active</status>
+    <notificationSMS>true</notificationSMS>
+    <notificationEmail>true</notificationEmail>
+    <notificationPush>true</notificationPush>
+    <notificationWhatsApp>false</notificationWhatsApp>
+  </staff>
+  <staff>
+    <fullName>Aiden Sports</fullName>
+    <position>Sports Performance Coach</position>
+    <email>aiden.sports@example.com</email>
+    <contactNumber>+1999666000</contactNumber>
+    <joiningDate>2024-04-12</joiningDate>
+    <salary>50000</salary>
+    <status>active</status>
+    <notificationSMS>true</notificationSMS>
+    <notificationEmail>true</notificationEmail>
+    <notificationPush>true</notificationPush>
+    <notificationWhatsApp>true</notificationWhatsApp>
+  </staff>
+</staff>
+

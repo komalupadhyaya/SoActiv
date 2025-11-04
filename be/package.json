@@ -1,0 +1,49 @@
+{
+  "name": "be",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "version": "1.0.0",
+  "main": "index.ts",
+  "scripts": {
+    "dev": "nodemon --exec bun run index.ts",
+    "start": "node index.ts",
+    "build": "bun build index.ts --target bun --outdir dist"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/cookie-parser": "^1.4.8",
+    "@types/cors": "^2.8.17",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/moment-timezone": "^0.5.13",
+    "@types/multer": "^1.4.12",
+    "@types/papaparse": "^5.3.16",
+    "nodemon": "^3.1.9"
+  },
+  "peerDependencies": {
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@types/express": "^5.0.1",
+    "axios": "^1.10.0",
+    "bcryptjs": "^3.0.2",
+    "bun": "^1.2.18",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "csv-parser": "^3.2.0",
+    "dayjs": "^1.11.13",
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "express-rate-limit": "^7.5.0",
+    "express-validator": "^7.2.1",
+    "firebase-admin": "^13.4.0",
+    "jsonwebtoken": "^9.0.2",
+    "moment-timezone": "^0.6.0",
+    "mongoose": "^8.13.1",
+    "multer": "^1.4.5-lts.2",
+    "papaparse": "^5.5.3",
+    "scikit-learn": "^0.1.0",
+    "socket.io": "^4.8.1",
+    "timeseries-analysis": "^1.0.12"
+  }
+}
