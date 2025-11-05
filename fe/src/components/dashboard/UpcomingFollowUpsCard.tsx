@@ -87,7 +87,7 @@ export const UpcomingFollowUpsCard: React.FC = () => {
         {/* View More Button */}
         <button
           onClick={() => navigate('/admin/follow-ups')}
-          className="mt-4 w-full py-2 px-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
+          className="mt-4 w-full py-2 px-4 bg-orange-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
         >
           View All Follow-Ups
         </button>

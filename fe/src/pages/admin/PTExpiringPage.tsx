@@ -228,7 +228,7 @@ export const PTExpiringPage: React.FC = () => {
                             },
                           });
                         }}
-                        className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
+                        className="px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
                       >
                         Add Follow-Up
                       </button>

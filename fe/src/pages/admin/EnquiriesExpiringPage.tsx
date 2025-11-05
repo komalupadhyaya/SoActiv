@@ -224,7 +224,7 @@ export const EnquiriesExpiringPage: React.FC = () => {
                     <div className="ml-4 flex flex-col gap-2">
                       <button
                         onClick={() => handleExtendExpiry(enquiry._id, 7)}
-                        className="flex items-center gap-2 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
+                        className="flex items-center gap-2 px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
                       >
                         <Calendar size={16} />
                         Extend +7 days

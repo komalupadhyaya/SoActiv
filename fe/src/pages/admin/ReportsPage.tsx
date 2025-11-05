@@ -3,8 +3,8 @@ import { Calendar, TrendingUp, Users, Activity } from 'lucide-react';
 import { Card, CardHeader, CardContent } from '../../components/ui/Card';
 import { Select } from '../../components/ui/Select';
 import { StatsCard } from '../../components/dashboard/StatsCard';
-import { useClient, Client } from '../../hooks/useClient';
-import { useStaff, Staff } from '../../hooks/useStaff';
+import { useClient } from '../../hooks/useClient';
+import { useStaff } from '../../hooks/useStaff';
 
 interface TrainerStats {
   [trainerId: string]: {
@@ -101,12 +101,14 @@ export const ReportsPage: React.FC = () => {
     const ptClientsPerTrainer: TrainerStats = {};
     filteredClients.forEach((c) => {
       if (c.hasPersonalTraining && c.trainer) {
-        const id = c.trainer._id;
-        const name = c.trainer.fullName;
-        if (!ptClientsPerTrainer[id]) {
-          ptClientsPerTrainer[id] = { name, ptClientCount: 0 };
+        const trainerId = c.trainer;
+        const trainerStaff = staff.find((s) => s._id === trainerId);
+        if (trainerStaff) {
+          if (!ptClientsPerTrainer[trainerId]) {
+            ptClientsPerTrainer[trainerId] = { name: trainerStaff.fullName, ptClientCount: 0 };
+          }
+          ptClientsPerTrainer[trainerId].ptClientCount += 1;
         }
-        ptClientsPerTrainer[id].ptClientCount += 1;
       }
     });
 
@@ -596,7 +598,7 @@ export const ReportsPage: React.FC = () => {
                 <div className="flex items-center space-x-2">
                   <div className="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                     <div
-                      className="bg-blue-500 h-2 rounded-full"
+                      className="bg-orange-500 h-2 rounded-full"
                       style={{ width: `${reportData.planDistribution.basicPercent}%` }}
                     ></div>
                   </div>

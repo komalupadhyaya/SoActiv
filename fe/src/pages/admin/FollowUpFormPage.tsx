@@ -6,7 +6,7 @@ import { ArrowLeft, Save } from 'lucide-react';
 
 export const FollowUpFormPage: React.FC = () => {
   const { createFollowUp, loading } = useFollowUp();
-  const { staff, fetchStaff } = useStaff();
+  const { staff, fetchAllStaff } = useStaff();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -30,8 +30,8 @@ export const FollowUpFormPage: React.FC = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    fetchStaff();
-  }, [fetchStaff]);
+    fetchAllStaff();
+  }, [fetchAllStaff]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -230,7 +230,7 @@ export const FollowUpFormPage: React.FC = () => {
           <button
             type="submit"
             disabled={loading}
-            className="flex items-center gap-2 px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save size={20} />
             {loading ? 'Creating...' : 'Create Follow-Up'}

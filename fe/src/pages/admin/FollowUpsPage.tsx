@@ -73,7 +73,7 @@ export const FollowUpsPage: React.FC = () => {
         </div>
         <button
           onClick={() => navigate('/admin/follow-ups/new')}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
         >
           <Plus size={20} />
           New Follow-Up
@@ -126,7 +126,7 @@ export const FollowUpsPage: React.FC = () => {
               <p className="text-gray-600 mt-4">No follow-ups found</p>
               <button
                 onClick={() => navigate('/admin/follow-ups/new')}
-                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                className="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
               >
                 Create Your First Follow-Up
               </button>

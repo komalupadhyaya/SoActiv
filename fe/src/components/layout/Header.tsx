@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Plus,
   Calendar,
+  LogOut,
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -316,6 +317,7 @@ export const Header: React.FC<HeaderProps> = ({
                   }}
                   className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
+                  <User size={16} className="inline-block mr-2" />
                   My Profile
                 </button>
                 <hr className="my-1 border-gray-200 dark:border-gray-700" />
@@ -326,6 +328,7 @@ export const Header: React.FC<HeaderProps> = ({
                   }}
                   className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
+                  <LogOut size={16} className="inline-block mr-2" />
                   Logout
                 </button>
               </div>
