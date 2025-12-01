@@ -11,7 +11,9 @@ import {
   Plus,
   Calendar,
   LogOut,
+  X,
 } from 'lucide-react';
+
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -24,6 +26,7 @@ interface Notification {
 
 interface HeaderProps {
   onMobileMenuToggle: () => void;
+  isMobileMenuOpen: boolean;
   activities: Notification[];
   markAsSeen: () => void;
   dateFilter: 'monthly' | 'yearly';
@@ -32,10 +35,9 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   onMobileMenuToggle,
+  isMobileMenuOpen,
   activities,
   markAsSeen,
-  // dateFilter,
-  // setDateFilter,
 }) => {
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
@@ -53,7 +55,6 @@ export const Header: React.FC<HeaderProps> = ({
   const hasNewNotifications =
     activities.length > 0 && activities.some((a) => !seenNotificationIds.has(a.id));
 
-  // Load seen IDs from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem('notifications.seenIds');
     if (saved) {
@@ -68,7 +69,6 @@ export const Header: React.FC<HeaderProps> = ({
     }
   }, []);
 
-  // Save to localStorage when seen list changes
   useEffect(() => {
     localStorage.setItem('notifications.seenIds', JSON.stringify(Array.from(seenNotificationIds)));
   }, [seenNotificationIds]);
@@ -92,7 +92,6 @@ export const Header: React.FC<HeaderProps> = ({
     setShowProfileMenu(false);
   };
 
-  // Reset pagination when opening
   useEffect(() => {
     if (isNotificationOpen) {
       setCurrentPage(0);
@@ -115,91 +114,97 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm">
-      <div className="flex items-center justify-end px-4 py-[0.87rem] lg:px-6">
-        {/* Mobile Menu Toggle */}
-        <button
-          onClick={onMobileMenuToggle}
-          className="lg:hidden p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-        >
-          <Menu size={20} />
-        </button>
+      <div className="flex items-center justify-between py-[0.87rem] mx-auto max-w-screen-xl w-full">
+        {/* Left side: Mobile Menu Toggle and Logo */}
+        <div className="flex items-center space-x-2 xl:space-x-4">
+          {/* Mobile Menu Toggle (only on mobile) */}
+          <button
+            onClick={onMobileMenuToggle}
+            className="xl:hidden p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+            aria-label="Toggle mobile menu"
+          >
+            {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
 
-        {/* Logo (mobile only) */}
-        <div className="lg:hidden flex items-center space-x-2">
-          <div className="flex items-center justify-center w-8 h-8 bg-orange-500 rounded-md">
-            <span className="text-white text-sm font-bold">S</span>
+          {/* Logo and company name (shown only on mobile/tablet) */}
+          <div className="flex items-center space-x-2 xl:hidden">
+            <div className="flex items-center justify-center w-8 h-8 bg-orange-500 rounded-md">
+              <span className="text-white text-sm font-bold">S</span>
+            </div>
+            <span className="text-lg font-bold text-gray-900 dark:text-white">SoActiv</span>
           </div>
-          <span className="text-lg font-bold text-gray-900 dark:text-white">SoActiv</span>
         </div>
 
         {/* Right Side */}
         <div className="flex items-center space-x-3">
-          {/* ✅ Create Button */}
-          <div className="relative">
-            <button
-              onClick={() => {
-                setShowCreateMenu((prev) => !prev);
-                setShowProfileMenu(false);
-                setIsNotificationOpen(false);
-              }}
-              className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              aria-label="Create new"
-            >
-              <Plus size={20} />
-            </button>
+          {/* Other action buttons only visible on large screens */}
+          <div className="hidden xl:flex items-center space-x-3">
+            {/* Create Button */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setShowCreateMenu((prev) => !prev);
+                  setShowProfileMenu(false);
+                  setIsNotificationOpen(false);
+                }}
+                className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                aria-label="Create new"
+              >
+                <Plus size={20} />
+              </button>
+              {showCreateMenu && (
+                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
+                  <button
+                    onClick={() => {
+                      navigate('/admin/enquiry-form');
+                      setShowCreateMenu(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  >
+                    Add Enquiry
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigate('/admin/staff-form');
+                      setShowCreateMenu(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  >
+                    Add Staff
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigate('/admin/client-form');
+                      setShowCreateMenu(false);
+                    }}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  >
+                    Add Client
+                  </button>
+                </div>
+              )}
+            </div>
+
             <button
               onClick={() => {
                 navigate('/admin/calendar');
               }}
               className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              aria-label="Create new"
+              aria-label="View Calendar"
             >
               <Calendar size={20} />
             </button>
 
-            {showCreateMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
-                <button
-                  onClick={() => {
-                    navigate('/admin/enquiry-form');
-                    setShowCreateMenu(false);
-                  }}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                >
-                  Add Enquiry
-                </button>
-                <button
-                  onClick={() => {
-                    navigate('/admin/staff-form');
-                    setShowCreateMenu(false);
-                  }}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                >
-                  Add Staff
-                </button>
-                <button
-                  onClick={() => {
-                    navigate('/admin/client-form');
-                    setShowCreateMenu(false);
-                  }}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                >
-                  Add Client
-                </button>
-              </div>
-            )}
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              aria-label="Toggle theme"
+            >
+              {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+            </button>
           </div>
 
-          {/* Theme Toggle */}
-          <button
-            onClick={toggleTheme}
-            className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            aria-label="Toggle theme"
-          >
-            {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
-          </button>
-
-          {/* Notifications */}
+          {/* Notification Bell - always visible */}
           <div className="relative">
             <button
               onClick={toggleNotifications}
@@ -211,7 +216,6 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
               )}
             </button>
-
             {isNotificationOpen && (
               <div
                 className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-96 overflow-hidden flex flex-col"
@@ -234,8 +238,8 @@ export const Header: React.FC<HeaderProps> = ({
                       <div
                         key={activity.id}
                         className={`p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${seenNotificationIds.has(activity.id)
-                            ? 'bg-gray-800 dark:bg-gray-750'
-                            : 'ring-1 ring-orange-200 dark:ring-orange-800 bg-orange-50 dark:bg-orange-900/20'
+                          ? 'bg-gray-800 dark:bg-gray-750'
+                          : 'ring-1 ring-orange-200 dark:ring-orange-800 bg-orange-50 dark:bg-orange-900/20'
                           }`}
                       >
                         <p className="text-sm text-gray-800 dark:text-gray-200">{activity.message}</p>
@@ -258,8 +262,8 @@ export const Header: React.FC<HeaderProps> = ({
                       onClick={goToPreviousPage}
                       disabled={currentPage === 0}
                       className={`p-1 rounded ${currentPage === 0
-                          ? 'text-gray-400 cursor-not-allowed'
-                          : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        ? 'text-gray-400 cursor-not-allowed'
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                         }`}
                     >
                       <ChevronLeft size={16} />
@@ -271,8 +275,8 @@ export const Header: React.FC<HeaderProps> = ({
                       onClick={goToNextPage}
                       disabled={currentPage === totalPages - 1}
                       className={`p-1 rounded ${currentPage === totalPages - 1
-                          ? 'text-gray-400 cursor-not-allowed'
-                          : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        ? 'text-gray-400 cursor-not-allowed'
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                         }`}
                     >
                       <ChevronRight size={16} />
@@ -292,24 +296,91 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
 
-          {/* User Profile */}
+          {/* Profile Button - always visible */}
           <div className="relative">
             <button
-              onClick={() => {
-                setShowProfileMenu(!showProfileMenu);
-                setShowCreateMenu(false);
-                setIsNotificationOpen(false);
-              }}
+              onClick={() => setShowProfileMenu(!showProfileMenu)}
               className="flex items-center space-x-2 p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              aria-label="User menu"
             >
               <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
                 <User size={16} className="text-white" />
               </div>
-              <span className="hidden sm:block text-sm font-medium">{user?.name}</span>
+              {/* <span className="hidden sm:block text-sm font-medium">{user?.name}</span> */}
             </button>
 
             {showProfileMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
+              <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
+                {/* Mobile: Show all buttons inside profile dropdown except Notifications */}
+                <div className="xl:hidden px-4 py-2 space-y-2">
+                  <button
+                    onClick={() => {
+                      setShowCreateMenu(false);
+                      setShowProfileMenu(false);
+                      setIsNotificationOpen(false);
+                      navigate('/admin/enquiry-form');
+                    }}
+                    className="flex items-center w-full text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded px-2 py-1"
+                  >
+                    <Plus size={18} className="mr-2" />
+                    Add Enquiry
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowCreateMenu(false);
+                      setShowProfileMenu(false);
+                      setIsNotificationOpen(false);
+                      navigate('/admin/staff-form');
+                    }}
+                    className="flex items-center w-full text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded px-2 py-1"
+                  >
+                    <Plus size={18} className="mr-2" />
+                    Add Staff
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowCreateMenu(false);
+                      setShowProfileMenu(false);
+                      setIsNotificationOpen(false);
+                      navigate('/admin/client-form');
+                    }}
+                    className="flex items-center w-full text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded px-2 py-1"
+                  >
+                    <Plus size={18} className="mr-2" />
+                    Add Client
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowProfileMenu(false);
+                      navigate('/admin/calendar');
+                    }}
+                    className="flex items-center w-full text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded px-2 py-1"
+                  >
+                    <Calendar size={18} className="mr-2" />
+                    Calendar
+                  </button>
+                  <button
+                    onClick={() => {
+                      toggleTheme();
+                      setShowProfileMenu(false);
+                    }}
+                    className="flex items-center w-full text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded px-2 py-1"
+                  >
+                    {theme === 'light' ? (
+                      <>
+                        <Moon size={18} className="mr-2" />
+                        Light Mode
+                      </>
+                    ) : (
+                      <>
+                        <Sun size={18} className="mr-2" />
+                        Dark Mode
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Common Profile Links */}
                 <button
                   onClick={() => {
                     navigate('/admin/profile');
@@ -318,8 +389,11 @@ export const Header: React.FC<HeaderProps> = ({
                   className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
                   <User size={16} className="inline-block mr-2" />
-                  My Profile
+                  <span className="text-sm font-medium">
+                    {user?.name && user.name.trim().length > 0 ? user.name : 'My Profile'}
+                  </span>
                 </button>
+
                 <hr className="my-1 border-gray-200 dark:border-gray-700" />
                 <button
                   onClick={() => {
@@ -336,7 +410,6 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
       </div>
-
       {(isNotificationOpen || showProfileMenu || showCreateMenu) && (
         <div className="fixed inset-0 z-40" onClick={closeAllMenus} />
       )}

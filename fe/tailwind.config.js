@@ -7,6 +7,11 @@ export default {
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
       },
+    
+    boxShadow: {
+      'white': '1px 2px 3px 2px rgba(255,255,255,0.2), 0 1px 2px 0 rgba(255,255,255,0.14)', // example white shadow
+    },
+  
       colors: {
         orange: {
           50: '#fff7ed',

@@ -153,8 +153,10 @@ EnquirySchema.index({ assignedStaff: 1 });
 EnquirySchema.index({ createdAt: -1 });
 EnquirySchema.index({ isExpired: 1 });
 EnquirySchema.index({ expiryDate: 1 });
+EnquirySchema.index({ userId: 1, email: 1 }, { unique: true, sparse: true });
 
 // Export the Mongoose Model
 const Enquiry: IEnquiryModel = mongoose.model<IEnquiry, IEnquiryModel>('Enquiry', EnquirySchema);
+// models/enquiry.model.ts
 
 export default Enquiry;

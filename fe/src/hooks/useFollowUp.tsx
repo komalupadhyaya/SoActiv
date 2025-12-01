@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useToast } from '../contexts/ToastContext';
 import { FollowUp } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
@@ -8,6 +9,7 @@ export const useFollowUp = () => {
   const [upcomingFollowUps, setUpcomingFollowUps] = useState<FollowUp[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { addToast } = useToast();
 
   // Fetch all follow-ups
   const fetchFollowUps = useCallback(async (filters?: {
@@ -29,18 +31,22 @@ export const useFollowUp = () => {
         credentials: 'include',
       });
       const data = await res.json();
-      
+
       if (res.ok && data.success) {
         setFollowUps(data.data);
       } else {
-        setError(data.message || 'Failed to fetch follow-ups');
+        const msg = data.message || 'Failed to fetch follow-ups';
+        setError(msg);
+        addToast(msg, 'error');
       }
     } catch (err: any) {
-      setError(err.message || 'Network error');
+      const msg = err.message || 'Network error';
+      setError(msg);
+      addToast(msg, 'error');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [addToast]);
 
   // Fetch upcoming follow-ups
   const fetchUpcomingFollowUps = useCallback(async () => {
@@ -51,18 +57,22 @@ export const useFollowUp = () => {
         credentials: 'include',
       });
       const data = await res.json();
-      
+
       if (res.ok && data.success) {
         setUpcomingFollowUps(data.data.followUps);
       } else {
-        setError(data.message || 'Failed to fetch upcoming follow-ups');
+        const msg = data.message || 'Failed to fetch upcoming follow-ups';
+        setError(msg);
+        addToast(msg, 'error');
       }
     } catch (err: any) {
-      setError(err.message || 'Network error');
+      const msg = err.message || 'Network error';
+      setError(msg);
+      addToast(msg, 'error');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [addToast]);
 
   // Create a new follow-up
   const createFollowUp = async (followUpData: {
@@ -84,16 +94,21 @@ export const useFollowUp = () => {
         credentials: 'include',
       });
       const data = await res.json();
-      
+
       if (res.ok && data.success) {
         setFollowUps((prev) => [data.data, ...prev]);
+        addToast('Follow-up created successfully', 'success');
         return { success: true, data: data.data };
       } else {
-        setError(data.message || 'Failed to create follow-up');
+        const msg = data.message || 'Failed to create follow-up';
+        setError(msg);
+        addToast(msg, 'error');
         return { success: false, message: data.message };
       }
     } catch (err: any) {
-      setError(err.message || 'Network error');
+      const msg = err.message || 'Network error';
+      setError(msg);
+      addToast(msg, 'error');
       return { success: false, message: err.message };
     } finally {
       setLoading(false);
@@ -112,16 +127,21 @@ export const useFollowUp = () => {
         credentials: 'include',
       });
       const data = await res.json();
-      
+
       if (res.ok && data.success) {
         setFollowUps((prev) => prev.map((f) => (f._id === id ? data.data : f)));
+        addToast('Follow-up updated successfully', 'success');
         return { success: true, data: data.data };
       } else {
-        setError(data.message || 'Failed to update follow-up');
+        const msg = data.message || 'Failed to update follow-up';
+        setError(msg);
+        addToast(msg, 'error');
         return { success: false, message: data.message };
       }
     } catch (err: any) {
-      setError(err.message || 'Network error');
+      const msg = err.message || 'Network error';
+      setError(msg);
+      addToast(msg, 'error');
       return { success: false, message: err.message };
     } finally {
       setLoading(false);
@@ -138,17 +158,22 @@ export const useFollowUp = () => {
         credentials: 'include',
       });
       const data = await res.json();
-      
+
       if (res.ok && data.success) {
         setFollowUps((prev) => prev.map((f) => (f._id === id ? data.data : f)));
         setUpcomingFollowUps((prev) => prev.filter((f) => f._id !== id));
+        addToast('Follow-up completed successfully', 'success');
         return { success: true, data: data.data };
       } else {
-        setError(data.message || 'Failed to complete follow-up');
+        const msg = data.message || 'Failed to complete follow-up';
+        setError(msg);
+        addToast(msg, 'error');
         return { success: false, message: data.message };
       }
     } catch (err: any) {
-      setError(err.message || 'Network error');
+      const msg = err.message || 'Network error';
+      setError(msg);
+      addToast(msg, 'error');
       return { success: false, message: err.message };
     } finally {
       setLoading(false);
@@ -165,17 +190,22 @@ export const useFollowUp = () => {
         credentials: 'include',
       });
       const data = await res.json();
-      
+
       if (res.ok && data.success) {
         setFollowUps((prev) => prev.filter((f) => f._id !== id));
         setUpcomingFollowUps((prev) => prev.filter((f) => f._id !== id));
+        addToast('Follow-up deleted successfully', 'success');
         return { success: true };
       } else {
-        setError(data.message || 'Failed to delete follow-up');
+        const msg = data.message || 'Failed to delete follow-up';
+        setError(msg);
+        addToast(msg, 'error');
         return { success: false, message: data.message };
       }
     } catch (err: any) {
-      setError(err.message || 'Network error');
+      const msg = err.message || 'Network error';
+      setError(msg);
+      addToast(msg, 'error');
       return { success: false, message: err.message };
     } finally {
       setLoading(false);

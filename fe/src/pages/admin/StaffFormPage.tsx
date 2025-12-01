@@ -42,8 +42,6 @@ export const StaffFormPage: React.FC = () => {
     if (result.success) {
       // Navigate back to staff list
       navigate('/admin/staff');
-    } else {
-      alert(result.message || `Failed to ${isEditMode ? 'update' : 'create'} staff member`);
     }
 
     return result;

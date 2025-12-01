@@ -1,6 +1,8 @@
 // hooks/useStaff.ts
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useToast } from '../contexts/ToastContext';
+import axios from 'axios';
 
 // Define Staff Types
 export interface Staff {
@@ -19,7 +21,7 @@ export interface Staff {
     push: boolean;
     whatsapp: boolean;
   };
-  createdAt: string; // ← Must come from backend
+  createdAt: string;
   updatedAt: string;
 }
 
@@ -69,205 +71,213 @@ type FilterParams = {
   status?: 'active' | 'inactive';
 };
 
-// Get API URL (works everywhere)
+type CreateStaffData = Omit<Staff, '_id' | 'userId' | 'createdAt' | 'updatedAt'>;
+
 const API_URL = 'http://localhost:8000/api/v1';
 
-// Custom Hook
+const API = axios.create({
+  baseURL: `${API_URL}/staff`,
+  headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
+});
+
 export const useStaff = () => {
   const [staff, setStaff] = useState<Staff[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { addToast } = useToast();
 
-  // Utility to make API calls
-  const apiCall = useCallback(
-    async <T,>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> => {
-      setLoading(true);
-      setError(null);
+  // Fetch all staff
+  const fetchAllStaff = useCallback(async (filters?: FilterParams) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const queryParams = new URLSearchParams();
+      if (filters?.search) queryParams.append('search', filters.search);
+      if (filters?.role) queryParams.append('role', filters.role);
+      if (filters?.status) queryParams.append('status', filters.status);
 
-      const config: RequestInit = {
-        ...options,
-        credentials: 'include' as const,
-        headers: {
-          'Content-Type': 'application/json',
-          ...options.headers,
-        },
-      };
-
-      try {
-        const response = await fetch(`${API_URL}/staff${endpoint}`, config);
-
-        // Handle non-JSON response (e.g., empty body on delete)
-        if (!response.ok) {
-          const text = await response.text();
-          return {
-            success: false,
-            message: text || `Error: ${response.status}`,
-          } as ApiResponse<T>;
-        }
-
-        // Only parse JSON if content exists
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          return { success: true } as ApiResponse<T>;
-        }
-
-        const data: ApiResponse<T> = await response.json();
-        return data;
-      } catch (err: any) {
-        const message = err.message || 'Network error or failed to reach server';
-        setError(message);
-        return { success: false, message };
-      } finally {
-        setLoading(false);
+      const res = await API.get(`/?${queryParams.toString()}`);
+      if (res.data.success) {
+        setStaff(res.data.data || []);
+      } else {
+        const msg = res.data.message || 'Failed to fetch staff';
+        setError(msg);
+        addToast(msg, 'error');
       }
-    },
-    []
-  );
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to fetch staff';
+      setError(msg);
+      addToast(msg, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [addToast]);
 
-  // Get all staff (with filters)
-  const fetchAllStaff = useCallback(
-    async (filters?: FilterParams): Promise<ApiResponse<Staff[]>> => {
-      let queryString = '';
-      if (filters) {
-        const params = new URLSearchParams();
-        if (filters.search) params.append('search', filters.search);
-        if (filters.role) params.append('role', filters.role);
-        if (filters.status === 'active' || filters.status === 'inactive') {
-          params.append('status', filters.status);
-        }
-        queryString = `?${params.toString()}`;
+  // Fetch staff by ID
+  const fetchStaffById = async (id: string): Promise<Staff | null> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await API.get(`/${id}`);
+      if (res.data.success) {
+        return res.data.data;
+      } else {
+        const msg = res.data.message || 'Failed to fetch staff member';
+        setError(msg);
+        addToast(msg, 'error');
+        return null;
       }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to fetch staff member';
+      setError(msg);
+      addToast(msg, 'error');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      const response = await apiCall<Staff[]>(queryString);
-      if (response.success && Array.isArray(response.data)) {
-        // Sort by createdAt descending
-        const sorted = response.data.sort(
-          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-        setStaff(sorted);
+  // Create staff
+  const createStaff = async (data: CreateStaffData): Promise<Staff | null> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await API.post('/', data);
+      if (res.data.success) {
+        const newStaff = res.data.data;
+        setStaff((prev) => [newStaff, ...prev]);
+        addToast('Staff member created successfully', 'success');
+        return newStaff;
+      } else {
+        const msg = res.data.message || 'Failed to create staff member';
+        setError(msg);
+        addToast(msg, 'error');
+        return null;
       }
-      return response;
-    },
-    [apiCall]
-  );
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to create staff member';
+      setError(msg);
+      addToast(msg, 'error');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Get staff by ID
-  const fetchStaffById = useCallback(
-    async (id: string): Promise<ApiResponse<Staff>> => {
-      return await apiCall<Staff>(`/${id}`);
-    },
-    [apiCall]
-  );
-
-  // Create new staff
-  const createStaff = useCallback(
-    async (staffData: Omit<Staff, '_id' | 'userId' | 'createdAt' | 'updatedAt'>): Promise<ApiResponse<Staff>> => {
-      const response = await apiCall<Staff>('', {
-        method: 'POST',
-        body: JSON.stringify(staffData),
-      });
-
-      if (response.success && response.data) {
-        // Add new staff at the top
-        setStaff((prev) => [response.data!, ...prev]);
-      }
-      return response;
-    },
-    [apiCall]
-  );
-
-  // Update staff by ID
-  const updateStaff = useCallback(
-    async (id: string, updates: Partial<Staff>): Promise<ApiResponse<Staff>> => {
-      const response = await apiCall<Staff>(`/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(updates),
-      });
-      if (response.success && response.data) {
+  // Update staff
+  const updateStaff = async (id: string, data: Partial<CreateStaffData>): Promise<Staff | null> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await API.put(`/${id}`, data);
+      if (res.data.success) {
+        const updatedStaff = res.data.data;
         setStaff((prev) =>
-          prev.map((s) => (s._id === id ? response.data! : s))
+          prev.map((s) => (s._id === id ? updatedStaff : s))
         );
+        addToast('Staff member updated successfully', 'success');
+        return updatedStaff;
+      } else {
+        const msg = res.data.message || 'Failed to update staff member';
+        setError(msg);
+        addToast(msg, 'error');
+        return null;
       }
-      return response;
-    },
-    [apiCall]
-  );
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to update staff member';
+      setError(msg);
+      addToast(msg, 'error');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Delete staff by ID
-  const deleteStaff = useCallback(
-    async (id: string): Promise<ApiResponse<Staff>> => {
-      const response = await apiCall<Staff>(`/${id}`, {
-        method: 'DELETE',
-      });
-      if (response.success) {
+  // Delete staff
+  const deleteStaff = async (id: string): Promise<boolean> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await API.delete(`/${id}`);
+      if (res.data.success) {
         setStaff((prev) => prev.filter((s) => s._id !== id));
+        addToast('Staff member deleted successfully', 'success');
+        return true;
+      } else {
+        const msg = res.data.message || 'Failed to delete staff member';
+        setError(msg);
+        addToast(msg, 'error');
+        return false;
       }
-      return response;
-    },
-    [apiCall]
-  );
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to delete staff member';
+      setError(msg);
+      addToast(msg, 'error');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Auto-load all staff on mount
-  useEffect(() => {
-    fetchAllStaff();
-  }, [fetchAllStaff]);
+  // Bulk upload
+  const bulkUpload = async (file: File): Promise<BulkUploadResult | null> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
 
-  // ✅ Compute recent staff actions from real `createdAt`
-  const recentStaffActions = useMemo(() => {
-    const hours24 = 24 * 60 * 60 * 1000;
+      const res = await API.post('/bulk-upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      if (res.data.success) {
+        addToast(res.data.message || 'Bulk upload completed', 'success');
+        await fetchAllStaff();
+        return res.data;
+      } else {
+        const msg = res.data.message || 'Bulk upload failed';
+        setError(msg);
+        addToast(msg, 'error');
+        return res.data;
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Bulk upload failed';
+      setError(msg);
+      addToast(msg, 'error');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Recent staff actions (staff created in last 24 hours)
+  const recentStaffActions = useMemo<StaffAction[]>(() => {
     const now = Date.now();
+    const hours24 = 24 * 60 * 60 * 1000;
 
     return staff
       .filter((s) => {
-        const createdTime = new Date(s.createdAt).getTime();
-        return now - createdTime <= hours24;
+        const createdAt = new Date(s.createdAt).getTime();
+        return now - createdAt <= hours24;
       })
       .map((s) => ({
         type: 'create' as const,
         staffName: s.fullName,
         timestamp: s.createdAt,
       }));
-  }, [staff]); // ← Recompute only when staff changes
+  }, [staff]);
 
-  // Bulk upload staff
-  const bulkUpload = useCallback(
-    async (file: File): Promise<BulkUploadResult | null> => {
-      try {
-        const formData = new FormData();
-        formData.append('file', file);
-
-        const response = await fetch(`${API_URL}/staff/bulk-upload`, {
-          method: 'POST',
-          body: formData,
-          credentials: 'include',
-        });
-
-        const result = await response.json();
-
-        if (response.ok && result.success) {
-          // Refresh the staff list after successful upload
-          await fetchAllStaff();
-        }
-
-        return result;
-      } catch (error: any) {
-        console.error('Bulk upload error:', error);
-        return {
-          success: false,
-          message: 'Network error. Check connection and login status.',
-          summary: { total: 0, successful: 0, failed: 0, duplicates: 0 },
-          details: { successful: [], failed: [] },
-        };
-      }
-    },
-    [fetchAllStaff]
-  );
+  useEffect(() => {
+    fetchAllStaff();
+  }, [fetchAllStaff]);
 
   return {
     staff,
     loading,
     error,
-    recentStaffActions, // ← Export real backend-based actions
+    recentStaffActions,
     fetchAllStaff,
     fetchStaffById,
     createStaff,

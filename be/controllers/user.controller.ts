@@ -1,187 +1,168 @@
 import type { Request, Response } from "express";
-import { Document, Types } from "mongoose";
+import { Types } from "mongoose";
 import apiError from "../lib/ApiError.ts";
 import ApiResponse from "../lib/ApiResponse.ts";
 import { asyncHandler } from "../lib/AsyncHandler.ts";
 import { HttpStatusCode } from "../lib/const.ts";
 import { User } from "../models/user.model.js";
+import { Gym } from "../models/gym.model.js"; // 👈 NEW import
 import admin from "../firebase/admin";
- 
-// Extend User document with methods
-interface IUser extends Document {
-  fullname: string;
-  email: string;
-  phone?: string;
-  avatar: string;
-  password: string;
-  role: string;
-  createdAt: Date;
-  updatedAt: Date;
- 
-  isPasswordCorrect(candidatePassword: string): Promise<boolean>;
-  generateAccessToken(): string;
-  toFrontendUser(): {
-    id: string;
-    name: string;
-    email: string;
-    phone?: string;
-    role: string;
-    createdAt: string;
-  };
-}
- 
+
 /**
- * Generate access token for user
- */
-const generateAccessToken = async (userId: string | Types.ObjectId): Promise<string> => {
-  const user = await User.findById(userId);
-  if (!user) {
-    throw new apiError(HttpStatusCode.NOT_FOUND, "User not found");
-  }
-  return user.generateAccessToken();
-};
- 
-/**
- * Register a new user
+ * REGISTER USER (Admin or Staff)
+ * - If role = admin → create a new Gym + link user to it
+ * - If role != admin → link user to an existing gym (gymId must be provided)
  */
 const registerUser = asyncHandler(async (req: Request, res: Response) => {
-  console.log("✅ 1. Register route hit");
-  console.log("📨 2. Request body:", req.body);
- 
-  const { fullname, email, password } = req.body;
- 
-  console.log("✅ 3. Fields received:", { fullname, email });
- 
-  // Validate
-  if ([fullname, email, password].some(field => !field || field.trim() === "")) {
-    console.log("❌ 4. Validation failed");
-    return res.status(400).json({ error: "Missing required fields" });
+  console.log("📥 Register request received:", req.body);
+
+  const { fullname, email, password, phone, role, gymName, gymId } = req.body;
+
+  // Basic validation
+  if (!fullname || !email || !password) {
+    throw new apiError(HttpStatusCode.BAD_REQUEST, "fullname, email, and password are required");
   }
- 
-  try {
-    console.log("✅ 5. Checking if user exists...");
- 
-    const existedUser = await User.findOne({ email });
-    if (existedUser) {
-      console.log("❌ 6. User already exists:", email);
-      return res.status(409).json({ error: "Email already in use" });
+
+  // Check if user already exists
+  const existedUser = await User.findOne({ email });
+  if (existedUser) {
+    throw new apiError(HttpStatusCode.CONFLICT, "Email already in use");
+  }
+
+  let gymRef: Types.ObjectId | undefined;
+
+  // 🧱 CASE 1: Admin registering a new Gym
+  if (role === "admin") {
+    if (!gymName) {
+      throw new apiError(HttpStatusCode.BAD_REQUEST, "Gym name is required for admin registration");
     }
- 
-    console.log("✅ 7. Creating new user...");
- 
-    const user = await User.create({
-      fullname,
-      email,
-      phone: req.body.phone,
-      password,
-      avatar: fullname.charAt(0).toUpperCase(),
-      role: "admin",
+
+    // Create Gym
+    const newGym = await Gym.create({
+      name: gymName,
     });
- 
-    console.log("✅ 8. User created with ID:", user._id);
- 
-    const safeUser = await User.findById(user._id).select("-password");
-    console.log("✅ 9. Safe user found");
- 
-    return res.status(201).json({
-      data: safeUser?.toFrontendUser(),
-      message: "User registered successfully",
-    });
- 
-  } catch (err: any) {
-    console.log("💥 10. CRASH in registerUser:", err); // 🔥 THIS IS KEY
-    return res.status(500).json({
-      error: "Internal server error",
-      details: err.message,
-    });
+    gymRef = newGym._id as Types.ObjectId;
   }
+
+  // 🧱 CASE 2: Staff/Trainer joining existing Gym
+  else {
+    if (!gymId) {
+      throw new apiError(HttpStatusCode.BAD_REQUEST, "gymId is required for non-admin registration");
+    }
+    gymRef = new Types.ObjectId(gymId);
+  }
+
+  // Create User
+  const user = await User.create({
+    fullname,
+    email,
+    phone,
+    password,
+    avatar: fullname.charAt(0).toUpperCase(),
+    role: role || "user",
+    gym: gymRef,
+  });
+
+  // If admin → update Gym owner
+  if (role === "admin") {
+    await Gym.findByIdAndUpdate(gymRef, { owner: user._id });
+  }
+
+  const token = user.generateAccessToken();
+  const safeUser = user.toFrontendUser();
+
+  return res
+    .status(HttpStatusCode.CREATED)
+    .cookie("accessToken", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    })
+    .json(new ApiResponse(HttpStatusCode.CREATED, safeUser, "User registered successfully"));
 });
- 
+
 /**
- * Login user with email and password
+ * LOGIN USER
  */
 const loginUser = asyncHandler(async (req: Request, res: Response) => {
   const { email, password } = req.body;
- 
-  if (!email) {
-    throw new apiError(HttpStatusCode.BAD_REQUEST, "Email is required");
+
+  if (!email || !password) {
+    throw new apiError(HttpStatusCode.BAD_REQUEST, "Email and password are required");
   }
-  if (!password) {
-    throw new apiError(HttpStatusCode.BAD_REQUEST, "Password is required");
-  }
- 
+
   const user = await User.findOne({ email });
   if (!user) {
     throw new apiError(HttpStatusCode.UNAUTHORIZED, "Invalid credentials");
   }
- 
+
   const isPasswordCorrect = await user.isPasswordCorrect(password);
   if (!isPasswordCorrect) {
     throw new apiError(HttpStatusCode.UNAUTHORIZED, "Invalid credentials");
   }
- 
+
   const token = user.generateAccessToken();
-  const safeUser = await User.findById(user._id).select("-password");
- 
+  const safeUser = user.toFrontendUser();
+
   return res
     .status(HttpStatusCode.OK)
     .cookie("accessToken", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-     sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-     
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     })
-    .json(new ApiResponse(HttpStatusCode.OK, safeUser?.toFrontendUser(), "User logged in successfully"));
+    .json(new ApiResponse(HttpStatusCode.OK, safeUser, "User logged in successfully"));
 });
- 
+
 /**
- * Google Sign-In using Firebase ID token
+ * GOOGLE SIGN-IN
+ * (Optional: assign gym manually if you want Google users to belong to a gym)
  */
 const googleSignIn = asyncHandler(async (req: Request, res: Response) => {
-  const { idToken } = req.body;
- 
+  const { idToken, gymId } = req.body;
+
   if (!idToken) {
     throw new apiError(HttpStatusCode.BAD_REQUEST, "ID token is required");
   }
- 
-  try {
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
-    const { email, name, picture, uid } = decodedToken;
- 
-    if (!email || !name) {
-      throw new apiError(HttpStatusCode.UNAUTHORIZED, "Missing required user info from Google");
-    }
- 
-    let user = await User.findOne({ email });
- 
-    if (!user) {
-      user = await User.create({
-        fullname: name,
-        email,
-        avatar: picture || name.charAt(0).toUpperCase(),
-        role: "user",
-      });
-    }
- 
-    const token = user.generateAccessToken();
-    const safeUser = user.toFrontendUser();
- 
-    return res
-      .status(HttpStatusCode.OK)
-      .cookie("accessToken", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      })
-      .json(new ApiResponse(HttpStatusCode.OK, safeUser, "Google Sign-In successful"));
-  } catch (error) {
-    console.error("Google Sign-In Error:", error);
-    throw new apiError(HttpStatusCode.UNAUTHORIZED, "Google authentication failed");
+
+  const decodedToken = await admin.auth().verifyIdToken(idToken);
+  const { email, name, picture } = decodedToken;
+
+  if (!email || !name) {
+    throw new apiError(HttpStatusCode.UNAUTHORIZED, "Invalid Google user data");
   }
+
+  let user = await User.findOne({ email });
+  if (!user) {
+    if (!gymId) {
+      throw new apiError(HttpStatusCode.BAD_REQUEST, "gymId required for new Google users");
+    }
+
+    user = await User.create({
+      fullname: name,
+      email,
+      avatar: picture || name.charAt(0).toUpperCase(),
+      role: "user",
+      gym: new Types.ObjectId(gymId),
+      password: Math.random().toString(36).slice(-8), // random temp password
+    });
+  }
+
+  const token = user.generateAccessToken();
+  const safeUser = user.toFrontendUser();
+
+  return res
+    .status(HttpStatusCode.OK)
+    .cookie("accessToken", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    })
+    .json(new ApiResponse(HttpStatusCode.OK, safeUser, "Google Sign-In successful"));
 });
- 
+
 /**
- * Logout user (clear cookie)
+ * LOGOUT
  */
 const logoutUser = asyncHandler(async (req: Request, res: Response) => {
   return res
@@ -193,19 +174,19 @@ const logoutUser = asyncHandler(async (req: Request, res: Response) => {
     })
     .json(new ApiResponse(HttpStatusCode.OK, {}, "User logged out successfully"));
 });
- 
+
 /**
- * Get current logged-in user (from middleware, req.user)
+ * GET CURRENT USER
  */
 const getCurrentUser = asyncHandler(async (req: Request, res: Response) => {
-  const user = (req as any).user; // Assuming `req.user` is set by auth middleware
+  const user = (req as any).user;
   if (!user) {
-    throw new apiError(HttpStatusCode.UNAUTHORIZED, "No user is logged in");
+    throw new apiError(HttpStatusCode.UNAUTHORIZED, "No user logged in");
   }
- 
+
   return res
     .status(HttpStatusCode.OK)
     .json(new ApiResponse(HttpStatusCode.OK, user, "Current user fetched successfully"));
 });
- 
+
 export { registerUser, loginUser, logoutUser, getCurrentUser, googleSignIn };

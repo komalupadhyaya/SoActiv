@@ -1,5 +1,6 @@
 // src/hooks/useEnquiry.ts
 import { useState, useEffect, useCallback } from 'react';
+import { useToast } from '../contexts/ToastContext';
 import axios, { AxiosError } from 'axios';
 
 export interface IEnquiry {
@@ -11,9 +12,9 @@ export interface IEnquiry {
   source: string;
   status: 'new' | 'contacted' | 'interested' | 'converted' | 'lost';
   assignedStaff?:
-    | { _id: string; name: string; email: string; role: string }
-    | string
-    | null;
+  | { _id: string; name: string; email: string; role: string }
+  | string
+  | null;
   followUpDate?: string | null;
   comments?: string;
   interests?: string;
@@ -62,21 +63,6 @@ export interface BulkUploadResult {
   };
 }
 
-interface UseEnquiryReturn {
-  enquiries: IEnquiry[]; // All enquiries (only for admins)
-  myEnquiries: IEnquiry[]; // Enquiries created by current user
-  loading: boolean;
-  error: string | null;
-  createEnquiry: (data: CreateEnquiryData) => Promise<IEnquiry | null>;
-  getEnquiryById: (id: string) => Promise<IEnquiry | null>;
-  updateEnquiry: (id: string, data: Partial<IEnquiry>) => Promise<IEnquiry | null>;
-  deleteEnquiry: (id: string) => Promise<boolean>;
-  assignStaff: (enquiryId: string, staffId: string) => Promise<IEnquiry | null>;
-  bulkUpload: (file: File) => Promise<BulkUploadResult | null>;
-  refreshEnquiries: () => Promise<void>;
-  isAdmin: boolean;
-}
-
 // Extract user role from wherever it's stored (e.g., auth context, or localStorage)
 // In real app, this should come from auth context or JWT
 const getCurrentUserRole = (): string => {
@@ -90,152 +76,238 @@ const getCurrentUserRole = (): string => {
   }
 };
 
-export const useEnquiry = (): UseEnquiryReturn => {
+export const useEnquiry = () => {
   const [enquiries, setEnquiries] = useState<IEnquiry[]>([]);
   const [myEnquiries, setMyEnquiries] = useState<IEnquiry[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const isAdmin = ['admin', 'manager'].includes(getCurrentUserRole());
+  const { addToast } = useToast();
 
-  const handleRequest = async <T,>(request: Promise<any>): Promise<T | null> => {
+  const isAdmin = getCurrentUserRole() === 'admin';
+
+  // Fetch all enquiries
+  const refreshEnquiries = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setError(null);
-      const response = await request;
-      return response.data as T;
-    } catch (err) {
-      const error = err as AxiosError<ApiResponse<unknown>>;
-      const message =
-        error.response?.data?.message ||
-        error.message ||
-        'Something went wrong';
-      setError(message as string);
-      console.error('Enquiry API Error:', message);
+      const res = await API.get('/');
+      if (res.data.success) {
+        setEnquiries(res.data.data || []);
+      } else {
+        const msg = res.data.message || 'Failed to fetch enquiries';
+        setError(msg);
+        addToast(msg, 'error');
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to fetch enquiries';
+      setError(msg);
+      addToast(msg, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [addToast]);
+
+  // Fetch my enquiries
+  const fetchMyEnquiries = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await API.get('/my-enquiries');
+      if (res.data.success) {
+        setMyEnquiries(res.data.data || []);
+      } else {
+        const msg = res.data.message || 'Failed to fetch your enquiries';
+        setError(msg);
+        addToast(msg, 'error');
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to fetch your enquiries';
+      setError(msg);
+      addToast(msg, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [addToast]);
+
+  // Create enquiry
+  const createEnquiry = async (data: CreateEnquiryData): Promise<IEnquiry | null> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await API.post('/', data);
+      if (res.data.success) {
+        const newEnquiry = res.data.data;
+        setEnquiries((prev) => [newEnquiry, ...prev]);
+        setMyEnquiries((prev) => [newEnquiry, ...prev]);
+        addToast('Enquiry created successfully', 'success');
+        return newEnquiry;
+      } else {
+        const msg = res.data.message || 'Failed to create enquiry';
+        setError(msg);
+        addToast(msg, 'error');
+        return null;
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to create enquiry';
+      setError(msg);
+      addToast(msg, 'error');
       return null;
+    } finally {
+      setLoading(false);
     }
   };
 
-  const fetchAllEnquiries = useCallback(async () => {
-    if (!isAdmin) {
-      setEnquiries([]); // Don't load all for non-admins
-      return;
-    }
-    const data = await handleRequest<ApiResponse<IEnquiry[]>>(API.get(''));
-    if (data?.success && Array.isArray(data.data)) {
-      setEnquiries(data.data);
-    }
-  }, [isAdmin]);
-
-  const fetchMyEnquiries = useCallback(async () => {
-    const data = await handleRequest<ApiResponse<IEnquiry[]>>(API.get('/my'));
-    if (data?.success && Array.isArray(data.data)) {
-      setMyEnquiries(data.data);
-    }
-  }, []);
-
-  const refreshEnquiries = useCallback(async () => {
+  // Get enquiry by ID
+  const getEnquiryById = async (id: string): Promise<IEnquiry | null> => {
     setLoading(true);
-    await Promise.all([fetchAllEnquiries(), fetchMyEnquiries()]);
-    setLoading(false);
-  }, [fetchAllEnquiries, fetchMyEnquiries]);
-
-  useEffect(() => {
-    refreshEnquiries();
-  }, [refreshEnquiries]);
-
-  const createEnquiry = useCallback(
-    async (data: CreateEnquiryData): Promise<IEnquiry | null> => {
-      const response = await handleRequest<ApiResponse<IEnquiry>>(API.post('', data));
-      if (response?.success && response.data) {
-        refreshEnquiries();
-        return response.data;
-      }
-      return null;
-    },
-    [refreshEnquiries]
-  );
-
-  const getEnquiryById = useCallback(
-    async (id: string): Promise<IEnquiry | null> => {
-      const response = await handleRequest<ApiResponse<IEnquiry>>(API.get(`/${id}`));
-      return response?.success ? response.data ?? null : null;
-    },
-    []
-  );
-
-  const updateEnquiry = useCallback(
-    async (id: string, data: Partial<IEnquiry>): Promise<IEnquiry | null> => {
-      const response = await handleRequest<ApiResponse<IEnquiry>>(API.put(`/${id}`, data));
-      if (response?.success && response.data) {
-        refreshEnquiries();
-        return response.data;
-      }
-      return null;
-    },
-    [refreshEnquiries]
-  );
-
-  const deleteEnquiry = useCallback(
-    async (id: string): Promise<boolean> => {
-      const response = await handleRequest<ApiResponse<unknown>>(API.delete(`/${id}`));
-      if (response?.success) {
-        refreshEnquiries();
-        return true;
-      }
-      return false;
-    },
-    [refreshEnquiries]
-  );
-
-  const assignStaff = useCallback(
-    async (enquiryId: string, staffId: string): Promise<IEnquiry | null> => {
-      const response = await handleRequest<ApiResponse<IEnquiry>>(
-        API.patch(`/${enquiryId}/assign`, { staffId })
-      );
-      if (response?.success && response.data) {
-        refreshEnquiries();
-        return response.data;
-      }
-      return null;
-    },
-    [refreshEnquiries]
-  );
-
-  const bulkUpload = useCallback(
-    async (file: File): Promise<BulkUploadResult | null> => {
-      try {
-        setError(null);
-        const formData = new FormData();
-        formData.append('file', file);
-
-        const response = await axios.post<BulkUploadResult>(
-          'http://localhost:8000/api/v1/enquiry/bulk-upload',
-          formData,
-          {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-            withCredentials: true,
-          }
-        );
-
-        if (response.data.success) {
-          refreshEnquiries();
-        }
-
-        return response.data;
-      } catch (err) {
-        const error = err as AxiosError<BulkUploadResult>;
-        const message =
-          error.response?.data?.message ||
-          error.message ||
-          'Failed to upload file';
-        setError(message);
-        console.error('Bulk Upload Error:', message);
+    setError(null);
+    try {
+      const res = await API.get(`/${id}`);
+      if (res.data.success) {
+        return res.data.data;
+      } else {
+        const msg = res.data.message || 'Failed to fetch enquiry';
+        setError(msg);
+        addToast(msg, 'error');
         return null;
       }
-    },
-    [refreshEnquiries]
-  );
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to fetch enquiry';
+      setError(msg);
+      addToast(msg, 'error');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Update enquiry
+  const updateEnquiry = async (id: string, data: Partial<IEnquiry>): Promise<IEnquiry | null> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await API.put(`/${id}`, data);
+      if (res.data.success) {
+        const updatedEnquiry = res.data.data;
+        setEnquiries((prev) =>
+          prev.map((enq) => (enq._id === id ? updatedEnquiry : enq))
+        );
+        setMyEnquiries((prev) =>
+          prev.map((enq) => (enq._id === id ? updatedEnquiry : enq))
+        );
+        addToast('Enquiry updated successfully', 'success');
+        return updatedEnquiry;
+      } else {
+        const msg = res.data.message || 'Failed to update enquiry';
+        setError(msg);
+        addToast(msg, 'error');
+        return null;
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to update enquiry';
+      setError(msg);
+      addToast(msg, 'error');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Delete enquiry
+  const deleteEnquiry = async (id: string): Promise<boolean> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await API.delete(`/${id}`);
+      if (res.data.success) {
+        setEnquiries((prev) => prev.filter((enq) => enq._id !== id));
+        setMyEnquiries((prev) => prev.filter((enq) => enq._id !== id));
+        addToast('Enquiry deleted successfully', 'success');
+        return true;
+      } else {
+        const msg = res.data.message || 'Failed to delete enquiry';
+        setError(msg);
+        addToast(msg, 'error');
+        return false;
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to delete enquiry';
+      setError(msg);
+      addToast(msg, 'error');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Assign staff to enquiry
+  const assignStaff = async (enquiryId: string, staffId: string): Promise<IEnquiry | null> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await API.put(`/${enquiryId}/assign`, { staffId });
+      if (res.data.success) {
+        const updatedEnquiry = res.data.data;
+        setEnquiries((prev) =>
+          prev.map((enq) => (enq._id === enquiryId ? updatedEnquiry : enq))
+        );
+        addToast('Staff assigned successfully', 'success');
+        return updatedEnquiry;
+      } else {
+        const msg = res.data.message || 'Failed to assign staff';
+        setError(msg);
+        addToast(msg, 'error');
+        return null;
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to assign staff';
+      setError(msg);
+      addToast(msg, 'error');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Bulk upload
+  const bulkUpload = async (file: File): Promise<BulkUploadResult | null> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await API.post('/bulk-upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      if (res.data.success) {
+        addToast(res.data.message || 'Bulk upload completed', 'success');
+        await refreshEnquiries();
+        return res.data;
+      } else {
+        const msg = res.data.message || 'Bulk upload failed';
+        setError(msg);
+        addToast(msg, 'error');
+        return res.data;
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Bulk upload failed';
+      setError(msg);
+      addToast(msg, 'error');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAdmin) {
+      refreshEnquiries();
+    } else {
+      fetchMyEnquiries();
+    }
+  }, [isAdmin, refreshEnquiries, fetchMyEnquiries]);
 
   return {
     enquiries,

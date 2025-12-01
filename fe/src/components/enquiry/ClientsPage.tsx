@@ -30,7 +30,6 @@ const statusColors = {
   pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
 };
 
-// Recent activity type for local notifications
 type LocalRecentActivity =
   | { type: 'add'; count: number }
   | { type: 'delete'; count: number }
@@ -51,9 +50,7 @@ export const ClientsPage: React.FC = () => {
       client.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       client.contactNumber.includes(searchQuery) ||
       client.email.toLowerCase().includes(searchQuery.toLowerCase());
-
     const matchesStatus = !statusFilter || client.status === statusFilter;
-
     return matchesSearch && matchesStatus;
   });
 
@@ -67,8 +64,6 @@ export const ClientsPage: React.FC = () => {
     if (result.success) {
       setRecentActivity({ type: 'add', count: 1 });
       setIsAddClientModalOpen(false);
-
-      // Auto-clear notification after 5 seconds
       setTimeout(() => setRecentActivity(null), 5000);
     } else {
       alert(result.message || 'Failed to register client');
@@ -76,14 +71,12 @@ export const ClientsPage: React.FC = () => {
     return result;
   };
 
-  const handleDeleteClient = async (id: string, clientName: string) => {
-    await deleteClient(id, clientName);
+  const handleDeleteClient = async (id: string) => {
+    await deleteClient(id);
     setRecentActivity((prev) => {
       if (prev?.type === 'delete') return { ...prev, count: prev.count + 1 };
       return { type: 'delete', count: 1 };
     });
-
-    // Auto-clear notification after 5 seconds
     setTimeout(() => setRecentActivity(null), 5000);
   };
 
@@ -103,7 +96,11 @@ export const ClientsPage: React.FC = () => {
   };
 
   if (loading && clients.length === 0) {
-    return <div className="p-6 text-center text-gray-600 dark:text-gray-400">Loading clients...</div>;
+    return (
+      <div className="p-6 text-center text-gray-600 dark:text-gray-400">
+        Loading clients...
+      </div>
+    );
   }
 
   if (error) {
@@ -115,7 +112,7 @@ export const ClientsPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 px-4 py-6 max-w-7xl mx-auto">
+    <div className="space-y-6 px-4 py-6 w-full max-w-screen-2xl mx-auto">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -145,9 +142,8 @@ export const ClientsPage: React.FC = () => {
 
       {/* Notifications: Add/Delete + Expiry */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* New Client Added Notification */}
         {recentActivity?.type === 'add' && (
-          <Card className="border-l-4 border-green-400 bg-green-50 dark:bg-green-900/20 dark:border-green-600">
+          <Card className="border-l-4 border-green-400 bg-green-50 dark:bg-green-900/20 dark:border-green-600 w-full">
             <CardContent className="p-4">
               <div className="flex items-center space-x-3">
                 <AlertTriangle className="w-5 h-5 text-green-500" />
@@ -164,9 +160,8 @@ export const ClientsPage: React.FC = () => {
           </Card>
         )}
 
-        {/* Client Deleted Notification */}
         {recentActivity?.type === 'delete' && (
-          <Card className="border-l-4 border-red-400 bg-red-50 dark:bg-red-900/20 dark:border-red-600">
+          <Card className="border-l-4 border-red-400 bg-red-50 dark:bg-red-900/20 dark:border-red-600 w-full">
             <CardContent className="p-4">
               <div className="flex items-center space-x-3">
                 <Trash2 className="w-5 h-5 text-red-500" />
@@ -183,9 +178,8 @@ export const ClientsPage: React.FC = () => {
           </Card>
         )}
 
-        {/* Membership Expiring Soon */}
         {expiringClients.length > 0 && !recentActivity && (
-          <Card className="border-l-4 border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-600">
+          <Card className="border-l-4 border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 dark:border-yellow-600 w-full">
             <CardContent className="p-4">
               <div className="flex items-center space-x-3">
                 <AlertTriangle className="w-5 h-5 text-yellow-500" />
@@ -202,9 +196,8 @@ export const ClientsPage: React.FC = () => {
           </Card>
         )}
 
-        {/* Expired Memberships */}
         {expiredClients.length > 0 && !recentActivity && (
-          <Card className="border-l-4 border-red-400 bg-red-50 dark:bg-red-900/20 dark:border-red-600">
+          <Card className="border-l-4 border-red-400 bg-red-50 dark:bg-red-900/20 dark:border-red-600 w-full">
             <CardContent className="p-4">
               <div className="flex items-center space-x-3">
                 <AlertTriangle className="w-5 h-5 text-red-500" />
@@ -223,16 +216,16 @@ export const ClientsPage: React.FC = () => {
       </div>
 
       {/* Search & Filters */}
-      <Card>
+      <Card className="w-full">
         <CardContent className="p-4">
-          <div className="flex flex-col lg:flex-row gap-4">
+          <div className="flex flex-col lg:flex-row gap-4 w-full">
             <div className="flex-1">
               <Input
                 placeholder="Search by name, phone, or email..."
                 leftIcon={<Search size={16} />}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-[20rem]"
+                className="w-full max-w-xs sm:w-auto"
               />
             </div>
             <Select
@@ -253,120 +246,108 @@ export const ClientsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Clients Table */}
-      <Card>
+      {/* Clients Card List (no table) */}
+      <Card className="w-full">
         <CardHeader>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             All Clients ({filteredClients.length})
           </h3>
         </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-800">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Member
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Contact
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Membership Period
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Package / PT
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Remaining Days
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredClients.map((client) => (
-                  <tr key={client._id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
+        <CardContent className="p-4">
+          {filteredClients.length === 0 ? (
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              No clients match your search criteria.
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredClients.map((client) => (
+                <Card key={client._id} className="h-full">
+                  <CardContent className="p-4 flex flex-col h-full">
+                    {/* Header: Name + Gender */}
+                    <div className="flex items-start justify-between gap-2">
                       <div>
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                        <div className="text-lg font-semibold text-gray-900 dark:text-white">
                           {client.fullName}
                         </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400 capitalize">
+                        <div className="text-sm capitalize text-gray-500 dark:text-gray-400">
                           {client.gender}
                         </div>
                       </div>
-                    </td>
+                      <Badge className={statusColors[client.status]}>
+                        {client.status}
+                      </Badge>
+                    </div>
 
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="space-y-1">
-                        <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                          <Phone size={12} className="mr-1" />
-                          {client.contactNumber}
-                        </div>
-                        <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                          <Mail size={12} className="mr-1" />
-                          {client.email}
-                        </div>
+                    {/* Contact */}
+                    <div className="mt-3 flex flex-col gap-1 text-sm text-gray-700 dark:text-gray-300">
+                      <div className="flex items-center space-x-1">
+                        <Phone size={14} />
+                        <span>{client.contactNumber}</span>
                       </div>
-                    </td>
+                      <div className="flex items-center space-x-1">
+                        <Mail size={14} />
+                        <span>{client.email}</span>
+                      </div>
+                    </div>
 
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="space-y-1">
-                        <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                          <Calendar size={12} className="mr-1" />
+                    {/* Membership period */}
+                    <div className="mt-3 flex flex-col gap-1 text-sm text-gray-500 dark:text-gray-400">
+                      <div className="flex items-center space-x-1">
+                        <Calendar size={12} />
+                        <span>
                           {client.startDate
                             ? new Date(client.startDate).toLocaleDateString()
                             : 'N/A'}
-                        </div>
-                        <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                          <Calendar size={12} className="mr-1" />
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <Calendar size={12} />
+                        <span>
                           {client.endDate
                             ? new Date(client.endDate).toLocaleDateString()
                             : 'N/A'}
-                        </div>
+                        </span>
                       </div>
-                    </td>
+                    </div>
 
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm">
-                        <div className="flex items-center">
-                          <IndianRupee size={14} className="text-gray-500 mr-1" />
-                          <strong>{(typeof client.packagePrice === 'number' ? client.packagePrice : 0).toFixed(2)}</strong>
-                        </div>
-                        {client.hasPersonalTraining && (
-                          <div className="flex items-center mt-1 text-orange-600 dark:text-orange-400 text-xs">
-                            <Dumbbell size={12} className="mr-1" />
-                            PT: ₹{typeof client.personalTrainingPrice === 'number' ? client.personalTrainingPrice.toFixed(2) : '0'} for{' '}
-                            {client.personalTrainingDurationWeeks} wk
-                          </div>
-                        )}
+                    {/* Package / PT */}
+                    <div className="mt-3 flex flex-col gap-1 text-sm text-gray-700 dark:text-gray-300">
+                      <div className="flex items-center">
+                        <IndianRupee size={14} className="mr-1 text-gray-500" />
+                        <span className="font-semibold">
+                          {typeof client.packagePrice === 'number'
+                            ? client.packagePrice.toFixed(2)
+                            : '0.00'}
+                        </span>
                       </div>
-                    </td>
+                      {client.hasPersonalTraining && (
+                        <div className="flex items-center text-xs text-orange-600 dark:text-orange-400">
+                          <Dumbbell size={12} className="mr-1" />
+                          <span>
+                            PT: ₹
+                            {typeof client.personalTrainingPrice === 'number'
+                              ? client.personalTrainingPrice.toFixed(2)
+                              : '0'}{' '}
+                            for {client.personalTrainingDurationWeeks} wk
+                          </span>
+                        </div>
+                      )}
+                    </div>
 
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    {/* Remaining days + actions */}
+                    <div className="mt-4 flex items-center justify-between gap-2">
                       <span
-                        className={`text-sm font-medium ${
-                          (client.remainingDays ?? 0) <= 0
-                            ? 'text-red-600 dark:text-red-400'
-                            : (client.remainingDays ?? 0) <= 30
+                        className={`text-sm font-medium ${(client.remainingDays ?? 0) <= 0
+                          ? 'text-red-600 dark:text-red-400'
+                          : (client.remainingDays ?? 0) <= 30
                             ? 'text-yellow-600 dark:text-yellow-400'
                             : 'text-green-600 dark:text-green-400'
-                        }`}
+                          }`}
                       >
-                        {(client.remainingDays ?? 0) <= 0 ? 'Expired' : `${client.remainingDays ?? 0} days`}
+                        {(client.remainingDays ?? 0) <= 0
+                          ? 'Expired'
+                          : `${client.remainingDays ?? 0} days`}
                       </span>
-                    </td>
-
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <Badge className={statusColors[client.status]}>{client.status}</Badge>
-                    </td>
-
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2">
                         <Button size="sm" variant="outline">
                           Edit
@@ -374,22 +355,16 @@ export const ClientsPage: React.FC = () => {
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => handleDeleteClient(client._id, client.fullName)}
+                          onClick={() => handleDeleteClient(client._id)}
                           className="text-red-400 hover:bg-red-50 dark:hover:bg-red-800"
                         >
                           <Trash2 size={14} />
                         </Button>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {filteredClients.length === 0 && (
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-              No clients match your search criteria.
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           )}
         </CardContent>

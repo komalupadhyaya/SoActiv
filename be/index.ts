@@ -14,7 +14,7 @@ import enquiry_router from "./routes/enquiry.routes";
 import clientRouter from "./routes/client.routes";
 import staffAttendance_router from "./routes/staffAttendance.routes";
 import followUpRouter from "./routes/followUp.routes";
-
+import Enquiry from './models/enquiry.model';
 dotenv.config();
 
 const app = express();
@@ -102,5 +102,6 @@ connectDB()
     console.log("❌ DB connection failed:", err);
     process.exit(1);
   });
+  await Enquiry.syncIndexes();
 
 export default app;

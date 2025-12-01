@@ -35,8 +35,8 @@ export const EnquiriesPage: React.FC = () => {
   const [isResultsModalOpen, setIsResultsModalOpen] = useState(false);
 
   const {
-    enquiries: allEnquiries,     // Admin-only
-    myEnquiries,                 // Everyone sees their own
+    enquiries: allEnquiries,
+    myEnquiries,
     loading,
     error,
     refreshEnquiries,
@@ -47,7 +47,6 @@ export const EnquiriesPage: React.FC = () => {
 
   const navigate = useNavigate();
 
-  // Use allEnquiries for admins, otherwise only myEnquiries
   const displayedEnquiries = isAdmin ? allEnquiries : myEnquiries;
 
   const staffOptions = useMemo(() => {
@@ -73,10 +72,8 @@ export const EnquiriesPage: React.FC = () => {
         enquiry.email?.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus = !statusFilter || enquiry.status === statusFilter;
-
       const staffName = getStaffName(enquiry.assignedStaff);
       const matchesStaff = !staffFilter || staffName === staffFilter;
-
       return matchesSearch && matchesStatus && matchesStaff;
     });
   }, [displayedEnquiries, searchQuery, statusFilter, staffFilter]);
@@ -104,27 +101,20 @@ export const EnquiriesPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4 w-full max-w-screen-2xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Enquiries</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            {isAdmin
-              ? 'Manage all customer enquiries'
-              : 'Manage your customer enquiries'}
+            {isAdmin ? 'Manage all customer enquiries' : 'Manage your customer enquiries'}
           </p>
         </div>
         <div className="flex gap-2 mt-4 sm:mt-0">
-          <Button
-            variant="outline"
-            onClick={() => setIsBulkUploadModalOpen(true)}
-          >
+          <Button variant="outline" onClick={() => setIsBulkUploadModalOpen(true)}>
             <Upload size={16} className="mr-2" />
             Bulk Upload
           </Button>
-          <Button
-            onClick={() => navigate('/admin/enquiry-form')}
-          >
+          <Button onClick={() => navigate('/admin/enquiry-form')}>
             <Plus size={16} className="mr-2" />
             Add Enquiry
           </Button>
@@ -132,7 +122,7 @@ export const EnquiriesPage: React.FC = () => {
       </div>
 
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg text-sm">
+        <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg text-sm w-full">
           <strong>Error:</strong> {error}{' '}
           <Button variant="ghost" size="sm" onClick={handleRefresh}>
             Retry
@@ -140,16 +130,16 @@ export const EnquiriesPage: React.FC = () => {
         </div>
       )}
 
-      <Card>
+      <Card className="w-full">
         <CardContent className="p-4">
-          <div className="flex flex-col lg:flex-row gap-4">
+          <div className="flex flex-col lg:flex-row gap-4 w-full">
             <div className="flex-1">
               <Input
                 placeholder="Search by name, contact, or email..."
                 leftIcon={<Search size={16} />}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="!w-[20rem]"
+                className="w-full max-w-xs sm:w-auto"
               />
             </div>
             <Select
@@ -177,7 +167,7 @@ export const EnquiriesPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="w-full">
         <CardHeader>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             {isAdmin ? 'All Enquiries' : 'Your Enquiries'} ({filteredEnquiries.length})
@@ -191,113 +181,168 @@ export const EnquiriesPage: React.FC = () => {
               No enquiries match your filters.
             </p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-800">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Contact Info
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Assigned Staff
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Follow-up
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {filteredEnquiries.map((enquiry) => (
-                    <tr key={enquiry._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {enquiry.name}
-                          </div>
-                          <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-                            <Phone size={12} />
-                            <span>{enquiry.phone}</span>
-                          </div>
-                          <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-                            <Mail size={12} />
-                            <span>{enquiry.email}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <Badge className={statusColors[enquiry.status]}>
-                          {enquiry.status}
-                        </Badge>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {getStaffName(enquiry.assignedStaff)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                          <Calendar size={14} className="mr-1" />
-                          {new Date(enquiry.createdAt).toLocaleDateString()}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                          <Calendar size={14} className="mr-1" />
-                          {enquiry.followUpDate
-                            ? new Date(enquiry.followUpDate).toLocaleDateString()
-                            : '—'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              navigate(`/admin/enquiries/edit/${enquiry._id}`)
-                            }
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-red-400 hover:bg-red-50 dark:hover:bg-red-800"
-                            onClick={async () => {
-                              if (window.confirm('Are you sure you want to delete this enquiry?')) {
-                                await deleteEnquiry(enquiry._id);
-                              }
-                            }}
-                            aria-label="Delete enquiry"
-                          >
-                            <Trash2 size={16} />
-                          </Button>
-                        </div>
-                      </td>
+            <>
+              {/* Desktop / tablet table */}
+              <div className="hidden sm:block overflow-x-auto w-full">
+                <table className="w-full min-w-[950px] table-auto divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-800">
+                    <tr>
+                      <th className="px-2 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Contact Info
+                      </th>
+                      <th className="px-2 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-2 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Assigned Staff
+                      </th>
+                      <th className="px-2 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th className="px-2 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Follow-up
+                      </th>
+                      <th className="px-2 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Actions
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {filteredEnquiries.map((enquiry) => (
+                      <tr key={enquiry._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <td className="px-2 md:px-6 py-4 whitespace-nowrap">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">
+                              {enquiry.name}
+                            </div>
+                            <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
+                              <Phone size={12} />
+                              <span>{enquiry.phone}</span>
+                            </div>
+                            <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
+                              <Mail size={12} />
+                              <span>{enquiry.email}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-2 md:px-6 py-4 whitespace-nowrap">
+                          <Badge className={statusColors[enquiry.status]}>{enquiry.status}</Badge>
+                        </td>
+                        <td className="px-2 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {getStaffName(enquiry.assignedStaff)}
+                        </td>
+                        <td className="px-2 md:px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                            <Calendar size={14} className="mr-1" />
+                            {new Date(enquiry.createdAt).toLocaleDateString()}
+                          </div>
+                        </td>
+                        <td className="px-2 md:px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                            <Calendar size={14} className="mr-1" />
+                            {enquiry.followUpDate
+                              ? new Date(enquiry.followUpDate).toLocaleDateString()
+                              : '—'}
+                          </div>
+                        </td>
+                        <td className="px-2 md:px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex space-x-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => navigate(`/admin/enquiries/edit/${enquiry._id}`)}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-red-400 hover:text-red-50 dark:hover:text-orange-600"
+                              onClick={async () => {
+                                if (window.confirm('Are you sure you want to delete this enquiry?')) {
+                                  await deleteEnquiry(enquiry._id);
+                                }
+                              }}
+                              aria-label="Delete enquiry"
+                            >
+                              <Trash2 size={16} />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile card/list view */}
+              <div className="sm:hidden space-y-4">
+                {filteredEnquiries.map((enquiry) => (
+                  <Card key={enquiry._id}>
+                    <CardContent>
+                      <div className="text-lg font-semibold">{enquiry.name}</div>
+                      <div className="flex flex-wrap gap-3 mt-2 text-sm text-gray-700 dark:text-gray-300">
+                        <div className="flex items-center space-x-1">
+                          <Phone size={14} />
+                          <span>{enquiry.phone}</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <Mail size={14} />
+                          <span>{enquiry.email}</span>
+                        </div>
+                        <Badge className={statusColors[enquiry.status]}>{enquiry.status}</Badge>
+                      </div>
+                      <div className="flex flex-wrap gap-3 mt-2 text-sm text-gray-700 dark:text-gray-300">
+                        <div className="flex items-center space-x-1">
+                          <Calendar size={14} />
+                          <span>{new Date(enquiry.createdAt).toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <Calendar size={14} />
+                          <span>
+                            {enquiry.followUpDate
+                              ? new Date(enquiry.followUpDate).toLocaleDateString()
+                              : '—'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => navigate(`/admin/enquiries/edit/${enquiry._id}`)}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-red-400 hover:text-red-50 dark:hover:text-orange-600"
+                          onClick={async () => {
+                            if (window.confirm('Are you sure you want to delete this enquiry?')) {
+                              await deleteEnquiry(enquiry._id);
+                            }
+                          }}
+                          aria-label="Delete enquiry"
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
 
-      {/* Bulk Upload Modal */}
       <BulkUploadModal
         isOpen={isBulkUploadModalOpen}
         onClose={() => setIsBulkUploadModalOpen(false)}
         onUpload={handleBulkUpload}
       />
 
-      {/* Upload Results Modal */}
       {uploadResult && (
         <UploadResultsReport
           isOpen={isResultsModalOpen}

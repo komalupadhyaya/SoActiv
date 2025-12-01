@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAttendance } from '../../hooks/useStaffAttendance';
+import { useToast } from '../../contexts/ToastContext';
 
 interface AttendanceRow {
   staffId: string;
@@ -40,7 +41,7 @@ const mergeTimeWithDate = (isoDate: string, timeStr: string): string => {
 
 export const AttendanceSheet: React.FC = () => {
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [timezone] = useState<string>(Intl.DateTimeFormat().resolvedOptions().timeZone); // Auto-detect
+  const [timezone] = useState<string>(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [localData, setLocalData] = useState<AttendanceRow[]>([]);
 
   const {
@@ -48,9 +49,8 @@ export const AttendanceSheet: React.FC = () => {
     markAttendance,
     updateAttendance,
     loading,
-    error,
-    clearError,
   } = useAttendance();
+  const { addToast } = useToast();
 
   // Fetch sheet on date change
   useEffect(() => {
@@ -98,15 +98,15 @@ export const AttendanceSheet: React.FC = () => {
           prev.map((r) =>
             r.staffId === row.staffId
               ? {
-                  ...r,
-                  status,
-                  checkInTime: shouldAutoCheckIn
-                    ? now
-                    : shouldClearCheckTimes
+                ...r,
+                status,
+                checkInTime: shouldAutoCheckIn
+                  ? now
+                  : shouldClearCheckTimes
                     ? null
                     : r.checkInTime,
-                  checkOutTime: shouldClearCheckTimes ? null : r.checkOutTime,
-                }
+                checkOutTime: shouldClearCheckTimes ? null : r.checkOutTime,
+              }
               : r
           )
         );
@@ -123,18 +123,18 @@ export const AttendanceSheet: React.FC = () => {
           prev.map((r) =>
             r.staffId === row.staffId
               ? {
-                  ...r,
-                  status,
-                  checkInTime: shouldAutoCheckIn ? now : newRecord.checkInTime || null,
-                  checkOutTime: null,
-                  attendanceId: newRecord._id,
-                }
+                ...r,
+                status,
+                checkInTime: shouldAutoCheckIn ? now : newRecord.checkInTime || null,
+                checkOutTime: null,
+                attendanceId: newRecord._id,
+              }
               : r
           )
         );
       }
     } catch (err) {
-      alert('Failed to update status.');
+      // Toast handled in hook
     }
   };
 
@@ -155,10 +155,10 @@ export const AttendanceSheet: React.FC = () => {
           prev.map((r) =>
             r.staffId === row.staffId
               ? {
-                  ...r,
-                  checkInTime: isoDateTime,
-                  status: ['absent', 'on-leave'].includes(r.status) ? 'present' : r.status,
-                }
+                ...r,
+                checkInTime: isoDateTime,
+                status: ['absent', 'on-leave'].includes(r.status) ? 'present' : r.status,
+              }
               : r
           )
         );
@@ -175,17 +175,17 @@ export const AttendanceSheet: React.FC = () => {
           prev.map((r) =>
             r.staffId === row.staffId
               ? {
-                  ...r,
-                  status: 'present',
-                  checkInTime: newRecord.checkInTime,
-                  attendanceId: newRecord._id,
-                }
+                ...r,
+                status: 'present',
+                checkInTime: newRecord.checkInTime,
+                attendanceId: newRecord._id,
+              }
               : r
           )
         );
       }
     } catch (err) {
-      alert('Failed to update check-in time.');
+      // Toast handled in hook
     }
   };
 
@@ -196,7 +196,7 @@ export const AttendanceSheet: React.FC = () => {
     const isoDateTime = mergeTimeWithDate(date, timeStr);
 
     if (new Date(isoDateTime) <= new Date(row.checkInTime)) {
-      alert('Check-out time must be after check-in time.');
+      addToast('Check-out time must be after check-in time.', 'error');
       return;
     }
 
@@ -210,7 +210,7 @@ export const AttendanceSheet: React.FC = () => {
         );
       }
     } catch (err) {
-      alert('Failed to update check-out time.');
+      // Toast handled in hook
     }
   };
 
@@ -224,7 +224,7 @@ export const AttendanceSheet: React.FC = () => {
         prev.map((r) => (r.staffId === row.staffId ? { ...r, notes } : r))
       );
     } catch (err) {
-      alert('Failed to save notes.');
+      // Toast handled in hook
     }
   };
 
@@ -236,64 +236,54 @@ export const AttendanceSheet: React.FC = () => {
   const totalHalfDay = localData.filter((r) => r.status === 'half-day').length;
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
-      <h2>📅 Daily Attendance Sheet</h2>
+    <div className="p-6 max-w-full mx-auto font-sans bg-gray-50 dark:bg-gray-900 min-h-screen">
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+        <span role="img" aria-label="calendar" className="text-3xl">📅</span> Daily Attendance Sheet
+      </h2>
 
-      <div style={{ marginBottom: '20px' }}>
-        <label>
-          Date:{' '}
+      <div className="mb-6 flex flex-wrap items-center gap-4">
+        <label className="text-gray-700 dark:text-gray-300 font-semibold">
+          Date:
           <input
             type="date"
             value={date}
-            onChange={(e) => {
-              setDate(e.target.value);
-              clearError();
-            }}
+            onChange={e => setDate(e.target.value)}
+            className="ml-2 px-3 py-1 border border-gray-300 rounded-md dark:bg-gray-800 dark:border-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-400"
           />
         </label>
+
+        <div className="text-gray-600 dark:text-gray-400 text-sm flex flex-wrap gap-x-4 gap-y-1">
+          <div><strong>Present:</strong> {totalPresent}</div>
+          <div><strong>Late:</strong> {totalLate}</div>
+          <div><strong>Half-Day:</strong> {totalHalfDay}</div>
+          <div><strong>Absent:</strong> {totalAbsent}</div>
+          <div><strong>On Leave:</strong> {totalOnLeave}</div>
+          <div><strong>Total:</strong> {localData.length}</div>
+        </div>
       </div>
 
-      {error && (
-        <div style={{ color: 'red', marginBottom: '10px' }}>
-          ❌ {error}
-        </div>
-      )}
-
       {loading ? (
-        <p>Loading attendance sheet...</p>
+        <p className="text-center text-gray-500 dark:text-gray-400">Loading attendance sheet...</p>
       ) : (
-        <>
-          <div style={{ marginBottom: '15px', color: '#555' }}>
-            <strong>Summary:</strong>{' '}
-            Present: <b>{totalPresent}</b> |{' '}
-            Late: <b>{totalLate}</b> |{' '}
-            Half-Day: <b>{totalHalfDay}</b> |{' '}
-            Absent: <b>{totalAbsent}</b> |{' '}
-            On Leave: <b>{totalOnLeave}</b> |{' '}
-            Total: <b>{localData.length}</b>
-          </div>
-
-          <table
-            style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              marginTop: '10px',
-            }}
-          >
-            <thead>
-              <tr style={{ textAlign: 'left' }}>
-                <th style={{ padding: '10px', border: '1px solid #ccc' }}>Name</th>
-                <th style={{ padding: '10px', border: '1px solid #ccc' }}>Position</th>
-                <th style={{ padding: '10px', border: '1px solid #ccc' }}>Status</th>
-                <th style={{ padding: '10px', border: '1px solid #ccc' }}>Check-In</th>
-                <th style={{ padding: '10px', border: '1px solid #ccc' }}>Check-Out</th>
-                <th style={{ padding: '10px', border: '1px solid #ccc' }}>Notes</th>
+        <div className="overflow-x-auto rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-100 dark:bg-gray-800">
+              <tr>
+                {['Name', 'Position', 'Status', 'Check-In', 'Check-Out', 'Notes'].map(header => (
+                  <th
+                    key={header}
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider"
+                  >
+                    {header}
+                  </th>
+                ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-100 dark:divide-gray-800">
               {localData.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: '#777' }}>
+                  <td colSpan={6} className="text-center py-10 text-gray-500 dark:text-gray-400">
                     No staff records found for this date.
                   </td>
                 </tr>
@@ -306,20 +296,17 @@ export const AttendanceSheet: React.FC = () => {
                     !['absent', 'on-leave'].includes(row.status);
 
                   return (
-                    <tr key={row.staffId} style={{ borderBottom: '1px solid #eee' }}>
-                      <td style={{ padding: '10px', border: '1px solid #ccc' }}>
-                        <div>
-                          <strong>{row.fullName}</strong>
-                        </div>
-                        <div style={{ fontSize: '0.85em', color: '#666' }}>{row.email}</div>
+                    <tr key={row.staffId} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-semibold text-gray-900 dark:text-white">{row.fullName}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">{row.email}</div>
                       </td>
-                      <td style={{ padding: '10px', border: '1px solid #ccc' }}>{row.position}</td>
-
-                      <td style={{ padding: '10px', border: '1px solid #ccc' }}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{row.position}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <select
                           value={row.status}
                           onChange={(e) => handleStatusChange(row, e.target.value)}
-                          style={{ width: '100%', padding: '5px' }}
+                          className="w-full rounded-md border border-gray-300 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300 px-2 py-1 focus:ring-2 focus:ring-orange-400 bg-white dark:bg-gray-900"
                         >
                           {STATUS_OPTIONS.map((opt) => (
                             <option key={opt} value={opt}>
@@ -329,56 +316,38 @@ export const AttendanceSheet: React.FC = () => {
                         </select>
                       </td>
 
-                      <td style={{ padding: '10px', border: '1px solid #ccc', textAlign: 'center' }}>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
                         {showCheckInInput ? (
                           <input
                             type="time"
                             value={isoToTime(row.checkInTime)}
                             onChange={(e) => handleCheckInTimeChange(row, e.target.value)}
-                            style={{
-                              width: '100%',
-                              padding: '4px',
-                              fontSize: '0.9em',
-                              border: '1px solid #ccc',
-                              borderRadius: '4px',
-                            }}
+                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm focus:ring-2 focus:ring-orange-400 bg-white dark:bg-gray-900"
                           />
                         ) : (
-                          <span style={{ color: '#999', fontSize: '0.9em' }}>—</span>
+                          <span className="text-gray-400 dark:text-gray-600">—</span>
                         )}
                       </td>
 
-                      <td style={{ padding: '10px', border: '1px solid #ccc', textAlign: 'center' }}>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
                         {canEditCheckOut ? (
                           <input
                             type="time"
                             value={isoToTime(row.checkOutTime)}
                             onChange={(e) => handleCheckOutTimeChange(row, e.target.value)}
-                            style={{
-                              width: '100%',
-                              padding: '4px',
-                              fontSize: '0.9em',
-                              border: '1px solid #ccc',
-                              borderRadius: '4px',
-                            }}
+                            className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm focus:ring-2 focus:ring-orange-400 bg-white dark:bg-gray-900"
                           />
                         ) : (
-                          <span style={{ color: '#999', fontSize: '0.9em' }}>—</span>
+                          <span className="text-gray-400 dark:text-gray-600">—</span>
                         )}
                       </td>
 
-                      <td style={{ padding: '10px', border: '1px solid #ccc' }}>
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <textarea
                           value={row.notes}
                           onChange={(e) => handleNotesChange(row, e.target.value)}
                           placeholder="Add notes..."
-                          style={{
-                            width: '100%',
-                            fontSize: '0.9em',
-                            padding: '5px',
-                            minHeight: '40px',
-                            resize: 'vertical',
-                          }}
+                          className="w-full rounded-md border border-gray-300 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300 p-2 min-h-[40px] resize-y focus:ring-2 focus:ring-orange-400 bg-white dark:bg-gray-900"
                         />
                       </td>
                     </tr>
@@ -387,7 +356,7 @@ export const AttendanceSheet: React.FC = () => {
               )}
             </tbody>
           </table>
-        </>
+        </div>
       )}
     </div>
   );

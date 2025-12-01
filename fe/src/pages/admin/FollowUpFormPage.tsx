@@ -3,6 +3,7 @@ import { useFollowUp } from '../../hooks/useFollowUp';
 import { useStaff } from '../../hooks/useStaff';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
+import { useToast } from '../../contexts/ToastContext';
 
 export const FollowUpFormPage: React.FC = () => {
   const { createFollowUp, loading } = useFollowUp();
@@ -57,20 +58,19 @@ export const FollowUpFormPage: React.FC = () => {
     return Object.keys(newErrors).length === 0;
   };
 
+  const { addToast } = useToast();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validate()) {
-      alert('Please fill in all required fields');
+      addToast('Please fill in all required fields', 'error');
       return;
     }
 
     const result = await createFollowUp(formData);
     if (result.success) {
-      alert('Follow-up created successfully');
       navigate('/admin/follow-ups');
-    } else {
-      alert(`Failed to create follow-up: ${result.message}`);
     }
   };
 
@@ -85,25 +85,25 @@ export const FollowUpFormPage: React.FC = () => {
           <ArrowLeft size={24} />
         </button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Create Follow-Up</h1>
-          <p className="text-gray-600 mt-1">Schedule a new follow-up task</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Create Follow-Up</h1>
+          <p className="text-gray-500 mt-1">Schedule a new follow-up task</p>
         </div>
       </div>
 
       {/* Form */}
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-6">
+      <form onSubmit={handleSubmit} className="bg-white rounded-lg p-6 space-y-6 shadow dark:bg-gray-900 dark:shadow-white"
+      >
         {/* Type */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className=" dark:text-white block text-sm font-medium text-gray-700 mb-2">
             Follow-Up Type <span className="text-red-500">*</span>
           </label>
           <select
             name="type"
             value={formData.type}
             onChange={handleChange}
-            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-              errors.type ? 'border-red-500' : 'border-gray-300'
-            }`}
+            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.type ? 'border-red-500' : 'border-gray-300'
+              }`}
           >
             <option value="enquiry">Enquiry</option>
             <option value="client">Client</option>
@@ -114,7 +114,7 @@ export const FollowUpFormPage: React.FC = () => {
 
         {/* Related ID */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className=" dark:text-white block text-sm font-medium text-gray-700 mb-2">
             Related ID <span className="text-red-500">*</span>
           </label>
           <input
@@ -123,9 +123,8 @@ export const FollowUpFormPage: React.FC = () => {
             value={formData.relatedId}
             onChange={handleChange}
             placeholder="Enter the ID of the enquiry/client/PT package"
-            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-              errors.relatedId ? 'border-red-500' : 'border-gray-300'
-            }`}
+            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.relatedId ? 'border-red-500' : 'border-gray-300'
+              }`}
           />
           {errors.relatedId && <p className="text-red-500 text-sm mt-1">{errors.relatedId}</p>}
           <p className="text-gray-500 text-xs mt-1">The MongoDB ObjectId of the related entity</p>
@@ -133,7 +132,7 @@ export const FollowUpFormPage: React.FC = () => {
 
         {/* Related Name */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className=" dark:text-white block text-sm font-medium text-gray-700 mb-2">
             Related Name <span className="text-red-500">*</span>
           </label>
           <input
@@ -142,25 +141,23 @@ export const FollowUpFormPage: React.FC = () => {
             value={formData.relatedName}
             onChange={handleChange}
             placeholder="Enter the name of the person/entity"
-            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-              errors.relatedName ? 'border-red-500' : 'border-gray-300'
-            }`}
+            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.relatedName ? 'border-red-500' : 'border-gray-300'
+              }`}
           />
           {errors.relatedName && <p className="text-red-500 text-sm mt-1">{errors.relatedName}</p>}
         </div>
 
         {/* Assigned To */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className=" dark:text-white block text-sm font-medium text-gray-700 mb-2">
             Assign To <span className="text-red-500">*</span>
           </label>
           <select
             name="assignedTo"
             value={formData.assignedTo}
             onChange={handleChange}
-            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-              errors.assignedTo ? 'border-red-500' : 'border-gray-300'
-            }`}
+            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.assignedTo ? 'border-red-500' : 'border-gray-300'
+              }`}
           >
             <option value="">Select a staff member</option>
             {staff.map((s) => (
@@ -174,7 +171,7 @@ export const FollowUpFormPage: React.FC = () => {
 
         {/* Scheduled Date */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className=" dark:text-white block text-sm font-medium text-gray-700 mb-2">
             Scheduled Date <span className="text-red-500">*</span>
           </label>
           <input
@@ -182,16 +179,15 @@ export const FollowUpFormPage: React.FC = () => {
             name="scheduledDate"
             value={formData.scheduledDate}
             onChange={handleChange}
-            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-              errors.scheduledDate ? 'border-red-500' : 'border-gray-300'
-            }`}
+            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.scheduledDate ? 'border-red-500' : 'border-gray-300'
+              }`}
           />
           {errors.scheduledDate && <p className="text-red-500 text-sm mt-1">{errors.scheduledDate}</p>}
         </div>
 
         {/* Scheduled Time */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className=" dark:text-white block text-sm font-medium text-gray-700 mb-2">
             Scheduled Time <span className="text-red-500">*</span>
           </label>
           <input
@@ -199,16 +195,15 @@ export const FollowUpFormPage: React.FC = () => {
             name="scheduledTime"
             value={formData.scheduledTime}
             onChange={handleChange}
-            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-              errors.scheduledTime ? 'border-red-500' : 'border-gray-300'
-            }`}
+            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.scheduledTime ? 'border-red-500' : 'border-gray-300'
+              }`}
           />
           {errors.scheduledTime && <p className="text-red-500 text-sm mt-1">{errors.scheduledTime}</p>}
         </div>
 
         {/* Note */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className=" dark:text-white block text-sm font-medium text-gray-700 mb-2">
             Note <span className="text-red-500">*</span>
           </label>
           <textarea
@@ -217,12 +212,11 @@ export const FollowUpFormPage: React.FC = () => {
             onChange={handleChange}
             rows={4}
             placeholder="Enter follow-up notes (e.g., 'Call back in 3 days')"
-            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-              errors.note ? 'border-red-500' : 'border-gray-300'
-            }`}
+            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.note ? 'border-red-500' : 'border-gray-300'
+              }`}
           />
           {errors.note && <p className="text-red-500 text-sm mt-1">{errors.note}</p>}
-          <p className="text-gray-500 text-xs mt-1">Maximum 500 characters</p>
+          <p className="text-gray-300 text-xs mt-1">Maximum 500 characters</p>
         </div>
 
         {/* Submit Button */}
@@ -247,4 +241,3 @@ export const FollowUpFormPage: React.FC = () => {
     </div>
   );
 };
-

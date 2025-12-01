@@ -55,14 +55,16 @@ export const UserProfilePage: React.FC = () => {
       />
 
       {/* Cover */}
-      <div
-        className="h-32 md:h-40 bg-gradient-to-r from-orange-400 via-red-500 to-pink-500"
-        style={{ backgroundColor: '#ff5c33' }}
-      />
+      <div className="px-6 pb-8 pt-6">
+        <div
+          className="h-32 md:h-40 rounded-[10px] bg-gradient-to-r from-orange-400 via-red-500 to-pink-500"
+          style={{ backgroundColor: '#ff5c33' }}
+        />
 
-      {/* Profile Content */}
-      <div className="px-6 pb-8">
-        <div className="flex flex-col md:flex-row -mt-20 md:-mt-24 items-center md:items-start gap-6 md:gap-8 px-6">
+        {/* Profile Content */}
+
+        <div className="flex flex-col rounded-[10px] md:flex-row -mt-20 md:-mt-24 items-center md:items-start gap-6 bg-gradient-to-r from-orange-400 via-red-500 to-pink-500 md:gap-8 px-6"
+          style={{ backgroundColor: '#ff5c33' }}>
           {/* Avatar */}
           <img
             src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
@@ -80,7 +82,7 @@ export const UserProfilePage: React.FC = () => {
             <p className="text-3xl md:text-4xl font-bold text-gray-100 dark:text-white">
               {displayEmail}
             </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
+            <p className="text-sm text-white dark:text-white mt-4">
               Member since{' '}
               {new Date(user.createdAt).toLocaleDateString(undefined, {
                 year: 'numeric',
@@ -124,6 +126,6 @@ export const UserProfilePage: React.FC = () => {
           </dl>
         </div>
       </div>
-    </div>
+    </div >
   );
 };

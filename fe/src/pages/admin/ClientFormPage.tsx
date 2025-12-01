@@ -11,7 +11,7 @@ export const ClientFormPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { clients, createClient, updateClient, loading } = useClient();
   const [initialData, setInitialData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(false);
+
 
   const isEditMode = !!id;
 
@@ -26,7 +26,6 @@ export const ClientFormPage: React.FC = () => {
   }, [id, clients, isEditMode]);
 
   const handleSubmit = async (formData: any) => {
-    setIsLoading(true);
     let result;
 
     if (isEditMode && id) {
@@ -37,14 +36,11 @@ export const ClientFormPage: React.FC = () => {
       result = await createClient(formData);
     }
 
-    setIsLoading(false);
-
     if (result.success) {
       // Navigate back to client list
       navigate('/admin/clients');
-    } else {
-      alert(result.message || `Failed to ${isEditMode ? 'update' : 'create'} client`);
     }
+    // Error toast is handled in useClient hook
 
     return result;
   };

@@ -2,9 +2,8 @@ import mongoose, { Schema, model, Document, Types } from 'mongoose';
 
 export interface IClient extends Document {
   userId: Types.ObjectId;
-   _id: string;
+  _id: string;
 
-  // Personal Information
   fullName: string;
   gender: 'male' | 'female' | 'other';
   dateOfBirth?: Date;
@@ -12,41 +11,32 @@ export interface IClient extends Document {
   contactNumber: string;
   address?: string;
 
-  // Emergency Contact
   emergencyContactName?: string;
   emergencyContactNumber?: string;
   emergencyContactRelation?: 'parent' | 'spouse' | 'sibling' | 'friend' | 'child' | 'other';
 
-  // Staff Assignment
   salesRep?: Types.ObjectId;
   memberManager?: Types.ObjectId;
   trainer?: Types.ObjectId;
 
-  // Club & Membership
   attendanceId?: string;
   clubId?: string;
   gstNo?: string;
 
-  // Membership Dates
   startDate: Date;
   endDate: Date;
   remainingDays: number;
   status: 'active' | 'expired' | 'pending';
 
-  // Package & Add-ons
   packagePrice: number;
   hasPersonalTraining: boolean;
   personalTrainer?: Types.ObjectId;
   personalTrainingDurationWeeks?: number;
   personalTrainingPrice?: number;
 
-  // Plan Type
   plan: 'basic' | 'premium';
-
-  // Timing (Simple String - No Restrictions)
   timing: string;
 
-  // Notifications
   notifications: {
     sms: boolean;
     email: boolean;
@@ -64,126 +54,54 @@ const clientSchema = new Schema<IClient>(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: [true, 'User ID is required'],
+      index: true,
     },
 
-    // Personal Information
-    fullName: {
-      type: String,
-      required: [true, 'Full name is required'],
-      trim: true,
-      minlength: [2, 'Name must be at least 2 characters long'],
-    },
-    gender: {
-      type: String,
-      enum: ['male', 'female', 'other'],
-      required: [true, 'Gender is required'],
-    },
-    dateOfBirth: {
-      type: Date,
-    },
-    email: {
-      type: String,
-      required: [true, 'Email is required'],
-      trim: true,
+    fullName: { type: String, required: true, trim: true, minlength: 2 },
+    gender: { type: String, enum: ['male', 'female', 'other'], required: true },
+    dateOfBirth: Date,
+
+    email: { 
+      type: String, 
+      required: true, 
+      trim: true, 
       lowercase: true,
-      unique: true,
-      match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email address'],
+      match: [/^\S+@\S+\.\S+$/, 'Invalid email format'],
     },
     contactNumber: {
       type: String,
-      required: [true, 'Contact number is required'],
+      required: true,
       trim: true,
-      unique: true,
-      match: [/^[\+]?[0-9\s\-\(\)]{10,}$/, 'Please enter a valid phone number'],
+      match: [/^[\+]?[0-9\s\-\(\)]{10,}$/, 'Invalid phone number'],
     },
-    address: {
-      type: String,
-      trim: true,
-    },
+    address: String,
 
-    // Emergency Contact
-    emergencyContactName: {
-      type: String,
-      trim: true,
-    },
-    emergencyContactNumber: {
-      type: String,
-      trim: true,
-      match: [/^[\+]?[0-9\s\-\(\)]{10,}$/, 'Please enter a valid emergency phone number'],
-    },
-    emergencyContactRelation: {
-      type: String,
-      enum: ['parent', 'spouse', 'sibling', 'friend', 'child', 'other'],
-    },
+    emergencyContactName: String,
+    emergencyContactNumber: { type: String, trim: true },
+    emergencyContactRelation: { type: String, enum: ['parent', 'spouse', 'sibling', 'friend', 'child', 'other'] },
 
-    // Staff Assignment
-    salesRep: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Staff',
-    },
-    memberManager: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Staff',
-    },
-    trainer: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Staff',
-    },
+    salesRep: { type: mongoose.Schema.Types.ObjectId, ref: 'Staff' },
+    memberManager: { type: mongoose.Schema.Types.ObjectId, ref: 'Staff' },
+    trainer: { type: mongoose.Schema.Types.ObjectId, ref: 'Staff' },
 
-    // Club & Billing
-    attendanceId: {
-      type: String,
-      unique: true,
-      sparse: true,
-    },
-    clubId: {
-      type: String,
-    },
-    gstNo: {
-      type: String,
-      uppercase: true,
-      match: [/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}[Z]{1}[0-9A-Z]{1}$/, 'Invalid GST number format'],
-    },
+    attendanceId: { type: String },
+    clubId: String,
+    gstNo: { type: String, uppercase: true },
 
-    // Membership Dates
-    startDate: {
-      type: Date,
-      required: [true, 'Start date is required'],
-    },
-    endDate: {
-      type: Date,
-      required: [true, 'End date is required'],
-    },
-    remainingDays: {
-      type: Number,
-      default: 0,
-    },
-    status: {
-      type: String,
-      enum: {
-        values: ['active', 'expired', 'pending'],
-        message: 'Status must be either "active", "expired", or "pending"',
-      },
-      default: 'active',
-    },
+    startDate: { type: Date, required: true },
+    endDate: { type: Date, required: true },
+    remainingDays: { type: Number, default: 0 },
+    status: { type: String, enum: ['active', 'expired', 'pending'], default: 'active' },
 
-    // Package & Add-ons
-    packagePrice: {
-      type: Number,
-      required: [true, 'Package price is required'],
-      min: [0, 'Package price cannot be negative'],
-    },
+    packagePrice: { type: Number, required: true, min: 0 },
 
-    hasPersonalTraining: {
-      type: Boolean,
-      default: false,
-    },
+    hasPersonalTraining: { type: Boolean, default: false },
     personalTrainer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Staff',
       validate: {
-        validator: function (this: IClient, value: Types.ObjectId) {
-          return !this.hasPersonalTraining || !!value;
+        validator: function (this: IClient, v: Types.ObjectId) {
+          return !this.hasPersonalTraining || !!v;
         },
         message: 'Personal trainer is required when personal training is enabled',
       },
@@ -191,74 +109,66 @@ const clientSchema = new Schema<IClient>(
     personalTrainingDurationWeeks: {
       type: Number,
       validate: {
-        validator: function (this: IClient, value: number) {
-          return !this.hasPersonalTraining || (value && value > 0);
+        validator: function (this: IClient, v: number) {
+          return !this.hasPersonalTraining || (v && v > 0);
         },
-        message: 'Personal training duration must be greater than 0',
+        message: 'Duration must be > 0 when personal training is enabled',
       },
     },
     personalTrainingPrice: {
       type: Number,
       validate: {
-        validator: function (this: IClient, value: number) {
-          return !this.hasPersonalTraining || (value !== undefined && value >= 0);
+        validator: function (this: IClient, v: number) {
+          return !this.hasPersonalTraining || (v !== undefined && v >= 0);
         },
-        message: 'Personal training price must be 0 or more',
+        message: 'Price must be >= 0 when personal training is enabled',
       },
     },
 
-    // Plan Type
-    plan: {
-      type: String,
-      enum: {
-        values: ['basic', 'premium'],
-        message: 'Plan must be either "basic" or "premium"',
-      },
-      required: [true, 'Membership plan is required'],
-      default: 'basic',
-    },
+    plan: { type: String, enum: ['basic', 'premium'], required: true, default: 'basic' },
+    timing: { type: String, required: true, trim: true },
 
-    // ✅ Simple Timing Field – Free Text
-    timing: {
-      type: String,
-      required: [true, 'Timing is required for membership access'],
-      trim: true,
-    },
-
-    // Notifications
     notifications: {
-      sms: {
-        type: Boolean,
-        default: true,
-      },
-      email: {
-        type: Boolean,
-        default: true,
-      },
-      push: {
-        type: Boolean,
-        default: true,
-      },
-      whatsapp: {
-        type: Boolean,
-        default: true,
-      },
+      sms: { type: Boolean, default: true },
+      email: { type: Boolean, default: true },
+      push: { type: Boolean, default: true },
+      whatsapp: { type: Boolean, default: true },
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-// Pre-save hook: Calculate remainingDays and update status
+/**
+ * UNIQUE EMAIL & CONTACT PER USER
+ */
+clientSchema.index({ userId: 1, email: 1 }, { unique: true });
+clientSchema.index({ userId: 1, contactNumber: 1 }, { unique: true });
+
+/**
+ * Pre-save hook: calculate remainingDays and status
+ */
 clientSchema.pre('save', function (next) {
   if (this.endDate) {
     const today = new Date();
     const end = new Date(this.endDate);
-    const timeDiff = end.getTime() - today.getTime();
-    const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
-    this.remainingDays = daysDiff;
-    this.status = daysDiff > 0 ? 'active' : 'expired';
+    const diff = Math.ceil((end.getTime() - today.getTime()) / (1000 * 3600 * 24));
+    this.remainingDays = diff;
+    this.status = diff > 0 ? 'active' : 'expired';
+  }
+  next();
+});
+
+/**
+ * Pre-update hook for update operations
+ */
+clientSchema.pre('findOneAndUpdate', function (next) {
+  const update = this.getUpdate() as Partial<IClient>;
+  if (update.endDate) {
+    const today = new Date();
+    const end = new Date(update.endDate);
+    const diff = Math.ceil((end.getTime() - today.getTime()) / (1000 * 3600 * 24));
+    (update as any).remainingDays = diff;
+    (update as any).status = diff > 0 ? 'active' : 'expired';
   }
   next();
 });

@@ -19,21 +19,13 @@ export const FollowUpsPage: React.FC = () => {
   const handleComplete = async (id: string) => {
     const result = await completeFollowUp(id);
     if (result.success) {
-      alert('Follow-up marked as completed');
       fetchFollowUps();
-    } else {
-      alert(`Failed to complete follow-up: ${result.message}`);
     }
   };
 
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this follow-up?')) {
-      const result = await deleteFollowUp(id);
-      if (result.success) {
-        alert('Follow-up deleted successfully');
-      } else {
-        alert(`Failed to delete follow-up: ${result.message}`);
-      }
+      await deleteFollowUp(id);
     }
   };
 
@@ -149,9 +141,9 @@ export const FollowUpsPage: React.FC = () => {
                           {followUp.type}
                         </span>
                       </div>
-                      
+
                       <p className="text-sm text-gray-700 mb-3">{followUp.note}</p>
-                      
+
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div className="flex items-center gap-2">
                           <Calendar className="text-gray-500" size={16} />

@@ -1,4 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useToast } from '../contexts/ToastContext';
+import axios from 'axios';
 
 // === Client Interface ===
 export interface Client {
@@ -96,170 +98,158 @@ export interface BulkUploadResult {
   };
 }
 
-// === Hook Return Type ===
-interface UseClientResult {
-  clients: Client[];
-  loading: boolean;
-  error: string | null;
-  createClient: (data: CreateClientData) => Promise<{ success: boolean; message?: string }>;
-  updateClient: (id: string, data: Partial<CreateClientData>) => Promise<{ success: boolean; message?: string }>;
-  bulkUpload: (file: File) => Promise<BulkUploadResult | null>;
-  deleteClient: (id: string, clientName?: string) => Promise<void>;
-  refresh: () => void;
-  recentActivities: ClientActivity[];
-}
+const API_URL = 'http://localhost:8000/api/v1';
 
-export const useClient = (): UseClientResult => {
+const API = axios.create({
+  baseURL: `${API_URL}/client`,
+  headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
+});
+
+export const useClient = () => {
   const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { addToast } = useToast();
 
-  const fetchClients = async () => {
+  // Fetch all clients
+  const fetchClients = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      const res = await fetch('http://localhost:8000/api/v1/client', {
-        method: 'GET',
-        credentials: 'include',
-      });
-
-      const data = await res.json();
-
-      if (res.ok && data.success) {
-        const sorted = data.data.sort(
-          (a: Client, b: Client) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-        setClients(sorted);
+      const res = await API.get('/');
+      if (res.data.success) {
+        setClients(res.data.data || []);
       } else {
-        setError(data.message || 'Failed to load clients');
+        const msg = res.data.message || 'Failed to fetch clients';
+        setError(msg);
+        addToast(msg, 'error');
       }
     } catch (err: any) {
-      setError('Network error. Could not connect to server.');
-      console.error('Fetch clients error:', err);
+      const msg = err.response?.data?.message || err.message || 'Failed to fetch clients';
+      setError(msg);
+      addToast(msg, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [addToast]);
+
+  // Create client
+  const createClient = async (data: CreateClientData): Promise<{ success: boolean; message?: string }> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await API.post('/', data);
+      if (res.data.success) {
+        setClients((prev) => [res.data.data, ...prev]);
+        addToast('Client created successfully', 'success');
+        return { success: true };
+      } else {
+        const msg = res.data.message || 'Failed to create client';
+        setError(msg);
+        addToast(msg, 'error');
+        return { success: false, message: msg };
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to create client';
+      setError(msg);
+      addToast(msg, 'error');
+      return { success: false, message: msg };
     } finally {
       setLoading(false);
     }
   };
 
-  const createClient = async (data: CreateClientData) => {
+  // Update client
+  const updateClient = async (id: string, data: Partial<CreateClientData>): Promise<{ success: boolean; message?: string }> => {
+    setLoading(true);
+    setError(null);
     try {
-      const res = await fetch('http://localhost:8000/api/v1/client', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-        credentials: 'include',
-      });
-
-      const result = await res.json();
-
-      if (res.ok && result.success) {
-        const newClient = result.data as Client;
-        setClients((prev) => [newClient, ...prev]);
+      const res = await API.put(`/${id}`, data);
+      if (res.data.success) {
+        setClients((prev) =>
+          prev.map((client) => (client._id === id ? res.data.data : client))
+        );
+        addToast('Client updated successfully', 'success');
         return { success: true };
       } else {
-        return { success: false, message: result.message || 'Failed to create client' };
+        const msg = res.data.message || 'Failed to update client';
+        setError(msg);
+        addToast(msg, 'error');
+        return { success: false, message: msg };
       }
     } catch (err: any) {
-      console.error('Create client error:', err);
-      return {
-        success: false,
-        message: 'Network error. Check connection and login status.',
-      };
+      const msg = err.response?.data?.message || err.message || 'Failed to update client';
+      setError(msg);
+      addToast(msg, 'error');
+      return { success: false, message: msg };
+    } finally {
+      setLoading(false);
     }
   };
 
-  const updateClient = async (id: string, data: Partial<CreateClientData>) => {
+  // Delete client
+  const deleteClient = async (id: string): Promise<boolean> => {
+    setLoading(true);
+    setError(null);
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/client/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-        credentials: 'include',
-      });
-
-      const result = await res.json();
-
-      if (res.ok && result.success) {
-        const updatedClient = result.data as Client;
-        setClients((prev) => prev.map((c) => (c._id === id ? updatedClient : c)));
-        return { success: true };
+      const res = await API.delete(`/${id}`);
+      if (res.data.success) {
+        setClients((prev) => prev.filter((client) => client._id !== id));
+        addToast('Client deleted successfully', 'success');
+        return true;
       } else {
-        return { success: false, message: result.message || 'Failed to update client' };
+        const msg = res.data.message || 'Failed to delete client';
+        setError(msg);
+        addToast(msg, 'error');
+        return false;
       }
     } catch (err: any) {
-      console.error('Update client error:', err);
-      return {
-        success: false,
-        message: 'Network error. Check connection and login status.',
-      };
+      const msg = err.response?.data?.message || err.message || 'Failed to delete client';
+      setError(msg);
+      addToast(msg, 'error');
+      return false;
+    } finally {
+      setLoading(false);
     }
   };
 
+  // Bulk upload
   const bulkUpload = async (file: File): Promise<BulkUploadResult | null> => {
+    setLoading(true);
+    setError(null);
     try {
       const formData = new FormData();
       formData.append('file', file);
 
-      const res = await fetch('http://localhost:8000/api/v1/client/bulk-upload', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include',
+      const res = await API.post('/bulk-upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      const result = await res.json();
-
-      if (res.ok && result.success) {
-        // Refresh the client list after successful upload
-        await fetchClients();
-      }
-
-      return result;
-    } catch (err: any) {
-      console.error('Bulk upload error:', err);
-      return {
-        success: false,
-        message: 'Network error. Check connection and login status.',
-        summary: { total: 0, successful: 0, failed: 0, duplicates: 0 },
-        details: { successful: [], failed: [] },
-      };
-    }
-  };
-
-  const deleteClient = async (id: string, clientName?: string) => {
-    const confirmMessage = clientName
-      ? `Are you sure you want to delete ${clientName}?`
-      : 'Are you sure you want to delete this client?';
-
-    if (!window.confirm(confirmMessage)) return;
-
-    try {
-      const res = await fetch(`http://localhost:8000/api/v1/client/${id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-
-      const result = await res.json();
-
-      if (res.ok && result.success) {
-        setClients((prev) => prev.filter((c) => c._id !== id));
-        alert('Client deleted successfully');
+      if (res.data.success) {
+        addToast(res.data.message || 'Bulk upload completed', 'success');
+        await fetchClients(); // Refresh the list
+        return res.data;
       } else {
-        alert(result.message || 'Failed to delete client');
+        const msg = res.data.message || 'Bulk upload failed';
+        setError(msg);
+        addToast(msg, 'error');
+        return res.data;
       }
     } catch (err: any) {
-      alert('Network error. Could not delete client.');
-      console.error('Delete client error:', err);
+      const msg = err.response?.data?.message || err.message || 'Bulk upload failed';
+      setError(msg);
+      addToast(msg, 'error');
+      return null;
+    } finally {
+      setLoading(false);
     }
   };
 
-  // ✅ Memoize recentActivities to prevent unnecessary re-creation
-  const recentActivities = useMemo(() => {
-    const hours24 = 24 * 60 * 60 * 1000;
+  // Recent activities (clients created in last 24 hours)
+  const recentActivities = useMemo<ClientActivity[]>(() => {
     const now = Date.now();
+    const hours24 = 24 * 60 * 60 * 1000;
 
     return clients
       .filter((client) => {
@@ -271,11 +261,11 @@ export const useClient = (): UseClientResult => {
         clientName: client.fullName,
         timestamp: client.createdAt,
       }));
-  }, [clients]); // ← Only recompute when clients change
+  }, [clients]);
 
   useEffect(() => {
     fetchClients();
-  }, []);
+  }, [fetchClients]);
 
   return {
     clients,

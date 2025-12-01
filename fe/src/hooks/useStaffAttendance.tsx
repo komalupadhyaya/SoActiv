@@ -1,6 +1,7 @@
 // hooks/useStaffAttendance.ts
 import { useState, useCallback } from 'react';
 import axios from 'axios';
+import { useToast } from '../contexts/ToastContext';
 
 // === Types ===
 export interface StaffShort {
@@ -82,16 +83,14 @@ const api = axios.create({
 // === Hook ===
 export const useAttendance = () => {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { addToast } = useToast();
 
   const handleError = (err: any): string => {
     const message =
       err.response?.data?.message || err.message || 'Failed to process request';
-    setError(message);
+    addToast(message, 'error');
     return message;
   };
-
-  const clearError = () => setError(null);
 
   // === Mark Attendance ===
   const markAttendance = useCallback(
@@ -251,7 +250,5 @@ export const useAttendance = () => {
     deleteAttendance,
     getMonthlyAttendanceReport,
     loading,
-    error,
-    clearError,
   };
 };

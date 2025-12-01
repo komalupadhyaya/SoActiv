@@ -9,35 +9,38 @@ export interface User {
   email: string;
   phone?: string;
   role: string;
+  gym?: string; // <— Added for tenant tracking
   createdAt: string;
 }
 
 // 👇 DB Document Interface
 interface IUser {
   _id: string;
+  owner?: Schema.Types.ObjectId;
   fullname: string;
   email: string;
   phone?: string;
   avatar: string;
   password: string;
-  role: string;
+  role: "member" | "admin" | "staff" | "trainer" | "superadmin";
+  gym?: Schema.Types.ObjectId; // <— Add this reference
   createdAt: Date;
   updatedAt: Date;
 }
 
-// 👇 Define methods here so TypeScript knows they exist
+// 👇 Define methods
 interface IUserMethods {
   isPasswordCorrect(password: string): Promise<boolean>;
   generateAccessToken(): string;
   toFrontendUser(): User;
 }
 
-// 👇 Full model type
 type UserModel = Model<IUser, {}, IUserMethods>;
 
-// 👇 Schema
 const userSchema = new Schema<IUser, UserModel, IUserMethods>(
   {
+    owner: { type: Schema.Types.ObjectId, ref: "User", required: false },
+
     email: {
       type: String,
       required: true,
@@ -65,8 +68,16 @@ const userSchema = new Schema<IUser, UserModel, IUserMethods>(
     },
     role: {
       type: String,
-      enum: ["user", "admin", "sales", "trainer", "frontdesk"],
-      default: "user",
+      enum: ["member", "admin", "staff", "trainer", "superadmin"],
+      default: "member",
+
+    },
+    gym: {
+      type: Schema.Types.ObjectId,
+      ref: "Gym",
+      required: function (this: any) {
+        return this.role !== "superadmin";
+      },
     },
   },
   { timestamps: true }
@@ -87,10 +98,10 @@ userSchema.methods.isPasswordCorrect = async function (password: string) {
 // 👇 Generate JWT
 userSchema.methods.generateAccessToken = function () {
   return jwt.sign(
-    { _id: this._id, email: this.email, role: this.role },
+    { _id: this._id, email: this.email, role: this.role, gym: this.gym },
     process.env.ACCESS_TOKEN_SECRET || "your-secret-key",
     {
-      expiresIn: "7d", 
+      expiresIn: "7d",
     }
   );
 };
@@ -103,9 +114,9 @@ userSchema.methods.toFrontendUser = function (): User {
     email: this.email,
     phone: this.phone || "",
     role: this.role,
+    gym: this.gym?.toString(),
     createdAt: this.createdAt.toISOString(),
   };
 };
 
-// 👇 Create and export model
 export const User = model<IUser, UserModel>("User", userSchema);

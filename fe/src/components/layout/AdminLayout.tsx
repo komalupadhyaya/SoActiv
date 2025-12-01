@@ -1,14 +1,11 @@
-// components/layout/AdminLayout.tsx
-
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { useClient } from '../../hooks/useClient';
-import { useStaff } from '../../hooks/useStaff'; // ← Import useStaff
+import { useStaff } from '../../hooks/useStaff';
 
-// Shared types
 interface Notification {
   id: string;
   message: string;
@@ -22,9 +19,8 @@ export const AdminLayout: React.FC = () => {
 
   const { user, isLoading } = useAuth();
   const { recentActivities: clientActions } = useClient();
-  const { recentStaffActions } = useStaff(); // ← Get staff actions
+  const { recentStaffActions } = useStaff();
 
-  // Process client AND staff actions into notifications
   useEffect(() => {
     const now = new Date();
     const currentYear = now.getFullYear();
@@ -38,7 +34,6 @@ export const AdminLayout: React.FC = () => {
         : actionYear === currentYear;
     };
 
-    // 🟢 Client notifications
     const clientNotifications = clientActions
       .filter((action) => isWithinFilter(action.timestamp))
       .map((action) => ({
@@ -50,7 +45,6 @@ export const AdminLayout: React.FC = () => {
         timestamp: action.timestamp,
       }));
 
-    // 🔵 Staff notifications
     const staffNotifications = recentStaffActions
       .filter((action) => isWithinFilter(action.timestamp))
       .map((action) => ({
@@ -59,12 +53,10 @@ export const AdminLayout: React.FC = () => {
         timestamp: action.timestamp,
       }));
 
-    // 🔗 Merge and sort by newest
     const allNotifications = [...clientNotifications, ...staffNotifications].sort(
       (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
 
-    // Update only if changed
     setNotifications((prev) => {
       if (
         prev.length === allNotifications.length &&
@@ -93,32 +85,31 @@ export const AdminLayout: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <Sidebar />
-      <div className="lg:pl-64">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
+      {/* Sidebar: shown always for xl, toggled for smaller screens */}
+      <Sidebar isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
+
+
+      <div className="flex-1 xl:pl-64 flex flex-col">
         <Header
           onMobileMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          isMobileMenuOpen={isMobileMenuOpen}
           activities={notifications}
           markAsSeen={markAsSeen}
           dateFilter={dateFilter}
           setDateFilter={setDateFilter}
         />
-        <main className="p-4 lg:p-6">
+        <main className="p-4 xl:p-6 flex-1 overflow-auto">
           <Outlet context={{ dateFilter, setDateFilter }} />
         </main>
       </div>
 
-      {/* Mobile Menu Overlay */}
+      {/* Optional: close sidebar if overlay clicked outside sidebar */}
       {isMobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 z-40">
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50"
-            onClick={() => setIsMobileMenuOpen(false)}
-          />
-          <div className="fixed inset-y-0 left-0 w-64 bg-white dark:bg-gray-900 shadow-lg">
-            <Sidebar />
-          </div>
-        </div>
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 xl:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
       )}
     </div>
   );

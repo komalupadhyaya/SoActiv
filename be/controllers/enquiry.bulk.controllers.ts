@@ -4,7 +4,7 @@ import { Types } from 'mongoose';
 import Papa from 'papaparse';
 import Enquiry, { type IEnquiry } from '../models/enquiry.model';
 
-// Interface for bulk upload result
+/* -------------------- Interfaces -------------------- */
 interface BulkUploadResult {
   success: boolean;
   message: string;
@@ -30,7 +30,6 @@ interface BulkUploadResult {
   };
 }
 
-// Interface for parsed enquiry data
 interface ParsedEnquiryData {
   name: string;
   phone: string;
@@ -43,280 +42,172 @@ interface ParsedEnquiryData {
   followUpDate?: string;
 }
 
-// Validate email format
-const isValidEmail = (email: string): boolean => {
-  const emailRegex = /^\S+@\S+\.\S+$/;
-  return emailRegex.test(email);
-};
+/* -------------------- Validation Helpers -------------------- */
+const isValidEmail = (email: string): boolean => /^\S+@\S+\.\S+$/.test(email);
+const isValidPhone = (phone: string): boolean => /^\+?[1-9]\d{1,14}$/.test(phone);
 
-// Validate phone format
-const isValidPhone = (phone: string): boolean => {
-  const phoneRegex = /^\+?[1-9]\d{1,14}$/;
-  return phoneRegex.test(phone);
-};
-
-// Validate enquiry source
 const isValidSource = (source: string): boolean => {
   const validSources = ['website', 'social-media', 'referral', 'walk-in', 'advertisement', 'other'];
   return validSources.includes(source.toLowerCase());
 };
 
-// Validate enquiry status
 const isValidStatus = (status: string): boolean => {
   const validStatuses = ['new', 'contacted', 'interested', 'converted', 'lost'];
   return validStatuses.includes(status.toLowerCase());
 };
 
-// Validate a single enquiry entry
 const validateEnquiryData = (data: ParsedEnquiryData, row: number): { valid: boolean; errors: string[] } => {
   const errors: string[] = [];
 
-  // Required fields validation
-  if (!data.name || data.name.trim() === '') {
+  if (!data.name?.trim()) {
     errors.push('Name is required');
   } else if (data.name.length > 100) {
     errors.push('Name cannot exceed 100 characters');
   }
 
-  if (!data.phone || data.phone.trim() === '') {
+  if (!data.phone?.trim()) {
     errors.push('Phone number is required');
   } else if (!isValidPhone(data.phone.trim())) {
     errors.push('Invalid phone number format (use international format, e.g., +1234567890)');
   }
 
-  // Email validation (optional but must be valid if provided)
-  if (data.email && data.email.trim() !== '') {
-    if (!isValidEmail(data.email.trim())) {
-      errors.push('Invalid email format');
-    }
+  if (data.email?.trim() && !isValidEmail(data.email.trim())) {
+    errors.push('Invalid email format');
   }
 
-  // Source validation (required)
-  if (!data.source || data.source.trim() === '') {
+  if (!data.source?.trim()) {
     errors.push('Source is required');
   } else if (!isValidSource(data.source.trim())) {
     errors.push('Invalid source (must be: website, social-media, referral, walk-in, advertisement, or other)');
   }
 
-  // Status validation (optional)
-  if (data.status && data.status.trim() !== '' && !isValidStatus(data.status.trim())) {
+  if (data.status?.trim() && !isValidStatus(data.status.trim())) {
     errors.push('Invalid status (must be: new, contacted, interested, converted, or lost)');
   }
 
-  // Field length validations
-  if (data.comments && data.comments.length > 1000) {
-    errors.push('Comments cannot exceed 1000 characters');
-  }
+  if (data.comments && data.comments.length > 1000) errors.push('Comments cannot exceed 1000 characters');
+  if (data.interests && data.interests.length > 500) errors.push('Interests cannot exceed 500 characters');
+  if (data.budget && data.budget.length > 100) errors.push('Budget cannot exceed 100 characters');
 
-  if (data.interests && data.interests.length > 500) {
-    errors.push('Interests cannot exceed 500 characters');
-  }
-
-  if (data.budget && data.budget.length > 100) {
-    errors.push('Budget cannot exceed 100 characters');
-  }
-
-  return {
-    valid: errors.length === 0,
-    errors,
-  };
+  return { valid: errors.length === 0, errors };
 };
 
-// Parse CSV file
-const parseCSV = (fileContent: string): Promise<ParsedEnquiryData[]> => {
-  return new Promise((resolve, reject) => {
+/* -------------------- File Parsers -------------------- */
+const parseCSV = (fileContent: string): Promise<ParsedEnquiryData[]> =>
+  new Promise((resolve, reject) => {
     Papa.parse(fileContent, {
       header: true,
       skipEmptyLines: true,
-      transformHeader: (header: string) => {
-        // Normalize headers to lowercase and remove spaces
-        return header.toLowerCase().trim().replace(/\s+/g, '');
-      },
-      complete: (results) => {
-        resolve(results.data as ParsedEnquiryData[]);
-      },
-      error: (error: any) => {
-        reject(error);
-      },
+      transformHeader: (header: string) => header.toLowerCase().trim().replace(/\s+/g, ''),
+      complete: (results) => resolve(results.data as ParsedEnquiryData[]),
+      error: (error: any) => reject(error),
     });
   });
-};
 
-// Parse XML file
-const parseXML = (fileContent: string): Promise<ParsedEnquiryData[]> => {
-  return new Promise((resolve, reject) => {
+const parseXML = (fileContent: string): Promise<ParsedEnquiryData[]> =>
+  new Promise((resolve, reject) => {
     try {
-      // Simple XML parsing (for basic structure)
       const enquiries: ParsedEnquiryData[] = [];
-      
-      // Match all <enquiry> or <entry> tags
       const entryRegex = /<(?:enquiry|entry)>([\s\S]*?)<\/(?:enquiry|entry)>/gi;
       const entries = fileContent.match(entryRegex);
-
-      if (!entries || entries.length === 0) {
-        return reject(new Error('No valid enquiry entries found in XML file'));
-      }
+      if (!entries) return reject(new Error('No valid enquiry entries found in XML file'));
 
       entries.forEach((entry) => {
-        const enquiry: any = {};
-        
-        // Extract field values
-        const extractField = (fieldName: string): string => {
-          const regex = new RegExp(`<${fieldName}>(.*?)<\/${fieldName}>`, 'i');
-          const match = entry?.match(regex);
-          return match?.[1]?.trim() || '';
+        const extract = (field: string): string => {
+          const regex = new RegExp(`<${field}>(.*?)<\/${field}>`, 'i');
+          return entry.match(regex)?.[1]?.trim() || '';
         };
 
-        enquiry.name = extractField('name');
-        enquiry.phone = extractField('phone');
-        enquiry.email = extractField('email');
-        enquiry.source = extractField('source');
-        enquiry.status = extractField('status');
-        enquiry.comments = extractField('comments');
-        enquiry.interests = extractField('interests');
-        enquiry.budget = extractField('budget');
-        enquiry.followUpDate = extractField('followupdate') || extractField('followUpDate');
-
-        enquiries.push(enquiry);
+        enquiries.push({
+          name: extract('name'),
+          phone: extract('phone'),
+          email: extract('email'),
+          source: extract('source'),
+          status: extract('status'),
+          comments: extract('comments'),
+          interests: extract('interests'),
+          budget: extract('budget'),
+          followUpDate: extract('followupdate') || extract('followUpDate'),
+        });
       });
 
       resolve(enquiries);
-    } catch (error) {
-      reject(error);
+    } catch (err) {
+      reject(err);
     }
   });
-};
 
-// POST: Bulk upload enquiries from CSV or XML
+/* -------------------- Controller -------------------- */
 export const bulkUploadEnquiries = async (req: Request, res: Response): Promise<any> => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).user?._id || (req as any).user?.id;
 
     if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: 'Unauthorized: User not authenticated',
-      });
+      return res.status(401).json({ success: false, message: 'Unauthorized: User not authenticated' });
     }
 
-    // Check if file was uploaded
     if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: 'No file uploaded. Please upload a CSV or XML file.',
-      });
+      return res.status(400).json({ success: false, message: 'No file uploaded. Please upload a CSV or XML file.' });
     }
 
     const file = req.file;
-    const fileExtension = file.originalname.split('.').pop()?.toLowerCase();
-
-    // Validate file type
-    if (!fileExtension || !['csv', 'xml'].includes(fileExtension)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid file type. Only CSV and XML files are supported.',
-      });
+    const ext = file.originalname.split('.').pop()?.toLowerCase();
+    if (!ext || !['csv', 'xml'].includes(ext)) {
+      return res.status(400).json({ success: false, message: 'Invalid file type. Only CSV and XML files are supported.' });
     }
 
-    // Read file content
-    const fileContent = file.buffer.toString('utf-8');
-
-    // Parse file based on type
-    let parsedData: ParsedEnquiryData[];
-    try {
-      if (fileExtension === 'csv') {
-        parsedData = await parseCSV(fileContent);
-      } else {
-        parsedData = await parseXML(fileContent);
-      }
-    } catch (parseError: any) {
-      return res.status(400).json({
-        success: false,
-        message: 'Failed to parse file',
-        error: parseError.message,
-      });
+    const content = file.buffer.toString('utf-8');
+    const parsedData = ext === 'csv' ? await parseCSV(content) : await parseXML(content);
+    if (!parsedData?.length) {
+      return res.status(400).json({ success: false, message: 'No valid data found in the uploaded file' });
     }
 
-    if (!parsedData || parsedData.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'No valid data found in the uploaded file',
-      });
-    }
-
-    // Initialize result tracking
     const result: BulkUploadResult = {
       success: true,
       message: 'Bulk upload completed',
-      summary: {
-        total: parsedData.length,
-        successful: 0,
-        failed: 0,
-        duplicates: 0,
-      },
-      details: {
-        successful: [],
-        failed: [],
-      },
+      summary: { total: parsedData.length, successful: 0, failed: 0, duplicates: 0 },
+      details: { successful: [], failed: [] },
     };
 
-    // Get all existing emails to check for duplicates
-    const existingEmails = new Set<string>();
-    if (parsedData.some(entry => entry.email)) {
-      const emails = parsedData
-        .filter(entry => entry.email && entry.email.trim() !== '')
-        .map(entry => entry.email!.toLowerCase().trim());
-      
-      const existingEnquiries = await Enquiry.find({
-        email: { $in: emails },
-      }).select('email');
+    /* --- Fetch existing emails for this user's gym only --- */
+    const emails = parsedData
+      .filter((d) => d.email?.trim())
+      .map((d) => d.email!.toLowerCase().trim());
 
-      existingEnquiries.forEach(enquiry => {
-        if (enquiry.email) {
-          existingEmails.add(enquiry.email.toLowerCase());
-        }
-      });
+    const existingEmails = new Set<string>();
+    if (emails.length > 0) {
+      const found = await Enquiry.find({ userId, email: { $in: emails } }).select('email');
+      found.forEach((f) => f.email && existingEmails.add(f.email.toLowerCase()));
     }
 
-    // Process each entry
+    /* --- Process each row --- */
     for (let i = 0; i < parsedData.length; i++) {
-      const rowNumber = i + 2; // +2 because row 1 is header, and array is 0-indexed
+      const rowNumber = i + 2;
       const entry = parsedData[i];
-
-      // Skip if entry is undefined
       if (!entry) continue;
 
-      // Validate entry
-      const validation = validateEnquiryData(entry, rowNumber);
-
-      if (!validation.valid) {
+      const { valid, errors } = validateEnquiryData(entry, rowNumber);
+      if (!valid) {
         result.summary.failed++;
-        result.details.failed.push({
-          row: rowNumber,
-          data: entry,
-          reason: 'Validation failed',
-          errors: validation.errors,
-        });
+        result.details.failed.push({ row: rowNumber, data: entry, reason: 'Validation failed', errors });
         continue;
       }
 
-      // Check for duplicate email
-      const emailToCheck = entry.email?.toLowerCase().trim();
-      if (emailToCheck && existingEmails.has(emailToCheck)) {
+      const emailKey = entry.email?.toLowerCase().trim();
+      if (emailKey && existingEmails.has(emailKey)) {
         result.summary.failed++;
         result.summary.duplicates++;
         result.details.failed.push({
           row: rowNumber,
           data: entry,
-          reason: 'Duplicate email',
-          errors: [`Email '${entry.email}' already exists in the system`],
+          reason: 'Duplicate email for your gym',
+          errors: [`Email '${entry.email}' already exists under this gym account`],
         });
         continue;
       }
 
-      // Create enquiry
       try {
-        const enquiryData: Partial<IEnquiry> = {
+        const enquiry: Partial<IEnquiry> = {
           userId: new Types.ObjectId(userId),
           name: entry.name.trim(),
           phone: entry.phone.trim(),
@@ -330,13 +221,8 @@ export const bulkUploadEnquiries = async (req: Request, res: Response): Promise<
           assignedStaff: null,
         };
 
-        const enquiry = new Enquiry(enquiryData);
-        await enquiry.save();
-
-        // Add email to existing set to prevent duplicates within the same upload
-        if (emailToCheck) {
-          existingEmails.add(emailToCheck);
-        }
+        await Enquiry.create(enquiry);
+        if (emailKey) existingEmails.add(emailKey);
 
         result.summary.successful++;
         result.details.successful.push({
@@ -345,25 +231,36 @@ export const bulkUploadEnquiries = async (req: Request, res: Response): Promise<
           email: entry.email || '',
           phone: entry.phone,
         });
-      } catch (saveError: any) {
-        result.summary.failed++;
-        result.details.failed.push({
-          row: rowNumber,
-          data: entry,
-          reason: 'Database error',
-          errors: [saveError.message || 'Failed to save enquiry'],
-        });
+      } catch (err: any) {
+        // Catch MongoDB duplicate index error (E11000)
+        if (err.code === 11000 && err.keyPattern?.email) {
+          result.summary.failed++;
+          result.summary.duplicates++;
+          result.details.failed.push({
+            row: rowNumber,
+            data: entry,
+            reason: 'Duplicate email (DB constraint)',
+            errors: [`Email '${entry.email}' already exists under this gym`],
+          });
+        } else {
+          result.summary.failed++;
+          result.details.failed.push({
+            row: rowNumber,
+            data: entry,
+            reason: 'Database error',
+            errors: [err.message],
+          });
+        }
       }
     }
 
     return res.status(200).json(result);
-  } catch (error: any) {
-    console.error('Error in bulk upload:', error);
+  } catch (err: any) {
+    console.error('Bulk upload error:', err);
     return res.status(500).json({
       success: false,
       message: 'Server error during bulk upload',
-      error: error.message,
+      error: err.message,
     });
   }
 };
-

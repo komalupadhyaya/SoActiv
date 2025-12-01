@@ -1,5 +1,15 @@
-import React, { useState } from 'react';
-import { Plus, Search, Filter, User, Phone, Calendar, DollarSign, Trash2, Upload, Edit } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  Plus,
+  Search,
+  User,
+  Phone,
+  Calendar,
+  Trash2,
+  Upload,
+  Edit,
+  ChevronDown,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -10,9 +20,74 @@ import { BulkUploadModal } from '../../components/common/BulkUploadModal';
 import { UploadResultsReport } from '../../components/common/UploadResultsReport';
 import { useStaff, type BulkUploadResult, Staff } from '../../hooks/useStaff';
 
-const statusColors = { 
+const statusColors = {
   active: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
   inactive: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+};
+
+// Dropdown button for mobile/tablet
+const StaffActionsDropdown: React.FC<{ onBulkUploadOpen: () => void }> = ({
+  onBulkUploadOpen,
+}) => {
+  const navigate = useNavigate();
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative inline-block text-left" ref={dropdownRef}>
+      <Button
+        variant="outline"
+        onClick={() => setIsOpen((open) => !open)}
+        className="flex items-center gap-1"
+      >
+        + More <ChevronDown size={16} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </Button>
+
+      {isOpen && (
+        <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-50 border border-gray-200 dark:border-gray-700">
+          <div className="py-1">
+            <button
+              onClick={() => {
+                setIsOpen(false);
+                navigate('/admin/staff-attendance');
+              }}
+              className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+            >
+              <User size={16} /> Mark Attendance
+            </button>
+            <button
+              onClick={() => {
+                setIsOpen(false);
+                onBulkUploadOpen();
+              }}
+              className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+            >
+              <Upload size={16} /> Bulk Upload
+            </button>
+            <button
+              onClick={() => {
+                setIsOpen(false);
+                navigate('/admin/staff-form');
+              }}
+              className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+            >
+              <Plus size={16} /> Add New Staff
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export const StaffListPage: React.FC = () => {
@@ -25,9 +100,8 @@ export const StaffListPage: React.FC = () => {
   const [isResultsModalOpen, setIsResultsModalOpen] = useState(false);
   const [deletingStaff, setDeletingStaff] = useState<Staff | null>(null);
 
-  const { staff, deleteStaff, bulkUpload, loading, error } = useStaff();
+  const { staff, deleteStaff, bulkUpload, loading } = useStaff();
 
-  // Filter staff by search, role, status
   const filteredStaff = staff.filter((member) => {
     const matchesSearch =
       member.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -41,23 +115,20 @@ export const StaffListPage: React.FC = () => {
     return matchesSearch && matchesRole && matchesStatus;
   });
 
-  // Handle Delete Confirmation
   const handleDeleteClick = (staff: Staff) => {
     setDeletingStaff(staff);
   };
 
-  // Confirm Delete
   const handleConfirmDelete = async () => {
     if (!deletingStaff) return;
 
     const result = await deleteStaff(deletingStaff._id);
 
-    if (result.success) {
+    if (result) {
       setDeletingStaff(null);
     }
   };
 
-  // Handle Bulk Upload
   const handleBulkUpload = async (file: File) => {
     const result = await bulkUpload(file);
     if (result) {
@@ -68,7 +139,6 @@ export const StaffListPage: React.FC = () => {
     return result;
   };
 
-  // Show loading state
   if (loading && staff.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -78,27 +148,41 @@ export const StaffListPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4 py-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Staff</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Manage your gym staff and their information</p>
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 lg:gap-0">
+        {/* Left: Title + Description (always stacked on mobile, inline on desktop+) */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:gap-4">
+          <div className="lg:min-w-0">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Staff</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm lg:text-base">Manage your staff and their information</p>
+          </div>
         </div>
-        <div className="flex space-x-3 mt-4 sm:mt-0">
-          <Button variant="outline" onClick={() => navigate("/admin/staff-attendance")}>
-            Mark Attendance
-          </Button>
-          <Button variant="outline" onClick={() => setIsBulkUploadModalOpen(true)}>
-            <Upload size={16} className="mr-2" />
-            Bulk Upload
-          </Button>
-          <Button onClick={() => navigate('/admin/staff-form')}>
-            <Plus size={16} className="mr-2" />
-            Add New Staff
-          </Button>
+
+        {/* Right: Actions (dropdown on mobile/tablet, full buttons on desktop) */}
+        <div className="flex items-center justify-end flex-shrink-0">
+          {/* Desktop buttons */}
+          <div className="hidden lg:flex space-x-3">
+            <Button variant="outline" onClick={() => navigate("/admin/staff-attendance")}>
+              Mark Attendance
+            </Button>
+            <Button variant="outline" onClick={() => setIsBulkUploadModalOpen(true)}>
+              <Upload size={16} className="mr-2" />
+              Bulk Upload
+            </Button>
+            <Button onClick={() => navigate('/admin/staff-form')}>
+              <Plus size={16} className="mr-2" />
+              Add New Staff
+            </Button>
+          </div>
+
+          {/* Mobile/tablet dropdown */}
+          <div className="flex lg:hidden ml-auto">
+            <StaffActionsDropdown onBulkUploadOpen={() => setIsBulkUploadModalOpen(true)} />
+          </div>
         </div>
       </div>
+
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -196,8 +280,8 @@ export const StaffListPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Staff List */}
-      <Card>
+      {/* Staff Table (Desktop: md+) */}
+      <Card className="hidden md:block">
         <CardHeader>
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             All Staff ({filteredStaff.length})
@@ -302,10 +386,92 @@ export const StaffListPage: React.FC = () => {
         </CardContent>
       </Card>
 
+      {/* Staff Cards (Mobile & Tablet: below md) */}
+      <Card className="md:hidden">
+        <CardHeader>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            All Staff ({filteredStaff.length})
+          </h2>
+        </CardHeader>
+        <CardContent className="p-4 space-y-4">
+          {filteredStaff.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500 dark:text-gray-400">No staff members found</p>
+            </div>
+          ) : (
+            filteredStaff.map((member) => (
+              <Card key={member._id} className="h-full">
+                <CardContent className="p-4 flex flex-col h-full">
+                  {/* Header: Avatar + Name + Position + Status */}
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="flex-shrink-0 h-12 w-12 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
+                        <span className="text-orange-600 dark:text-orange-400 font-semibold text-lg">
+                          {member.fullName.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <div>
+                        <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                          {member.fullName}
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {member.position}
+                        </div>
+                      </div>
+                    </div>
+                    <Badge className={statusColors[member.status as keyof typeof statusColors]}>
+                      {member.status}
+                    </Badge>
+                  </div>
+
+                  {/* Contact Info */}
+                  <div className="flex flex-col gap-1 text-sm text-gray-700 dark:text-gray-300 mb-3">
+                    <div className="flex items-center gap-2">
+                      <Phone size={14} className="text-gray-400 flex-shrink-0" />
+                      <span>{member.contactNumber}</span>
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                      {member.email}
+                    </div>
+                  </div>
+
+                  {/* Joining Date */}
+                  <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    <Calendar size={14} className="flex-shrink-0" />
+                    <span>{new Date(member.joiningDate).toLocaleDateString()}</span>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 mt-auto pt-3 border-t border-gray-100 dark:border-gray-800">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(`/admin/staff-form/${member._id}`)}
+                      className="h-9 px-3 flex-1"
+                    >
+                      <Edit size={14} className="mr-1" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeleteClick(member)}
+                      className="h-9 px-3 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
       {/* Delete Confirmation Modal */}
       {deletingStaff && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               Confirm Delete
             </h3>
@@ -345,4 +511,3 @@ export const StaffListPage: React.FC = () => {
     </div>
   );
 };
-

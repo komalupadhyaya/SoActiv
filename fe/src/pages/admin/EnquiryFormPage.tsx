@@ -1,3 +1,4 @@
+
 // src/pages/admin/EnquiryFormPage.tsx
 import React, { useEffect, useState } from 'react';
 import { Save, ArrowLeft } from 'lucide-react';
@@ -9,14 +10,16 @@ import { Select } from '../../components/ui/Select';
 import { useStaff } from '../../hooks/useStaff';
 import { useEnquiry } from '../../hooks/useEnquiry';
 import { Staff } from '../../hooks/useStaff';
-import { IEnquiry } from '../../hooks/useEnquiry'; // Ensure IEnquiry is exported
+import { IEnquiry } from '../../hooks/useEnquiry';
+import { useToast } from '../../contexts/ToastContext';
+
+type EnquiryStatus = 'new' | 'contacted' | 'interested' | 'converted' | 'lost';
 
 export const EnquiryFormPage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const isEditing = !!id;
-
-  type EnquiryStatus = 'new' | 'contacted' | 'interested' | 'converted' | 'lost';
+  const { addToast } = useToast();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -52,88 +55,67 @@ export const EnquiryFormPage: React.FC = () => {
 
   // Load enquiry data if editing
   useEffect(() => {
-    if (isEditing && id) {
-      const loadEnquiry = async () => {
-        setLoadingForm(true);
+    const loadEnquiry = async () => {
+      if (isEditing && id) {
         try {
+          setLoadingForm(true);
           const enquiry = await getEnquiryById(id);
           if (enquiry) {
             setFormData({
-              name: enquiry.name,
-              phone: enquiry.phone,
+              name: enquiry.name || '',
+              phone: enquiry.phone || '',
               email: enquiry.email || '',
-              source: enquiry.source,
-              status: enquiry.status,
+              source: enquiry.source || '',
+              status: enquiry.status || 'new',
               assignedStaff: getAssignedStaffId(enquiry.assignedStaff),
-              followUpDate: enquiry.followUpDate ? enquiry.followUpDate.split('T')[0] : '',
+              followUpDate: enquiry.followUpDate ? new Date(enquiry.followUpDate).toISOString().split('T')[0] : '',
               comments: enquiry.comments || '',
               interests: enquiry.interests || '',
               budget: enquiry.budget || '',
             });
-          } else {
-            alert('Failed to load enquiry.');
-            navigate('/admin/enquiries');
           }
-        } catch (err) {
-          console.error('Error loading enquiry:', err);
-          alert('Failed to load enquiry data.');
-          navigate('/admin/enquiries');
+        } catch (error) {
+          addToast('Failed to load enquiry', 'error');
         } finally {
           setLoadingForm(false);
         }
-      };
+      }
+    };
+    loadEnquiry();
+  }, [id, isEditing, getEnquiryById, addToast]);
 
-      loadEnquiry();
-    }
-  }, [isEditing, id]); // ✅ Only depend on id and isEditing
+  // Handle input changes
+  const handleInputChange = (field: string, value: string | EnquiryStatus) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
 
+  // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!formData.name || !formData.phone || !formData.source) {
-      alert('Name, phone, and source are required.');
-      return;
-    }
-
-    if (!formData.assignedStaff) {
-      alert('Please assign a staff member.');
-      return;
-    }
-
-    const enquiryData = {
-      name: formData.name,
-      phone: formData.phone,
-      email: formData.email || undefined,
-      source: formData.source,
-      status: formData.status,
-      assignedStaff: formData.assignedStaff,
-      followUpDate: formData.followUpDate || undefined,
-      comments: formData.comments || undefined,
-      interests: formData.interests || undefined,
-      budget: formData.budget || undefined,
-    };
-
     setSubmitting(true);
 
     try {
-      const result = isEditing
-        ? await updateEnquiry(id!, enquiryData)
-        : await createEnquiry(enquiryData);
+      const enquiryData = {
+        ...formData,
+        followUpDate: formData.followUpDate ? new Date(formData.followUpDate).toISOString() : undefined,
+      };
 
-      if (result) {
-        alert(`Enquiry ${isEditing ? 'updated' : 'created'} successfully!`);
-        navigate('/admin/enquiries');
+      if (isEditing && id) {
+        await updateEnquiry(id, enquiryData);
+        addToast('Enquiry updated successfully', 'success');
+      } else {
+        await createEnquiry(enquiryData);
+        addToast('Enquiry created successfully', 'success');
       }
-    } catch (err) {
-      console.error('Submission failed:', err);
-      alert(`Failed to ${isEditing ? 'update' : 'create'} enquiry. Please try again.`);
+      navigate('/admin/enquiries');
+    } catch (error) {
+      addToast(isEditing ? 'Failed to update enquiry' : 'Failed to create enquiry', 'error');
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const staffOptions = [

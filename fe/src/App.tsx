@@ -1,7 +1,11 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
+import { ToastProvider } from './contexts/ToastContext';
 import { AdminLayout } from './components/layout/AdminLayout';
+
+// Public Pages
+import { LandingPage } from './pages/LandingPage';
 
 // Auth Pages
 import { LoginPage } from './pages/auth/LoginPage';
@@ -28,41 +32,44 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Router>
-          <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-            <Routes>
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
+        <ToastProvider>
+          <Router>
+            <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+              <Routes>
+                {/* Public Routes */}
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
 
-              <Route path="/admin" element={<AdminLayout />}>
-                <Route index element={<DashboardPage />} />
-                <Route path="dashboard" element={<DashboardPage />} />
-                <Route path="enquiries" element={<EnquiriesPage />} />
-                <Route path="enquiry-form" element={<EnquiryFormPage />} />
-                <Route path="enquiries/edit/:id" element={<EnquiryFormPage />} />
-                <Route path="enquiries-expiring" element={<EnquiriesExpiringPage />} />
-                <Route path="clients" element={<ClientListPage />} />
-                <Route path="client-form" element={<ClientFormPage />} />
-                <Route path="client-form/:id" element={<ClientFormPage />} />
-                <Route path="pt-expiring" element={<PTExpiringPage />} />
-                <Route path="staff" element={<StaffListPage />} />
-                <Route path="staff-form" element={<StaffFormPage />} />
-                <Route path="staff-form/:id" element={<StaffFormPage />} />
-                <Route path="follow-ups" element={<FollowUpsPage />} />
-                <Route path="follow-ups/new" element={<FollowUpFormPage />} />
-                <Route path="calendar" element={<CalendarPage />} />
-                <Route path="reports" element={<ReportsPage />} />
-                <Route path="profile" element={<UserProfilePage />} />
-                <Route path="staff-attendance" element={<AttendanceSheet />} />
-              </Route>
+                {/* Admin Routes */}
+                <Route path="/admin" element={<AdminLayout />}>
+                  <Route index element={<DashboardPage />} />
+                  <Route path="dashboard" element={<DashboardPage />} />
+                  <Route path="enquiries" element={<EnquiriesPage />} />
+                  <Route path="enquiry-form" element={<EnquiryFormPage />} />
+                  <Route path="enquiries/edit/:id" element={<EnquiryFormPage />} />
+                  <Route path="enquiries-expiring" element={<EnquiriesExpiringPage />} />
+                  <Route path="clients" element={<ClientListPage />} />
+                  <Route path="client-form" element={<ClientFormPage />} />
+                  <Route path="client-form/:id" element={<ClientFormPage />} />
+                  <Route path="pt-expiring" element={<PTExpiringPage />} />
+                  <Route path="staff" element={<StaffListPage />} />
+                  <Route path="staff-form" element={<StaffFormPage />} />
+                  <Route path="staff-form/:id" element={<StaffFormPage />} />
+                  <Route path="follow-ups" element={<FollowUpsPage />} />
+                  <Route path="follow-ups/new" element={<FollowUpFormPage />} />
+                  <Route path="calendar" element={<CalendarPage />} />
+                  <Route path="reports" element={<ReportsPage />} />
+                  <Route path="profile" element={<UserProfilePage />} />
+                  <Route path="staff-attendance" element={<AttendanceSheet />} />
+                </Route>
 
-              {/* Default Routes */}
-              <Route path="/" element={<Navigate to="/login" replace />} />
-              {/* Optional: Catch-all for undefined routes */}
-              <Route path="*" element={<Navigate to="/login" replace />} />
-            </Routes>
-          </div>
-        </Router>
+                {/* Catch-all for undefined routes */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </div>
+          </Router>
+        </ToastProvider>
       </AuthProvider>
     </ThemeProvider>
   );

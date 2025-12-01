@@ -73,7 +73,7 @@ export const Select: React.FC<SelectProps> = ({
                 className={clsx(
                   'px-3 py-2 cursor-pointer text-sm',
                   value === option.value
-                    ? 'bg-orange-100 dark:bg-orange-900 text-orange-800'
+                    ? 'bg-orange-100 dark:bg-orange-900 text-whitesmoke'
                     : 'hover:bg-gray-100 dark:hover:bg-gray-700',
                   'flex items-center justify-between'
                 )}
