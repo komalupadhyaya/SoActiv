@@ -10,6 +10,7 @@ interface ToastData {
 interface ToastContextType {
     addToast: (message: string, type: ToastType) => void;
     removeToast: (id: string) => void;
+    isToastVisible: boolean;
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
@@ -19,7 +20,8 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     const addToast = useCallback((message: string, type: ToastType) => {
         const id = Math.random().toString(36).substr(2, 9);
-        setToasts((prev) => [...prev, { id, message, type }]);
+        // Enforce single toast rule: Replace existing toasts
+        setToasts([{ id, message, type }]);
     }, []);
 
     const removeToast = useCallback((id: string) => {
@@ -27,7 +29,7 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }, []);
 
     return (
-        <ToastContext.Provider value={{ addToast, removeToast }}>
+        <ToastContext.Provider value={{ addToast, removeToast, isToastVisible: toasts.length > 0 }}>
             {children}
             <div className="fixed top-5 right-5 z-50 flex flex-col gap-2">
                 {toasts.map((toast) => (

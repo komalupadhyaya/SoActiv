@@ -8,7 +8,9 @@ import { Schema, model, Document } from 'mongoose';
  */
 export interface IStaff extends Document {
   _id: Types.ObjectId;
-    userId: Types.ObjectId;
+  userId: Types.ObjectId;
+  createdBy: Types.ObjectId;
+  gym: Types.ObjectId;
   fullName: string;
   position: string;
   email: string;
@@ -31,11 +33,21 @@ export interface IStaff extends Document {
  */
 const staffSchema = new Schema<IStaff>(
   {
-     userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true,
-  },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    gym: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Gym',
+      required: true,
+    },
     fullName: {
       type: String,
       required: [true, 'Full name is required'],
@@ -45,6 +57,10 @@ const staffSchema = new Schema<IStaff>(
     position: {
       type: String,
       required: [true, 'Position is required'],
+      enum: {
+        values: ["manager", "receptionist", "cleaner", "sales", "maintenance"],
+        message: 'Position must be either manager", "receptionist", "cleaner", "sales", "maintenance" ',
+      },
       trim: true,
     },
     email: {
@@ -52,14 +68,12 @@ const staffSchema = new Schema<IStaff>(
       required: [true, 'Email is required'],
       trim: true,
       lowercase: true,
-      unique: true,
       match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email address'],
     },
     contactNumber: {
       type: String,
       required: [true, 'Contact number is required'],
       trim: true,
-      unique: true,
       match: [/^[\+]?[0-9\s\-\(\)]{10,}$/, 'Please enter a valid phone number'],
     },
     joiningDate: {
@@ -103,8 +117,6 @@ const staffSchema = new Schema<IStaff>(
     timestamps: true,
   }
 );
-
-
 
 /**
  * Export the Mongoose Model

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useToast } from '../contexts/ToastContext';
 import { FollowUp } from '../types';
 

@@ -227,7 +227,7 @@ export const FollowUpFormPage: React.FC = () => {
             className="flex items-center gap-2 px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save size={20} />
-            {loading ? 'Creating...' : 'Create Follow-Up'}
+            {loading ? 'Creating...' : 'Create'}
           </button>
           <button
             type="button"

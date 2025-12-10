@@ -33,7 +33,7 @@ export const EnquiriesExpiringPage: React.FC = () => {
   const displayedEnquiries = getDisplayedEnquiries();
 
   return (
-    <div className="space-y-6 px-4 py-6">
+    <div className="space-y-6 py-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -45,7 +45,7 @@ export const EnquiriesExpiringPage: React.FC = () => {
           className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
         >
           <Plus size={20} />
-          New Enquiry
+          Add
         </button>
       </div>
 
@@ -134,7 +134,7 @@ export const EnquiriesExpiringPage: React.FC = () => {
         </div>
 
         {/* Enquiries List */}
-        <div className="p-6">
+        <div className="p-3">
           {loading ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
@@ -161,18 +161,12 @@ export const EnquiriesExpiringPage: React.FC = () => {
                     <div className="flex-1">
                       <div className="flex items-center gap-3">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{enquiry.name}</h3>
-                        <span
-                          className={`px-2 py-1 text-xs font-medium rounded-full ${enquiry.isExpired
-                            ? 'bg-red-100 text-red-700'
-                            : enquiry.remainingDays <= 3
-                              ? 'bg-yellow-100 text-yellow-700'
-                              : 'bg-green-100 text-green-700'
-                            }`}
+                        <button
+                          onClick={() => handleExtendExpiry(enquiry._id, 7)}
+                          className="flex items-center gap-2 px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
                         >
-                          {enquiry.isExpired
-                            ? 'Expired'
-                            : `${enquiry.remainingDays} days left`}
-                        </span>
+                          <Calendar size={16} />Extend +7
+                        </button>
                       </div>
 
                       <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm w-full">
@@ -203,10 +197,22 @@ export const EnquiriesExpiringPage: React.FC = () => {
                           </span>
                         </div>
 
-                        <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
                           <span className="text-gray-600 dark:text-white text-xs">Expires</span>
                           <span className="text-gray-900 dark:text-white">
                             {new Date(enquiry.expiryDate).toLocaleDateString()}
+                          </span>
+                          <span
+                            className={`px-2 py-1 text-xs font-medium rounded-full ${enquiry.isExpired
+                              ? 'bg-red-100 text-red-700'
+                              : enquiry.remainingDays <= 3
+                                ? 'bg-yellow-100 text-yellow-700'
+                                : 'bg-green-100 text-green-700'
+                              }`}
+                          >
+                            {enquiry.isExpired
+                              ? 'Expired'
+                              : `${enquiry.remainingDays} days left`}
                           </span>
                         </div>
                       </div>
@@ -218,20 +224,15 @@ export const EnquiriesExpiringPage: React.FC = () => {
                         </div>
                       )}
                     </div>
-                    <div className="ml-4 flex flex-col gap-2">
-                      <button
-                        onClick={() => handleExtendExpiry(enquiry._id, 7)}
-                        className="flex items-center gap-2 px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
-                      >
-                        <Calendar size={16} />Extend +7
-                      </button>
-                      {/* <button
+                    {/* <div className="ml-4 flex flex-col gap-2"> */}
+
+                    {/* <button
                         onClick={() => navigate(`/admin/enquiry-form/${enquiry._id}`)}
                         className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
                       >
                         View Details
                       </button> */}
-                    </div>
+                    {/* </div> */}
                   </div>
                 </div>
               ))}

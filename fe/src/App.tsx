@@ -11,14 +11,20 @@ import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 
+// Staff Pages
+import { StaffLoginPage } from './pages/staff/StaffLoginPage';
+import { StaffDashboard } from './pages/staff/StaffDashboard';
+
+// Protected Route
+import { ProtectedRoute } from './components/routing/ProtectedRoute';
+
 // Admin Pages
 import { DashboardPage } from './pages/admin/DashboardPage';
 import { EnquiriesPage } from './pages/admin/EnquiriesPage';
 import { EnquiryFormPage } from './pages/admin/EnquiryFormPage';
 import { ClientListPage } from './pages/admin/ClientListPage';
 import { ClientFormPage } from './pages/admin/ClientFormPage';
-import { StaffListPage } from './pages/admin/StaffListPage';
-import { StaffFormPage } from './pages/admin/StaffFormPage';
+import { StaffManagerPage } from './pages/admin/StaffManagerPage';
 import { ReportsPage } from './pages/admin/ReportsPage';
 import { AttendanceSheet } from './pages/admin/staffAttendance';
 import { UserProfilePage } from './pages/admin/SetupPage';
@@ -40,9 +46,17 @@ function App() {
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
+                <Route path="/staff/login" element={<StaffLoginPage />} />
 
                 {/* Admin Routes */}
-                <Route path="/admin" element={<AdminLayout />}>
+                <Route
+                  path="/admin"
+                  element={
+                    <ProtectedRoute allowedRoles={['admin']}>
+                      <AdminLayout />
+                    </ProtectedRoute>
+                  }
+                >
                   <Route index element={<DashboardPage />} />
                   <Route path="dashboard" element={<DashboardPage />} />
                   <Route path="enquiries" element={<EnquiriesPage />} />
@@ -53,9 +67,8 @@ function App() {
                   <Route path="client-form" element={<ClientFormPage />} />
                   <Route path="client-form/:id" element={<ClientFormPage />} />
                   <Route path="pt-expiring" element={<PTExpiringPage />} />
-                  <Route path="staff" element={<StaffListPage />} />
-                  <Route path="staff-form" element={<StaffFormPage />} />
-                  <Route path="staff-form/:id" element={<StaffFormPage />} />
+                  <Route path="staff" element={<StaffManagerPage />} />
+                  <Route path="staff-page" element={<StaffManagerPage />} />
                   <Route path="follow-ups" element={<FollowUpsPage />} />
                   <Route path="follow-ups/new" element={<FollowUpFormPage />} />
                   <Route path="calendar" element={<CalendarPage />} />
@@ -63,6 +76,16 @@ function App() {
                   <Route path="profile" element={<UserProfilePage />} />
                   <Route path="staff-attendance" element={<AttendanceSheet />} />
                 </Route>
+
+                {/* Staff Routes */}
+                <Route
+                  path="/staff/dashboard"
+                  element={
+                    <ProtectedRoute allowedRoles={['staff']}>
+                      <StaffDashboard />
+                    </ProtectedRoute>
+                  }
+                />
 
                 {/* Catch-all for undefined routes */}
                 <Route path="*" element={<Navigate to="/" replace />} />

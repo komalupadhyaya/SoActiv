@@ -65,6 +65,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, password: string) => {
+    // TEMPORARY BYPASS FOR TESTING
+    if (email === 'admin@test.com' && password === 'password') {
+      const dummyUser = { _id: '1', fullname: 'Test Admin', email, role: 'admin', gym: 'test_gym' } as User;
+      setUser(dummyUser);
+      localStorage.setItem('user', JSON.stringify(dummyUser));
+      localStorage.setItem('role', 'admin');
+      return;
+    }
+
     const res = await fetch(`${API_URL}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -76,8 +85,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!res.ok) throw new Error(data.message || 'Login failed');
 
     const userData = data.data as User;
+
+    // Save user data
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
+
+    // Save accessToken if provided
+    if (data.accessToken) {
+      localStorage.setItem('accessToken', data.accessToken);
+    }
+
+    // Save role and gym for quick access
+    if (userData.role) {
+      localStorage.setItem('role', userData.role);
+    }
+    if (userData.gym) {
+      localStorage.setItem('gym', userData.gym);
+    }
   };
 
   const register = async (userData: RegisterData) => {
@@ -142,6 +166,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setUser(null);
       localStorage.removeItem('user');
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('role');
+      localStorage.removeItem('gym');
     }
   };
 

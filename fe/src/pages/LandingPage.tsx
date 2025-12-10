@@ -296,9 +296,9 @@ export const LandingPage: React.FC = () => {
                             </button>
                         </div>
                         <div className="relative">
-                            <div className="absolute top-1/2 right-0 transform translate-x-1/4 -translate-y-1/2 w-64 h-64 bg-purple-200 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+                            {/* <div className="absolute top-1/2 right-0 transform translate-x-1/4 -translate-y-1/2 w-64 h-64 bg-purple-200 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
                                 <BarChart3 className="w-32 h-32 text-purple-600 dark:text-purple-400" />
-                            </div>
+                            </div> */}
                             <img
                                 src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&h=400&fit=crop"
                                 alt="Marketing"
@@ -314,9 +314,9 @@ export const LandingPage: React.FC = () => {
                 <div className="max-w-7xl mx-auto">
                     <div className="grid md:grid-cols-2 gap-12 items-center">
                         <div className="order-2 md:order-1 relative">
-                            <div className="absolute top-1/2 left-0 transform -translate-x-1/4 -translate-y-1/2 w-64 h-64 bg-blue-200 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                            {/* <div className="absolute top-1/2 left-0 transform -translate-x-1/4 -translate-y-1/2 w-64 h-64 bg-blue-200 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
                                 <TrendingUp className="w-32 h-32 text-blue-600 dark:text-blue-400" />
-                            </div>
+                            </div> */}
                             <img
                                 src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=600&h=400&fit=crop"
                                 alt="Sales"
@@ -383,9 +383,9 @@ export const LandingPage: React.FC = () => {
                             </button>
                         </div>
                         <div className="relative">
-                            <div className="absolute top-1/2 right-0 transform translate-x-1/4 -translate-y-1/2 w-64 h-64 bg-purple-200 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+                            {/* <div className="absolute top-1/2 right-0 transform translate-x-1/4 -translate-y-1/2 w-64 h-64 bg-purple-200 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
                                 <Users className="w-32 h-32 text-purple-600 dark:text-purple-400" />
-                            </div>
+                            </div> */}
                             <img
                                 src="https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=600&h=400&fit=crop"
                                 alt="Member Management"
@@ -529,9 +529,9 @@ export const LandingPage: React.FC = () => {
                 <div className="max-w-7xl mx-auto">
                     <div className="grid md:grid-cols-2 gap-12 items-center">
                         <div className="order-2 md:order-1 relative">
-                            <div className="absolute top-1/2 left-0 transform -translate-x-1/4 -translate-y-1/2 w-64 h-64 bg-pink-200 dark:bg-pink-900/30 rounded-full flex items-center justify-center">
+                            {/* <div className="absolute top-1/2 left-0 transform -translate-x-1/4 -translate-y-1/2 w-64 h-64 bg-pink-200 dark:bg-pink-900/30 rounded-full flex items-center justify-center">
                                 <Heart className="w-32 h-32 text-pink-600 dark:text-pink-400" />
-                            </div>
+                            </div> */}
                             <img
                                 src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&h=400&fit=crop"
                                 alt="Member Engagement"
@@ -595,9 +595,9 @@ export const LandingPage: React.FC = () => {
                             </div>
                         </div>
                         <div className="relative">
-                            <div className="absolute top-1/2 right-0 transform translate-x-1/4 -translate-y-1/2 w-64 h-64 bg-blue-200 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                            {/* <div className="absolute top-1/2 right-0 transform translate-x-1/4 -translate-y-1/2 w-64 h-64 bg-blue-200 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
                                 <BarChart3 className="w-32 h-32 text-blue-600 dark:text-blue-400" />
-                            </div>
+                            </div> */}
                             <img
                                 src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&h=400&fit=crop"
                                 alt="Club Administration"

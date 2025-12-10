@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { usePTExpiry } from '../../hooks/usePTExpiry';
-import { Dumbbell, Clock, XCircle, User } from 'lucide-react';
+import { Dumbbell, Clock, XCircle, User, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const PTExpiringPage: React.FC = () => {
@@ -29,10 +29,10 @@ export const PTExpiringPage: React.FC = () => {
   const displayedPT = getDisplayedPT();
 
   return (
-    <div className="space-y-6 px-4 py-6 dark:bg-gray-900">
+    <div className="space-y-6 py-6 dark:bg-gray-900">
       {/* Header */}
       <div className="flex items-center justify-between dark:text-white">
-        <div>
+        <div className="flex flex-col">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">PT Packages Expiring</h1>
           <p className="text-gray-600 mt-1 dark:text-white">Track and manage Personal Training packages that are expiring soon</p>
         </div>
@@ -60,7 +60,7 @@ export const PTExpiringPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 ">
           <div className="bg-white rounded-lg shadow p-6 dark:bg-gray-800 dark:border-gray-700">
             <div className="flex items-center justify-between">
-              <div>
+              <div className="flex flex-col">
                 <p className="text-sm text-gray-600 dark:text-white">Total Expiring</p>
                 <p className="text-3xl font-bold text-gray-900 mt-1 dark:text-white">{expiringPT.total}</p>
               </div>
@@ -69,7 +69,7 @@ export const PTExpiringPage: React.FC = () => {
           </div>
           <div className="bg-white rounded-lg shadow p-6 dark:bg-gray-800 dark:border-gray-700">
             <div className="flex items-center justify-between">
-              <div>
+              <div className="flex flex-col">
                 <p className="text-sm text-gray-600 dark:text-white">Expired</p>
                 <p className="text-3xl font-bold text-red-600 mt-1   dark:text-white">{expiringPT.expired}</p>
               </div>
@@ -78,7 +78,7 @@ export const PTExpiringPage: React.FC = () => {
           </div>
           <div className="bg-white rounded-lg shadow p-6 dark:bg-gray-800 dark:border-gray-700">
             <div className="flex items-center justify-between">
-              <div>
+              <div className="flex flex-col">
                 <p className="text-sm text-gray-600 dark:text-white">Expiring Soon</p>
                 <p className="text-3xl font-bold text-yellow-600 mt-1 dark:text-white">{expiringPT.expiringSoon}</p>
               </div>
@@ -150,84 +150,85 @@ export const PTExpiringPage: React.FC = () => {
                     <div className="flex-1">
                       <div className="flex items-center gap-3">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{client.fullName}</h3>
-                        <span
-                          className={`px-2 py-1 text-xs font-medium rounded-full ${client.ptIsExpired
-                            ? 'bg-red-100 text-red-700'
-                            : client.ptRemainingDays <= 3
-                              ? 'bg-yellow-100 text-yellow-700'
-                              : 'bg-green-100 text-green-700'
-                            }`}
+                        <button
+                          onClick={() => navigate(`/admin/client-form/${client._id}`)}
+                          className="flex items-center gap-2 px-3 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm"
                         >
-                          {client.ptIsExpired
-                            ? 'Expired'
-                            : `${client.ptRemainingDays} days left`}
-                        </span>
+                          <User size={16} />
+                          View
+                        </button>
+                        <button
+                          onClick={() => {
+                            // Navigate to follow-up form with pre-filled data
+                            navigate('/admin/follow-ups/new', {
+                              state: {
+                                type: 'pt',
+                                relatedId: client._id,
+                                relatedName: client.fullName,
+                              },
+                            });
+                          }}
+                          className="flex items-center gap-2 px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm"
+                        >
+                          <Plus size={16} />Add
+                        </button>
                       </div>
-                      <div className="mt-2 grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="text-gray-600 dark:text-white">Phone:</span>
-                          <span className="ml-2 text-gray-900 dark:text-white">{client.phone}</span>
+                      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm w-full">
+                        <div className="flex flex-col">
+                          <span className="text-gray-600 dark:text-white">Email</span>
+                          <span className="text-gray-900 dark:text-white">{client.email || 'N/A'}</span>
                         </div>
-                        <div>
-                          <span className="text-gray-600 dark:text-white">Email:</span>
-                          <span className="ml-2 text-gray-900 dark:text-white">{client.email || 'N/A'}</span>
+                        <div className="flex flex-col">
+                          <span className="text-gray-600 dark:text-white">Phone</span>
+                          <span className="text-gray-900 dark:text-white">{client.contactNumber || 'N/A'}</span>
                         </div>
-                        <div>
-                          <span className="text-gray-600 dark:text-white">PT Duration:</span>
-                          <span className="ml-2 text-gray-900 dark:text-white">
-                            {client.personalTrainingDurationWeeks} weeks
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-gray-600 dark:text-white">PT Price:</span>
-                          <span className="ml-2 text-gray-900 dark:text-white">
+                        <div className="flex flex-col">
+                          <span className="text-gray-600 dark:text-white">PT Price</span>
+                          <span className="text-gray-900 dark:text-white">
                             ₹{client.personalTrainingPrice?.toLocaleString()}
                           </span>
                         </div>
-                        <div>
-                          <span className="text-gray-600 dark:text-white">Trainer:</span>
-                          <span className="ml-2 text-gray-900 dark:text-white">
+                        <div className="flex flex-col">
+                          <span className="text-gray-600 dark:text-white">PT Duration</span>
+                          <span className="text-gray-900 dark:text-white">
+                            {client.personalTrainingDurationWeeks} weeks
+                          </span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-gray-600 dark:text-white">Trainer</span>
+                          <span className="text-gray-900 dark:text-white">
                             {client.trainer?.fullName || client.personalTrainer?.fullName || 'Unassigned'}
                           </span>
                         </div>
-                        <div>
-                          <span className="text-gray-600 dark:text-white">Start Date:</span>
-                          <span className="ml-2 text-gray-900 dark:text-white">
+                        <div className="flex flex-col">
+                          <span className="text-gray-600 dark:text-white">Start Date</span>
+                          <span className="text-gray-900 dark:text-white">
                             {new Date(client.startDate).toLocaleDateString()}
                           </span>
                         </div>
-                        <div>
-                          <span className="text-gray-600 dark:text-white">End Date:</span>
-                          <span className="ml-2 text-gray-900 dark:text-white">
+                        <div className="flex items-center gap-3">
+                          <span className="text-gray-600 dark:text-white">End Date</span>
+                          <span className="text-gray-900 dark:text-white">
                             {new Date(client.endDate).toLocaleDateString()}
+                          </span>
+                          <span
+                            className={`px-2 py-1 text-xs font-medium rounded-full ${client.ptIsExpired
+                              ? 'bg-red-100 text-red-700'
+                              : client.ptRemainingDays <= 3
+                                ? 'bg-yellow-100 text-yellow-700'
+                                : 'bg-green-100 text-green-700'
+                              }`}
+                          >
+                            {client.ptIsExpired
+                              ? 'Expired'
+                              : `${client.ptRemainingDays} days left`}
                           </span>
                         </div>
                       </div>
                     </div>
-                    <div className="ml-4 flex flex-col gap-2">
-                      <button
-                        onClick={() => navigate(`/admin/client-form/${client._id}`)}
-                        className="flex items-center gap-2 px-3 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm"
-                      >
-                        <User size={16} />
-                        View Client
-                      </button>
-                      <button
-                        onClick={() => {
-                          // Navigate to follow-up form with pre-filled data
-                          navigate('/admin/follow-ups/new', {
-                            state: {
-                              type: 'pt',
-                              relatedId: client._id,
-                              relatedName: client.fullName,
-                            },
-                          });
-                        }}
-                        className="px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
-                      >
-                        Add Follow-Up
-                      </button>
-                    </div>
+                    {/* <div className="ml-4 flex flex-col gap-2">
+                     
+                    </div> */}
                   </div>
                 </div>
               ))}

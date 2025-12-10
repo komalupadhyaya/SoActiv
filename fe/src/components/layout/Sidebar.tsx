@@ -21,7 +21,8 @@ const navigationItems = [
   { name: 'Enquiries Expiring', href: '/admin/enquiries-expiring', icon: AlertCircle },
   { name: 'Clients', href: '/admin/clients', icon: Users },
   { name: 'PT Expiring', href: '/admin/pt-expiring', icon: Dumbbell },
-  { name: 'Staff', href: '/admin/staff', icon: UserPlus },
+  // { name: 'Staff', href: '/admin/staff', icon: UserPlus },
+  { name: 'Staff', href: '/admin/staff-page', icon: UserPlus },
   { name: 'Follow-Ups', href: '/admin/follow-ups', icon: Bell },
   { name: 'Reports', href: '/admin/reports', icon: BarChart3 },
 ];

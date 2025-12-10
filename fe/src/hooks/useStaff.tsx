@@ -58,13 +58,6 @@ export interface StaffAction {
   timestamp: string; // ISO string
 }
 
-interface ApiResponse<T> {
-  success: boolean;
-  message?: string;
-  data?: T;
-  count?: number;
-}
-
 type FilterParams = {
   search?: string;
   role?: string;
@@ -145,9 +138,10 @@ export const useStaff = () => {
     try {
       const res = await API.post('/', data);
       if (res.data.success) {
-        const newStaff = res.data.data;
+        // Backend now returns { data: { staff: ..., user: ... } }
+        const newStaff = res.data.data.staff;
         setStaff((prev) => [newStaff, ...prev]);
-        addToast('Staff member created successfully', 'success');
+        addToast(res.data.message || 'Staff member created successfully', 'success');
         return newStaff;
       } else {
         const msg = res.data.message || 'Failed to create staff member';

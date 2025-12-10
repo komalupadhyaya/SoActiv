@@ -56,11 +56,11 @@ export const FollowUpsPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 px-4 py-6 dark:bg-gray-900">
+    <div className="space-y-6 py-6 dark:bg-gray-900">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900   dark:text-white">Follow-Ups</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Follow-Ups</h1>
           <p className="text-gray-600 mt-1 dark:text-gray-400">Manage and track all follow-up tasks</p>
         </div>
         <button
@@ -68,7 +68,7 @@ export const FollowUpsPage: React.FC = () => {
           className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
         >
           <Plus size={20} />
-          New Follow-Up
+          Add
         </button>
       </div>
 
@@ -80,7 +80,7 @@ export const FollowUpsPage: React.FC = () => {
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value as any)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             >
               <option value="all">All Status</option>
               <option value="pending">Pending</option>
@@ -93,7 +93,7 @@ export const FollowUpsPage: React.FC = () => {
             <select
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value as any)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             >
               <option value="all">All Types</option>
               <option value="enquiry">Enquiry</option>
@@ -110,17 +110,17 @@ export const FollowUpsPage: React.FC = () => {
           {loading ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-              <p className="text-gray-600 mt-4 dark:text-gray-500">Loading follow-ups...</p>
+              <p className="text-gray-600 mt-4 dark:text-gray-400">Loading follow-ups...</p>
             </div>
           ) : followUps.length === 0 ? (
             <div className="text-center py-12">
-              <Bell className="mx-auto text-gray-400" size={48} />
-              <p className="text-gray-600 mt-4">No follow-ups found</p>
+              <Bell className="mx-auto text-gray-400 dark:text-gray-500" size={48} />
+              <p className="text-gray-600 dark:text-gray-400 mt-4">No follow-ups found</p>
               <button
                 onClick={() => navigate('/admin/follow-ups/new')}
                 className="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
               >
-                Create Your First Follow-Up
+                Create
               </button>
             </div>
           ) : (
@@ -128,12 +128,12 @@ export const FollowUpsPage: React.FC = () => {
               {followUps.map((followUp) => (
                 <div
                   key={followUp._id}
-                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                  className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900">{followUp.relatedName}</h3>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{followUp.relatedName}</h3>
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(followUp.status)}`}>
                           {followUp.status}
                         </span>
@@ -142,33 +142,33 @@ export const FollowUpsPage: React.FC = () => {
                         </span>
                       </div>
 
-                      <p className="text-sm text-gray-700 mb-3">{followUp.note}</p>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">{followUp.note}</p>
 
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div className="flex items-center gap-2">
-                          <Calendar className="text-gray-500" size={16} />
-                          <span className="text-gray-600">Date:</span>
-                          <span className="text-gray-900">
+                          <Calendar className="text-gray-500 dark:text-gray-400" size={16} />
+                          <span className="text-gray-600 dark:text-gray-400">Date:</span>
+                          <span className="text-gray-900 dark:text-white">
                             {new Date(followUp.scheduledDate).toLocaleDateString()}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Clock className="text-gray-500" size={16} />
-                          <span className="text-gray-600">Time:</span>
-                          <span className="text-gray-900">{followUp.scheduledTime}</span>
+                          <Clock className="text-gray-500 dark:text-gray-400" size={16} />
+                          <span className="text-gray-600 dark:text-gray-400">Time:</span>
+                          <span className="text-gray-900 dark:text-white">{followUp.scheduledTime}</span>
                         </div>
                         <div>
-                          <span className="text-gray-600">Assigned to:</span>
-                          <span className="ml-2 text-gray-900">{followUp.assignedTo.fullName}</span>
+                          <span className="text-gray-600 dark:text-gray-400">Assigned to:</span>
+                          <span className="ml-2 text-gray-900 dark:text-white">{followUp.assignedTo?.fullName || 'Unknown'}</span>
                         </div>
                         <div>
-                          <span className="text-gray-600">Position:</span>
-                          <span className="ml-2 text-gray-900">{followUp.assignedTo.position}</span>
+                          <span className="text-gray-600 dark:text-gray-400">Position:</span>
+                          <span className="ml-2 text-gray-900 dark:text-white">{followUp.assignedTo?.position || 'N/A'}</span>
                         </div>
                       </div>
 
                       {followUp.completedAt && (
-                        <div className="mt-2 text-sm text-green-600">
+                        <div className="mt-2 text-sm text-green-600 dark:text-green-400">
                           Completed on {new Date(followUp.completedAt).toLocaleString()}
                         </div>
                       )}
@@ -181,7 +181,7 @@ export const FollowUpsPage: React.FC = () => {
                           className="flex items-center gap-2 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
                         >
                           <CheckCircle size={16} />
-                          Complete
+
                         </button>
                       )}
                       <button
@@ -189,7 +189,7 @@ export const FollowUpsPage: React.FC = () => {
                         className="flex items-center gap-2 px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm"
                       >
                         <XCircle size={16} />
-                        Delete
+
                       </button>
                     </div>
                   </div>
@@ -202,4 +202,3 @@ export const FollowUpsPage: React.FC = () => {
     </div>
   );
 };
-

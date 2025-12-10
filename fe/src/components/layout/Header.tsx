@@ -224,20 +224,19 @@ export const Header: React.FC<HeaderProps> = ({
                 <div className="p-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Notifications</h3>
                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {currentPage + 1} / {totalPages || 1}
                   </span>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-2 space-y-2">
                   {paginatedNotifications.length === 0 ? (
-                    <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                    <p className="text-sm text-orange-500 dark:text-gray-400 text-center py-4">
                       No notifications
                     </p>
                   ) : (
                     paginatedNotifications.map((activity) => (
                       <div
                         key={activity.id}
-                        className={`p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${seenNotificationIds.has(activity.id)
+                        className={`p-3 border border-gray-200  bg-white dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${seenNotificationIds.has(activity.id)
                           ? 'bg-gray-800 dark:bg-gray-750'
                           : 'ring-1 ring-orange-200 dark:ring-orange-800 bg-orange-50 dark:bg-orange-900/20'
                           }`}

@@ -41,7 +41,10 @@ app.get("/", (req, res) => {
 
 // ✅ CONNECT TO DATABASE
 connectDB()
-  .then(() => {
+  .then(async () => {
+    // Sync indexes after DB connection
+    await Enquiry.syncIndexes();
+
     const server = http.createServer(app);
     const io = new IOServer(server, {
       cors: {
@@ -102,6 +105,5 @@ connectDB()
     console.log("❌ DB connection failed:", err);
     process.exit(1);
   });
-  await Enquiry.syncIndexes();
 
 export default app;

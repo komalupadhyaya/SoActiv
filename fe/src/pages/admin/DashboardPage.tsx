@@ -1,6 +1,6 @@
 // DashboardPage.tsx
 
-import React, {useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   DollarSign,
   CreditCard,
@@ -13,7 +13,7 @@ import { Card, CardHeader, CardContent } from '../../components/ui/Card';
 import { Select } from '../../components/ui/Select';
 import { Client, useClient } from '../../hooks/useClient';
 import { useEnquiry } from '../../hooks/useEnquiry';
-import { useStaff} from '../../hooks/useStaff'; // ← Import StaffAction
+import { useStaff } from '../../hooks/useStaff'; // ← Import StaffAction
 import { useOutletContext } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import { ExpiringEnquiriesCard } from '../../components/dashboard/ExpiringEnquiriesCard';
@@ -262,7 +262,7 @@ export const DashboardPage: React.FC = () => {
   }, [activities]);
 
   return (
-    <div className="space-y-6 px-4 py-6">
+    <div className="space-y-6 py-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
@@ -274,7 +274,7 @@ export const DashboardPage: React.FC = () => {
       {/* Filters */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex flex-col lg:flex-row gap-4 items-end w-[25rem]">
+          <div className="flex flex-col lg:flex-row gap-4 items-end">
             <Select
               label="Date Filter"
               options={[
@@ -320,11 +320,10 @@ export const DashboardPage: React.FC = () => {
                 <button
                   onClick={goToPrevActivityPage}
                   disabled={activityPage === 1}
-                  className={`p-1 rounded-full transition ${
-                    activityPage === 1
-                      ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                  }`}
+                  className={`p-1 rounded-full transition ${activityPage === 1
+                    ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
                 >
                   {renderIcon({ name: 'ChevronLeft', size: 18 })}
                 </button>
@@ -334,11 +333,10 @@ export const DashboardPage: React.FC = () => {
                 <button
                   onClick={goToNextActivityPage}
                   disabled={activityPage === totalActivityPages}
-                  className={`p-1 rounded-full transition ${
-                    activityPage === totalActivityPages
-                      ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                  }`}
+                  className={`p-1 rounded-full transition ${activityPage === totalActivityPages
+                    ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
                 >
                   {renderIcon({ name: 'ChevronRight', size: 18 })}
                 </button>
@@ -354,11 +352,10 @@ export const DashboardPage: React.FC = () => {
                   paginatedActivities.map((activity) => (
                     <div
                       key={activity.id}
-                      className={`flex items-center justify-between p-3 rounded-lg border ${
-                        activity.color === 'green'
-                          ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-                          : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
-                      }`}
+                      className={`flex items-center justify-between p-3 rounded-lg border ${activity.color === 'green'
+                        ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                        : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+                        }`}
                     >
                       <div className="flex items-center space-x-3">
                         <div className={`w-10 h-10 ${colorMap[activity.color]} rounded-full flex items-center justify-center text-white`}>
@@ -390,11 +387,10 @@ export const DashboardPage: React.FC = () => {
                 <button
                   onClick={goToPrevFollowUpPage}
                   disabled={followUpPage === 1}
-                  className={`p-1 rounded-full transition ${
-                    followUpPage === 1
-                      ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                  }`}
+                  className={`p-1 rounded-full transition ${followUpPage === 1
+                    ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
                 >
                   {renderIcon({ name: 'ChevronLeft', size: 18 })}
                 </button>
@@ -404,11 +400,10 @@ export const DashboardPage: React.FC = () => {
                 <button
                   onClick={goToNextFollowUpPage}
                   disabled={followUpPage === totalFollowUpPages}
-                  className={`p-1 rounded-full transition ${
-                    followUpPage === totalFollowUpPages
-                      ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                  }`}
+                  className={`p-1 rounded-full transition ${followUpPage === totalFollowUpPages
+                    ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
                 >
                   {renderIcon({ name: 'ChevronRight', size: 18 })}
                 </button>
@@ -433,13 +428,12 @@ export const DashboardPage: React.FC = () => {
                           {enq.name}
                         </h4>
                         <span
-                          className={`text-xs px-2 py-1 rounded-full capitalize ${
-                            enq.status === 'new'
-                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                              : enq.status === 'contacted'
+                          className={`text-xs px-2 py-1 rounded-full capitalize ${enq.status === 'new'
+                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                            : enq.status === 'contacted'
                               ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
                               : 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
-                          }`}
+                            }`}
                         >
                           {enq.status}
                         </span>

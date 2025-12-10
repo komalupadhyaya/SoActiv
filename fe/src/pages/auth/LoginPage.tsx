@@ -22,7 +22,22 @@ export const LoginPage: React.FC = () => {
 
     try {
       await login(email, password);
-      navigate('/admin/dashboard');
+
+      // Get user role from localStorage
+      const role = localStorage.getItem('role');
+
+      // Redirect based on role
+      if (role === 'admin') {
+        navigate('/admin/dashboard');
+      } else if (role === 'staff') {
+        navigate('/staff/dashboard');
+      } else if (role === 'trainer') {
+        navigate('/trainer/dashboard');
+      } else if (role === 'member') {
+        navigate('/member/dashboard');
+      } else {
+        navigate('/admin/dashboard'); // Default fallback
+      }
     } catch (err) {
       setError('Invalid credentials. Please try again.');
     } finally {
@@ -87,22 +102,6 @@ export const LoginPage: React.FC = () => {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
-
-            {/* <div className="flex items-center justify-between">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 text-orange-600 bg-gray-100 border-gray-300 rounded focus:ring-orange-500"
-                />
-                <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Remember me</span>
-              </label>
-              <Link
-                to="/forgot-password"
-                className="text-sm text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300"
-              >
-                Forgot password?
-              </Link>
-            </div> */}
 
             <Button
               type="submit"

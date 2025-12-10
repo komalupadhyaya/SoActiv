@@ -4,7 +4,8 @@ export interface User {
   name: string;
   email: string;
   phone: string;
-  role: 'user' | 'admin' | 'sales' | 'trainer' | 'frontdesk';
+  role: 'admin' | 'superadmin' | 'trainer' | 'staff' | 'member';
+  gym?: string;
   avatar?: string;
   createdAt: string;
 }
@@ -99,6 +100,7 @@ export interface FollowUp {
 }
 
 export interface PTExpiryData {
+  contactNumber: string;
   _id: string;
   fullName: string;
   email: string;
