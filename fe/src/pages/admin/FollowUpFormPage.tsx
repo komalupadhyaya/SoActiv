@@ -5,11 +5,23 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 
+// 1. New imports + hooks
+import { useEnquiry } from '../../hooks/useEnquiry';
+import { useClient } from '../../hooks/useClient';
+// usePTExpiry imported below
+import { usePTExpiry } from '../../hooks/usePTExpiry';
+
 export const FollowUpFormPage: React.FC = () => {
   const { createFollowUp, loading } = useFollowUp();
   const { staff, fetchAllStaff } = useStaff();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // 1. New Hooks (adapted to match requirements)
+  const { enquiries, refreshEnquiries: fetchAllEnquiries } = useEnquiry();
+  const { clients, refresh: fetchAllClients } = useClient();
+  // Assumed hook based on requirements
+  const { expiringPT, fetchExpiringPT } = usePTExpiry();
 
   // Pre-fill data from navigation state (if coming from PT Expiring page, etc.)
   const prefilledData = location.state as {
@@ -34,6 +46,20 @@ export const FollowUpFormPage: React.FC = () => {
     fetchAllStaff();
   }, [fetchAllStaff]);
 
+  // 2. New useEffect for type-based fetching
+  useEffect(() => {
+    if (formData.type === 'enquiry') {
+      fetchAllEnquiries();
+    } else if (formData.type === 'client') {
+      fetchAllClients();
+    } else if (formData.type === 'pt') {
+      // Use fetchExpiringPT since that's what we have
+      if (typeof fetchExpiringPT === 'function') {
+        fetchExpiringPT(30); // Fetch next 30 days by default
+      }
+    }
+  }, [formData.type, fetchAllEnquiries, fetchAllClients, fetchExpiringPT]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -43,12 +69,69 @@ export const FollowUpFormPage: React.FC = () => {
     }
   };
 
+  // 3. handleTypeChange function
+  const handleTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newType = e.target.value as 'enquiry' | 'client' | 'pt';
+
+    setFormData((prev) => ({
+      ...prev,
+      type: newType,
+      relatedId: '',
+      relatedName: '' // Reset related fields when type changes
+    }));
+
+    // Clear type error
+    if (errors.type) {
+      setErrors((prev) => ({ ...prev, type: '' }));
+    }
+  };
+
+  // Helper to filter/map options
+  const getRelatedOptions = () => {
+    switch (formData.type) {
+      case 'enquiry':
+        return enquiries.map((e: any) => ({
+          id: e._id,
+          label: e.name || e.fullName || 'Unknown Enquiry' // Adapting to possible name fields
+        }));
+      case 'client':
+        return clients.map((c: any) => ({
+          id: c._id,
+          label: c.fullName || c.name || 'Unknown Client'
+        }));
+      case 'pt':
+        return (expiringPT?.ptPackages || []).map((p: any) => ({
+          id: p._id,
+          label: p.packageName || p.fullName || 'Unknown Package'
+        }));
+      default:
+        return [];
+    }
+  };
+
+  // Handler for the single "Related To" dropdown
+  const handleRelatedChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedId = e.target.value;
+    const options = getRelatedOptions();
+    const selectedItem = options.find((opt: any) => opt.id === selectedId);
+
+    setFormData((prev) => ({
+      ...prev,
+      relatedId: selectedId,
+      relatedName: selectedItem ? selectedItem.label : ''
+    }));
+
+    if (errors.relatedId) {
+      setErrors((prev) => ({ ...prev, relatedId: '', relatedName: '' }));
+    }
+  };
+
   const validate = () => {
     const newErrors: Record<string, string> = {};
 
     if (!formData.assignedTo) newErrors.assignedTo = 'Please select a staff member';
     if (!formData.type) newErrors.type = 'Please select a follow-up type';
-    if (!formData.relatedId) newErrors.relatedId = 'Related ID is required';
+    if (!formData.relatedId) newErrors.relatedId = 'Related entity is required';
     if (!formData.relatedName) newErrors.relatedName = 'Related name is required';
     if (!formData.scheduledDate) newErrors.scheduledDate = 'Scheduled date is required';
     if (!formData.scheduledTime) newErrors.scheduledTime = 'Scheduled time is required';
@@ -91,8 +174,7 @@ export const FollowUpFormPage: React.FC = () => {
       </div>
 
       {/* Form */}
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg p-6 space-y-6 shadow dark:bg-gray-900 dark:shadow-white"
-      >
+      <form onSubmit={handleSubmit} className="bg-white rounded-lg p-6 space-y-6 shadow dark:bg-gray-900 dark:shadow-white">
         {/* Type */}
         <div>
           <label className=" dark:text-white block text-sm font-medium text-gray-700 mb-2">
@@ -101,7 +183,7 @@ export const FollowUpFormPage: React.FC = () => {
           <select
             name="type"
             value={formData.type}
-            onChange={handleChange}
+            onChange={handleTypeChange}
             className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.type ? 'border-red-500' : 'border-gray-300'
               }`}
           >
@@ -112,39 +194,28 @@ export const FollowUpFormPage: React.FC = () => {
           {errors.type && <p className="text-red-500 text-sm mt-1">{errors.type}</p>}
         </div>
 
-        {/* Related ID */}
+        {/* 4. Single "Related To" dropdown replacing 2 inputs */}
         <div>
           <label className=" dark:text-white block text-sm font-medium text-gray-700 mb-2">
-            Related ID <span className="text-red-500">*</span>
+            Related {formData.type === 'pt' ? 'Package' : formData.type ? formData.type.charAt(0).toUpperCase() + formData.type.slice(1) : 'Entity'} <span className="text-red-500">*</span>
           </label>
-          <input
-            type="text"
+          <select
             name="relatedId"
             value={formData.relatedId}
-            onChange={handleChange}
-            placeholder="Enter the ID of the enquiry/client/PT package"
-            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.relatedId ? 'border-red-500' : 'border-gray-300'
+            onChange={handleRelatedChange}
+            disabled={!formData.type}
+            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed ${errors.relatedId ? 'border-red-500' : 'border-gray-300'
               }`}
-          />
+          >
+            <option value="">Select {formData.type === 'pt' ? 'Package' : formData.type}</option>
+            {getRelatedOptions().map((opt: any) => (
+              <option key={opt.id} value={opt.id}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
           {errors.relatedId && <p className="text-red-500 text-sm mt-1">{errors.relatedId}</p>}
-          <p className="text-gray-500 text-xs mt-1">The MongoDB ObjectId of the related entity</p>
-        </div>
-
-        {/* Related Name */}
-        <div>
-          <label className=" dark:text-white block text-sm font-medium text-gray-700 mb-2">
-            Related Name <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            name="relatedName"
-            value={formData.relatedName}
-            onChange={handleChange}
-            placeholder="Enter the name of the person/entity"
-            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.relatedName ? 'border-red-500' : 'border-gray-300'
-              }`}
-          />
-          {errors.relatedName && <p className="text-red-500 text-sm mt-1">{errors.relatedName}</p>}
+          <p className="text-gray-500 text-xs mt-1">Select the person or package this follow-up is regarding</p>
         </div>
 
         {/* Assigned To */}
