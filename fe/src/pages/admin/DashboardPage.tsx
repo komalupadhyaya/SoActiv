@@ -379,7 +379,7 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         {/* Follow-ups */}
-        <div>
+        {/* <div>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-3">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Follow-ups</h3>
@@ -456,7 +456,7 @@ export const DashboardPage: React.FC = () => {
               )}
             </CardContent>
           </Card>
-        </div>
+        </div> */}
       </div>
     </div>
   );

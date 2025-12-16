@@ -1,5 +1,6 @@
 // server.ts
 import express from "express";
+import path from "path";
 import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -14,6 +15,9 @@ import enquiry_router from "./routes/enquiry.routes";
 import clientRouter from "./routes/client.routes";
 import staffAttendance_router from "./routes/staffAttendance.routes";
 import followUpRouter from "./routes/followUp.routes";
+import scheduleRouter from "./routes/schedule.routes";
+import ptRouter from "./routes/pt.routes";
+import announcementRouter from "./routes/announcement.routes";
 import Enquiry from './models/enquiry.model';
 dotenv.config();
 
@@ -23,6 +27,9 @@ const PORT = process.env.PORT || 8000;
 // Middleware
 app.use(express.json({ limit: "20kb" }));
 app.use(express.urlencoded({ extended: true, limit: "20kb" }));
+
+// Serve uploaded files statically
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.use(
   cors({
@@ -68,6 +75,9 @@ connectDB()
     app.use("/api/v1/client", clientRouter);
     app.use("/api/v1/staff-attendance", staffAttendance_router);
     app.use("/api/v1/follow-up", followUpRouter);
+    app.use("/api/v1/schedule", scheduleRouter);
+    app.use("/api/v1/pt", ptRouter);
+    app.use("/api/v1/announcements", announcementRouter);
 
     // Global Error Handler
     app.use(

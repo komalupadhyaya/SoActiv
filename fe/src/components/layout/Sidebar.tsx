@@ -11,6 +11,8 @@ import {
   AlertCircle,
   Bell,
   X,
+  Calendar,
+  Megaphone,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { clsx } from 'clsx';
@@ -20,20 +22,18 @@ const navigationItems = [
   { name: 'Enquiries', href: '/admin/enquiries', icon: FileText },
   { name: 'Enquiries Expiring', href: '/admin/enquiries-expiring', icon: AlertCircle },
   { name: 'Clients', href: '/admin/clients', icon: Users },
-  { name: 'PT Expiring', href: '/admin/pt-expiring', icon: Dumbbell },
-  // { name: 'Staff', href: '/admin/staff', icon: UserPlus },
+  { name: 'PT Plans', href: '/admin/pt-plans', icon: Dumbbell },
+  { name: 'PT Assignments', href: '/admin/pt-assignments', icon: Users },
+  { name: 'Announcements', href: '/admin/announcements', icon: Megaphone },
   { name: 'Staff', href: '/admin/staff-page', icon: UserPlus },
+  { name: 'Calendar', href: '/admin/schedule', icon: Calendar },
   { name: 'Follow-Ups', href: '/admin/follow-ups', icon: Bell },
   { name: 'Reports', href: '/admin/reports', icon: BarChart3 },
 ];
 
 interface SidebarProps {
   isOpen: boolean;
-  onClose?: () => void; // Add optional onClose prop
-}
-
-interface SidebarProps {
-  isOpen: boolean; // new prop to control sidebar visibility
+  onClose?: () => void;
 }
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { logout } = useAuth();

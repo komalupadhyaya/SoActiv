@@ -26,6 +26,7 @@ export const FollowUpsPage: React.FC = () => {
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this follow-up?')) {
       await deleteFollowUp(id);
+      fetchFollowUps();
     }
   };
 
@@ -58,14 +59,16 @@ export const FollowUpsPage: React.FC = () => {
   return (
     <div className="space-y-6 py-6 dark:bg-gray-900">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-2 sm:px-0">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Follow-Ups</h1>
-          <p className="text-gray-600 mt-1 dark:text-gray-400">Manage and track all follow-up tasks</p>
+          <p className="text-gray-600 mt-1 dark:text-gray-400">
+            Manage and track all follow-up tasks
+          </p>
         </div>
         <button
           onClick={() => navigate('/admin/follow-ups/new')}
-          className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
         >
           <Plus size={20} />
           Add
@@ -73,10 +76,12 @@ export const FollowUpsPage: React.FC = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4 dark:bg-gray-800 dark:border-gray-700">
+      <div className="bg-white rounded-lg shadow p-4 dark:bg-gray-800 dark:border dark:border-gray-700 mx-2 sm:mx-0">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-white">Status</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-white">
+              Status
+            </label>
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value as any)}
@@ -89,7 +94,9 @@ export const FollowUpsPage: React.FC = () => {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-white">Type</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2 dark:text-white">
+              Type
+            </label>
             <select
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value as any)}
@@ -105,8 +112,8 @@ export const FollowUpsPage: React.FC = () => {
       </div>
 
       {/* Follow-Ups List */}
-      <div className="bg-white rounded-lg shadow dark:bg-gray-800 dark:border-gray-700">
-        <div className="p-6">
+      <div className="bg-white rounded-lg shadow dark:bg-gray-800 dark:border dark:border-gray-700 mx-2 sm:mx-0">
+        <div className="p-4 sm:p-6">
           {loading ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
@@ -128,60 +135,42 @@ export const FollowUpsPage: React.FC = () => {
               {followUps.map((followUp) => (
                 <div
                   key={followUp._id}
-                  className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow"
+                  className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 sm:p-5 hover:shadow-md transition-shadow"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{followUp.relatedName}</h3>
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(followUp.status)}`}>
+                  {/* Top row: name left, buttons right, optional center spacing */}
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    {/* Name + basic chips (center-ish on small, left on desktop) */}
+                    <div className="flex flex-col gap-2 md:flex-1">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                        {followUp.relatedName}
+                      </h3>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
+                            followUp.status,
+                          )}`}
+                        >
                           {followUp.status}
                         </span>
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getTypeColor(followUp.type)}`}>
+                        <span
+                          className={`px-2 py-1 text-xs font-medium rounded-full ${getTypeColor(
+                            followUp.type,
+                          )}`}
+                        >
                           {followUp.type}
                         </span>
                       </div>
-
-                      <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">{followUp.note}</p>
-
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="text-gray-500 dark:text-gray-400" size={16} />
-                          <span className="text-gray-600 dark:text-gray-400">Date:</span>
-                          <span className="text-gray-900 dark:text-white">
-                            {new Date(followUp.scheduledDate).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Clock className="text-gray-500 dark:text-gray-400" size={16} />
-                          <span className="text-gray-600 dark:text-gray-400">Time:</span>
-                          <span className="text-gray-900 dark:text-white">{followUp.scheduledTime}</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-600 dark:text-gray-400">Assigned to:</span>
-                          <span className="ml-2 text-gray-900 dark:text-white">{followUp.assignedTo?.fullName || 'Unknown'}</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-600 dark:text-gray-400">Position:</span>
-                          <span className="ml-2 text-gray-900 dark:text-white">{followUp.assignedTo?.position || 'N/A'}</span>
-                        </div>
-                      </div>
-
-                      {followUp.completedAt && (
-                        <div className="mt-2 text-sm text-green-600 dark:text-green-400">
-                          Completed on {new Date(followUp.completedAt).toLocaleString()}
-                        </div>
-                      )}
                     </div>
 
-                    <div className="ml-4 flex flex-col gap-2">
+                    {/* Action buttons (right on desktop, bottom on mobile) */}
+                    <div className="flex flex-wrap gap-2 md:justify-end">
                       {followUp.status === 'pending' && (
                         <button
                           onClick={() => handleComplete(followUp._id)}
                           className="flex items-center gap-2 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
                         >
                           <CheckCircle size={16} />
-
+                          Confirm
                         </button>
                       )}
                       <button
@@ -189,9 +178,59 @@ export const FollowUpsPage: React.FC = () => {
                         className="flex items-center gap-2 px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm"
                       >
                         <XCircle size={16} />
-
+                        Delete
                       </button>
                     </div>
+                  </div>
+
+                  {/* Middle: 2-column details (date/time/assigned/position) */}
+                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="text-gray-500 dark:text-gray-400" size={16} />
+                      <span className="text-gray-600 dark:text-gray-400">Date:</span>
+                      <span className="text-gray-900 dark:text-white">
+                        {new Date(followUp.scheduledDate).toLocaleDateString()}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Clock className="text-gray-500 dark:text-gray-400" size={16} />
+                      <span className="text-gray-600 dark:text-gray-400">Time:</span>
+                      <span className="text-gray-900 dark:text-white">
+                        {followUp.scheduledTime}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600 dark:text-gray-400">Assigned to:</span>
+                      <span className="text-gray-900 dark:text-white">
+                        {followUp.assignedTo?.fullName || 'Unknown'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-600 dark:text-gray-400">Position:</span>
+                      <span className="text-gray-900 dark:text-white">
+                        {followUp.assignedTo?.position || 'N/A'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Bottom: long text fields stacked full-width */}
+                  <div className="mt-4 space-y-2">
+                    {followUp.note && (
+                      <p className="text-sm text-gray-700 dark:text-white whitespace-pre-line break-words">
+                        <span className="font-semibold text-gray-600 dark:text-gray-400">Note: </span>
+                        {followUp.note}
+                      </p>
+                    )}
+
+                    {followUp.completedAt && (
+                      <p className="text-sm text-green-600 dark:text-green-400">
+                        Completed on{' '}
+                        {new Date(followUp.completedAt).toLocaleString()}
+                      </p>
+                    )}
                   </div>
                 </div>
               ))}

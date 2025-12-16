@@ -1,6 +1,6 @@
 // hooks/useStaff.ts
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useToast } from '../contexts/ToastContext';
 import axios from 'axios';
 
@@ -214,6 +214,34 @@ export const useStaff = () => {
     }
   };
 
+  // Update logged-in staff profile
+  const updateProfile = async (formData: FormData): Promise<boolean> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await API.patch('/update-profile', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      if (res.data.success) {
+        addToast(res.data.message || 'Profile updated successfully', 'success');
+        return true;
+      } else {
+        const msg = res.data.message || 'Failed to update profile';
+        setError(msg);
+        addToast(msg, 'error');
+        return false;
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to update profile';
+      setError(msg);
+      addToast(msg, 'error');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Bulk upload
   const bulkUpload = async (file: File): Promise<BulkUploadResult | null> => {
     setLoading(true);
@@ -263,9 +291,8 @@ export const useStaff = () => {
       }));
   }, [staff]);
 
-  useEffect(() => {
-    fetchAllStaff();
-  }, [fetchAllStaff]);
+  // Removed auto-fetch useEffect to prevent "Access denied" errors when hook is used by unauthorized roles (e.g. Schedule page)
+  // Components must explicitly call fetchAllStaff() if they need the list.
 
   return {
     staff,
@@ -277,6 +304,7 @@ export const useStaff = () => {
     createStaff,
     updateStaff,
     deleteStaff,
+    updateProfile,
     bulkUpload,
     refetch: fetchAllStaff,
   };

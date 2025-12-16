@@ -102,7 +102,22 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const token = user.generateAccessToken();
-  const safeUser = user.toFrontendUser();
+  // Fetch Staff Position if role is staff
+  const safeUser = user.toFrontendUser() as any; // Cast to any to add extra prop
+
+  if (safeUser.role === 'staff') {
+    // Import Staff model at top or here (dynamic import might be safer if not top-level)
+    const { Staff } = await import("../models/staff.model.js");
+    const staffRecord = await Staff.findOne({ userId: user._id });
+    safeUser.position = staffRecord ? staffRecord.position : 'unknown';
+    safeUser.staffId = staffRecord ? staffRecord._id : undefined; // Expose Staff ID
+  } else if (safeUser.role === 'trainer') {
+    safeUser.position = 'trainer';
+  } else if (safeUser.role === 'admin' || safeUser.role === 'superadmin') {
+    safeUser.position = safeUser.role;
+  } else {
+    safeUser.position = 'member';
+  }
 
   return res
     .status(HttpStatusCode.OK)

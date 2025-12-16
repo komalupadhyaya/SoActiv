@@ -5,16 +5,16 @@ import mongoose, { Schema, model, Document, Types, Model } from 'mongoose';
 /**
  * Follow-Up Type
  */
-export type FollowUpType = 'enquiry' | 'client' | 'pt';
-export type FollowUpStatus = 'pending' | 'completed' | 'cancelled';
+export type FollowUpType = 'enquiry' | 'client' | 'pt' | 'call' | 'message' | 'visit' | 'other';
+export type FollowUpStatus = 'pending' | 'completed' | 'failed' | 'rescheduled' | 'cancelled';
 
 /**
  * Interface for the FollowUp document
  */
 export interface IFollowUp extends Document {
-  userId: Types.ObjectId; // Reference to User who created the follow-up
+  userId: Types.ObjectId; // Reference to Admin/Owner who created the follow-up
   assignedTo: Types.ObjectId; // Reference to Staff assigned to this follow-up
-  type: FollowUpType; // Type of follow-up: enquiry, client, or PT
+  type: FollowUpType; // Type of follow-up
   relatedId: Types.ObjectId; // ID of the related enquiry, client, or PT package
   relatedName: string; // Name of the person/entity for quick reference
   scheduledDate: Date; // Date when follow-up is scheduled
@@ -22,6 +22,8 @@ export interface IFollowUp extends Document {
   note: string; // Follow-up notes (e.g., "Call back in 3 days")
   status: FollowUpStatus; // Status of the follow-up
   completedAt: Date | null; // When the follow-up was completed
+  completedBy: Types.ObjectId | null; // Staff who completed the follow-up
+  completionNotes: string | null; // Notes added upon completion/failure
   createdAt: Date;
   updatedAt: Date;
 }
@@ -42,17 +44,19 @@ const FollowUpSchema = new Schema<IFollowUp, IFollowUpModel>(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: [true, 'User ID is required'],
+      index: true, // For gym isolation queries
     },
     assignedTo: {
       type: Schema.Types.ObjectId,
       ref: 'Staff',
       required: [true, 'Assigned staff is required'],
+      index: true,
     },
     type: {
       type: String,
       enum: {
-        values: ['enquiry', 'client', 'pt'],
-        message: 'Type must be one of: enquiry, client, pt',
+        values: ['enquiry', 'client', 'pt', 'call', 'message', 'visit', 'other'],
+        message: 'Type must be one of: enquiry, client, pt, call, message, visit, other',
       },
       required: [true, 'Follow-up type is required'],
     },
@@ -68,6 +72,7 @@ const FollowUpSchema = new Schema<IFollowUp, IFollowUpModel>(
     scheduledDate: {
       type: Date,
       required: [true, 'Scheduled date is required'],
+      index: true,
     },
     scheduledTime: {
       type: String,
@@ -83,13 +88,25 @@ const FollowUpSchema = new Schema<IFollowUp, IFollowUpModel>(
     status: {
       type: String,
       enum: {
-        values: ['pending', 'completed', 'cancelled'],
-        message: 'Status must be one of: pending, completed, cancelled',
+        values: ['pending', 'completed', 'failed', 'rescheduled', 'cancelled'],
+        message: 'Status must be one of: pending, completed, failed, rescheduled, cancelled',
       },
       default: 'pending',
+      index: true,
     },
     completedAt: {
       type: Date,
+      default: null,
+    },
+    completedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'Staff',
+      default: null,
+    },
+    completionNotes: {
+      type: String,
+      trim: true,
+      maxlength: [500, 'Completion notes cannot exceed 500 characters'],
       default: null,
     },
   },
@@ -100,18 +117,40 @@ const FollowUpSchema = new Schema<IFollowUp, IFollowUpModel>(
 
 // Indexes for efficient queries
 FollowUpSchema.index({ assignedTo: 1, status: 1 });
-FollowUpSchema.index({ scheduledDate: 1 });
+FollowUpSchema.index({ userId: 1, status: 1 }); // For admin filtering
+FollowUpSchema.index({ scheduledDate: 1, status: 1 });
 FollowUpSchema.index({ type: 1, relatedId: 1 });
-FollowUpSchema.index({ status: 1, scheduledDate: 1 });
 
-// Pre-save hook: Set completedAt when status changes to completed
+// Compound index for duplicate prevention
+// Prevents same staff + same date + same time + pending status
+FollowUpSchema.index(
+  { assignedTo: 1, scheduledDate: 1, scheduledTime: 1, status: 1 },
+  {
+    name: 'duplicate_prevention_index',
+    partialFilterExpression: { status: 'pending' } // Only enforce for pending follow-ups
+  }
+);
+
+// Pre-save hook: Set completedAt when status changes to completed/failed
 FollowUpSchema.pre('save', function (next) {
-  if (this.isModified('status') && this.status === 'completed' && !this.completedAt) {
-    this.completedAt = new Date();
+  if (this.isModified('status')) {
+    if ((this.status === 'completed' || this.status === 'failed') && !this.completedAt) {
+      this.completedAt = new Date();
+    }
+  }
+  next();
+});
+
+// Pre-update hook: Set completedAt when status changes via findOneAndUpdate
+FollowUpSchema.pre('findOneAndUpdate', function (next) {
+  const update = this.getUpdate() as any;
+  if (update.status === 'completed' || update.status === 'failed') {
+    if (!update.completedAt) {
+      update.completedAt = new Date();
+    }
   }
   next();
 });
 
 // Export the Mongoose Model
 export const FollowUp = model<IFollowUp, IFollowUpModel>('FollowUp', FollowUpSchema);
-

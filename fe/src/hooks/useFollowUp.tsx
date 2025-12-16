@@ -212,6 +212,105 @@ export const useFollowUp = () => {
     }
   };
 
+  // Get staff's assigned follow-ups
+  const getMyFollowUps = async (filters?: { status?: string; date?: string }) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const queryParams = new URLSearchParams();
+      if (filters?.status) queryParams.append('status', filters.status);
+      if (filters?.date) queryParams.append('date', filters.date);
+
+      const res = await fetch(`${API_URL}/follow-up/my-tasks?${queryParams.toString()}`, {
+        credentials: 'include',
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setFollowUps(data.data);
+        return { success: true, data: data.data };
+      } else {
+        const msg = data.message || 'Failed to fetch my follow-ups';
+        setError(msg);
+        addToast(msg, 'error');
+        return { success: false, message: data.message };
+      }
+    } catch (err: any) {
+      const msg = err.message || 'Network error';
+      setError(msg);
+      addToast(msg, 'error');
+      return { success: false, message: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Complete follow-up with notes (staff)
+  const completeFollowUpWithNotes = async (id: string, completionNotes?: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_URL}/follow-up/${id}/complete-with-notes`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completionNotes }),
+        credentials: 'include',
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setFollowUps((prev) => prev.map((f) => (f._id === id ? data.data : f)));
+        addToast('Follow-up marked as completed', 'success');
+        return { success: true, data: data.data };
+      } else {
+        const msg = data.message || 'Failed to complete follow-up';
+        setError(msg);
+        addToast(msg, 'error');
+        return { success: false, message: data.message };
+      }
+    } catch (err: any) {
+      const msg = err.message || 'Network error';
+      setError(msg);
+      addToast(msg, 'error');
+      return { success: false, message: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Mark follow-up as failed (staff)
+  const failFollowUp = async (id: string, reason: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_URL}/follow-up/${id}/fail`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+        credentials: 'include',
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setFollowUps((prev) => prev.map((f) => (f._id === id ? data.data : f)));
+        addToast('Follow-up marked as failed', 'success');
+        return { success: true, data: data.data };
+      } else {
+        const msg = data.message || 'Failed to mark follow-up as failed';
+        setError(msg);
+        addToast(msg, 'error');
+        return { success: false, message: data.message };
+      }
+    } catch (err: any) {
+      const msg = err.message || 'Network error';
+      setError(msg);
+      addToast(msg, 'error');
+      return { success: false, message: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     followUps,
     upcomingFollowUps,
@@ -223,6 +322,9 @@ export const useFollowUp = () => {
     updateFollowUp,
     completeFollowUp,
     deleteFollowUp,
+    getMyFollowUps,
+    completeFollowUpWithNotes,
+    failFollowUp,
   };
 };
 

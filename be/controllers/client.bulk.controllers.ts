@@ -2,6 +2,7 @@
 import type { Request, Response } from 'express';
 import { Client } from '../models/client.model';
 import Papa from 'papaparse';
+import { getOwnerId } from './client.controllers';
 
 // Bulk upload result interfaces
 interface BulkUploadSummary {
@@ -166,11 +167,14 @@ const validateClientData = (data: any): string[] => {
 // Main bulk upload controller
 export const bulkUploadClients = async (req: Request, res: Response): Promise<any> => {
   try {
-    const userId = (req as any).user?.id;
-    if (!userId) {
+    // RESOLVE CORRECT OWNER ID
+    let userId: string;
+    try {
+      userId = await getOwnerId(req);
+    } catch (err: any) {
       return res.status(401).json({
         success: false,
-        message: 'Unauthorized: User not authenticated',
+        message: err.message || 'Unauthorized',
       });
     }
 
@@ -205,7 +209,7 @@ export const bulkUploadClients = async (req: Request, res: Response): Promise<an
       });
     }
 
-    // Get all existing emails for duplicate checking
+    // Get all existing emails for duplicate checking (SCOPED TO OWNER)
     const existingClients = await Client.find({ userId }, 'email contactNumber');
     const existingEmails = new Set(existingClients.map(c => c.email.toLowerCase()));
     const existingPhones = new Set(existingClients.map(c => c.contactNumber));
@@ -280,7 +284,7 @@ export const bulkUploadClients = async (req: Request, res: Response): Promise<an
       // Try to save to database
       try {
         const clientData: any = {
-          userId,
+          userId, // Uses the resolved Owner ID
           fullName: entry.fullname.trim(),
           email: email,
           contactNumber: phone,

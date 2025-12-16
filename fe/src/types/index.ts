@@ -5,6 +5,8 @@ export interface User {
   email: string;
   phone: string;
   role: 'admin' | 'superadmin' | 'trainer' | 'staff' | 'member';
+  position?: string; // e.g. 'manager', 'sales', 'receptionist'
+  staffId?: string; // ID of the Staff record (if role is staff)
   gym?: string;
   avatar?: string;
   createdAt: string;
@@ -87,14 +89,19 @@ export interface FollowUp {
     position: string;
     email: string;
   };
-  type: 'enquiry' | 'client' | 'pt';
+  type: 'enquiry' | 'client' | 'pt' | 'call' | 'message' | 'visit' | 'other';
   relatedId: string;
   relatedName: string;
   scheduledDate: string;
   scheduledTime: string;
   note: string;
-  status: 'pending' | 'completed' | 'cancelled';
+  status: 'pending' | 'completed' | 'failed' | 'rescheduled' | 'cancelled';
   completedAt: string | null;
+  completedBy?: {
+    _id: string;
+    fullName: string;
+  } | null;
+  completionNotes?: string | null;
   createdAt: string;
   updatedAt: string;
 }

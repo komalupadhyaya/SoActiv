@@ -466,15 +466,15 @@ export const ClientRegistrationForm: React.FC<ClientRegistrationFormProps> = ({ 
         </div>
 
         {/* ✅ New: Timing Input */}
-            <div className="sm:col-span-2">
-              <Input
-                label="Gym Timing"
-                placeholder="e.g., 6:00 AM - 9:00 AM, Evening, Flexible"
-                value={formData.timing}
-                onChange={(e) => handleInputChange('timing', e.target.value)}
-                required
-              />
-            </div>
+        <div className="sm:col-span-2">
+          <Input
+            label="Gym Timing"
+            placeholder="e.g., 6:00 AM - 9:00 AM, Evening, Flexible"
+            value={formData.timing}
+            onChange={(e) => handleInputChange('timing', e.target.value)}
+            required
+          />
+        </div>
 
         {/* Membership Period */}
         <div>

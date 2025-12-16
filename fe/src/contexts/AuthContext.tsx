@@ -18,6 +18,7 @@ interface AuthContextType {
   googleSignIn: (idToken: string, gymId?: string) => Promise<void>;
   logout: () => Promise<void>;
   isLoading: boolean;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,8 +29,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const refreshUser = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const res = await fetch(`${API_URL}/getCurrentUser`, {
+        method: 'GET',
+        headers,
+        credentials: 'include',
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const freshUser = data.data as User;
+        setUser(freshUser);
+        localStorage.setItem('user', JSON.stringify(freshUser));
+      } else {
+        if (res.status === 401) {
+          // Token expired or invalid
+          localStorage.removeItem('user');
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('role');
+          localStorage.removeItem('gym');
+          setUser(null);
+        }
+      }
+    } catch {
+      // Ignore network errors for refresh, keep existing user if any
+    }
+  };
+
   useEffect(() => {
     const initializeAuth = async () => {
+      // 1. Try to load from localStorage first for immediate UI
       const savedUser = localStorage.getItem('user');
       if (savedUser) {
         try {
@@ -39,26 +78,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      try {
-        const res = await fetch(`${API_URL}/getCurrentUser`, {
-          method: 'GET',
-          credentials: 'include',
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const freshUser = data.data as User;
-          setUser(freshUser);
-          localStorage.setItem('user', JSON.stringify(freshUser));
-        } else {
-          setUser(null);
-          localStorage.removeItem('user');
-        }
-      } catch {
-        setUser(null);
-        localStorage.removeItem('user');
-      } finally {
-        setIsLoading(false);
-      }
+      // 2. Always verify with backend
+      setIsLoading(true);
+      await refreshUser();
+      setIsLoading(false);
     };
 
     initializeAuth();
@@ -67,7 +90,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     // TEMPORARY BYPASS FOR TESTING
     if (email === 'admin@test.com' && password === 'password') {
-      const dummyUser = { _id: '1', fullname: 'Test Admin', email, role: 'admin', gym: 'test_gym' } as User;
+      const dummyUser: User = {
+        _id: '1',
+        id: '1',
+        name: 'Test Admin',
+        email,
+        role: 'admin',
+        gym: 'test_gym',
+        phone: '0000000000',
+        createdAt: new Date().toISOString()
+      };
       setUser(dummyUser);
       localStorage.setItem('user', JSON.stringify(dummyUser));
       localStorage.setItem('role', 'admin');
@@ -173,7 +205,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, googleSignIn, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, register, googleSignIn, logout, isLoading, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

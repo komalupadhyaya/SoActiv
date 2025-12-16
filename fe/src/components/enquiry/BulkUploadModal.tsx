@@ -3,6 +3,7 @@ import { Upload, FileText, X, Download } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { BulkUploadResult } from '../../hooks/useEnquiry';
+import { useToast } from '../../contexts/ToastContext';
 
 interface BulkUploadModalProps {
   isOpen: boolean;
@@ -21,16 +22,19 @@ export const BulkUploadModal: React.FC<BulkUploadModalProps> = ({
   const [uploadResult, setUploadResult] = useState<BulkUploadResult | null>(null);
   const [showResults, setShowResults] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { addToast, isToastVisible } = useToast();
 
   const handleFileSelect = (file: File) => {
+    if (isToastVisible) return;
+
     const fileExtension = file.name.split('.').pop()?.toLowerCase();
     if (fileExtension !== 'csv' && fileExtension !== 'xml') {
-      alert('Please select a CSV or XML file');
+      addToast('Please select a CSV or XML file', 'warning');
       return;
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      alert('File size must be less than 10MB');
+      addToast('File size must be less than 10MB', 'warning');
       return;
     }
 
@@ -189,11 +193,10 @@ Jane Smith,+1987654321,jane@example.com,referral,contacted,Follow up next week,Y
 
             {/* File Upload Area */}
             <div
-              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                isDragging
-                  ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
-                  : 'border-gray-300 dark:border-gray-600 hover:border-orange-400'
-              }`}
+              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${isDragging
+                ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
+                : 'border-gray-300 dark:border-gray-600 hover:border-orange-400'
+                }`}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
@@ -245,6 +248,7 @@ Jane Smith,+1987654321,jane@example.com,referral,contacted,Follow up next week,Y
                     variant="outline"
                     size="sm"
                     onClick={() => fileInputRef.current?.click()}
+                    disabled={isToastVisible}
                   >
                     Select File
                   </Button>
@@ -259,7 +263,7 @@ Jane Smith,+1987654321,jane@example.com,referral,contacted,Follow up next week,Y
               </Button>
               <Button
                 onClick={handleUpload}
-                disabled={!selectedFile || isUploading}
+                disabled={!selectedFile || isUploading || isToastVisible}
                 isLoading={isUploading}
               >
                 {isUploading ? 'Uploading...' : 'Upload'}

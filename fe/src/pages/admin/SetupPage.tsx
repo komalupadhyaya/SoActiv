@@ -1,7 +1,9 @@
 import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 export const UserProfilePage: React.FC = () => {
   const { user, isLoading } = useAuth();
+  const navigate = useNavigate();
 
   if (isLoading) {
     return (
@@ -31,7 +33,7 @@ export const UserProfilePage: React.FC = () => {
               d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
             />
           </svg>
-          <h2 className="text-3xl font-bold mt-6 text-gray-800 dark:text-gray-100">Not Signed In</h2>
+          <h2 className="text-2xl font-bold mt-6 text-gray-800 dark:text-gray-100">Not Signed In</h2>
           <p className="text-gray-600 dark:text-gray-400 mt-2">
             Please log in to view your profile.
           </p>
@@ -55,7 +57,7 @@ export const UserProfilePage: React.FC = () => {
       />
 
       {/* Cover */}
-      <div className="px-6 pb-8 pt-6">
+      <div className="px-2 pb-2 pt-2">
         <div
           className="h-32 md:h-40 rounded-[10px] bg-gradient-to-r from-orange-400 via-red-500 to-pink-500"
           style={{ backgroundColor: '#ff5c33' }}
@@ -76,10 +78,10 @@ export const UserProfilePage: React.FC = () => {
 
           {/* Info */}
           <div className="text-center md:text-left mt-2">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-100 dark:text-white">
+            <h2 className="text-2xl md:text-4xl font-bold text-gray-100 dark:text-white">
               {displayName}
             </h2>
-            <p className="text-3xl md:text-4xl font-bold text-gray-100 dark:text-white">
+            <p className="text-1xl md:text-4xl font-bold text-gray-100 dark:text-white">
               {displayEmail}
             </p>
             <p className="text-sm text-white dark:text-white mt-4">
@@ -89,6 +91,15 @@ export const UserProfilePage: React.FC = () => {
                 month: 'long',
               })}
             </p>
+            {user.role === 'staff' && (
+              <button
+                onClick={() => navigate(`/staff/profile/${user.id || user._id}/edit`)}
+                className="m-6 px-6 py-2 bg-white text-orange-600 rounded-full font-semibold shadow-lg hover:bg-gray-100 transition-colors flex items-center gap-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                Edit Profile
+              </button>
+            )}
           </div>
         </div>
 

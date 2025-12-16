@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { Upload, X, FileText, Download, AlertCircle, CheckCircle } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
+import { useToast } from '../../contexts/ToastContext';
 
 interface BulkUploadModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export const BulkUploadModal: React.FC<BulkUploadModalProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSummary, setUploadSummary] = useState<any>(null);
+  const { addToast, isToastVisible } = useToast();
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -42,15 +44,17 @@ export const BulkUploadModal: React.FC<BulkUploadModalProps> = ({
   }, []);
 
   const handleFileSelect = (file: File) => {
+    if (isToastVisible) return;
+
     const fileExtension = file.name.split('.').pop()?.toLowerCase();
-    
+
     if (fileExtension !== 'csv' && fileExtension !== 'xml') {
-      alert('Please select a CSV or XML file');
+      addToast('Please select a CSV or XML file', 'warning');
       return;
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      alert('File size must be less than 10MB');
+      addToast('File size must be less than 10MB', 'warning');
       return;
     }
 
@@ -66,22 +70,23 @@ export const BulkUploadModal: React.FC<BulkUploadModalProps> = ({
   };
 
   const handleUpload = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || isToastVisible) return;
 
     setIsUploading(true);
     try {
       const result = await onUpload(selectedFile);
       setUploadSummary(result.summary);
-      
+
       // If upload was successful, we'll show summary briefly then close
       if (result.success && result.summary.failed === 0) {
+        addToast('Upload successful!', 'success');
         setTimeout(() => {
           handleClose();
         }, 2000);
       }
     } catch (error) {
       console.error('Upload error:', error);
-      alert('Upload failed. Please try again.');
+      addToast('Upload failed. Please try again.', 'error');
     } finally {
       setIsUploading(false);
     }
@@ -97,7 +102,7 @@ export const BulkUploadModal: React.FC<BulkUploadModalProps> = ({
 
   const downloadSampleCSV = () => {
     let csvContent = '';
-    
+
     if (type === 'client') {
       csvContent = `fullName,email,contactNumber,gender,startDate,endDate,packagePrice,plan,timing,status,hasPersonalTraining,personalTrainingDurationWeeks,personalTrainingPrice,dateOfBirth,address,emergencyContactName,emergencyContactNumber,emergencyContactRelation
 John Doe,john.doe@example.com,+1234567890,male,2025-01-01,2025-12-31,5000,premium,Morning (6AM-10AM),active,true,12,3000,1990-05-15,123 Main St,Jane Doe,+1234567891,spouse
@@ -120,7 +125,7 @@ Mike Receptionist,Receptionist,mike.reception@example.com,+1122334455,2024-03-10
 
   const downloadSampleXML = () => {
     let xmlContent = '';
-    
+
     if (type === 'client') {
       xmlContent = `<?xml version="1.0" encoding="UTF-8"?>
 <clients>
@@ -181,11 +186,10 @@ Mike Receptionist,Receptionist,mike.reception@example.com,+1122334455,2024-03-10
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-            isDragging
-              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-              : 'border-gray-300 dark:border-gray-600'
-          }`}
+          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${isDragging
+            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+            : 'border-gray-300 dark:border-gray-600'
+            }`}
         >
           <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
@@ -200,7 +204,7 @@ Mike Receptionist,Receptionist,mike.reception@example.com,+1122334455,2024-03-10
               className="hidden"
               accept=".csv,.xml"
               onChange={handleFileInputChange}
-              disabled={isUploading}
+              disabled={isUploading || isToastVisible}
             />
           </label>
           <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
@@ -317,7 +321,7 @@ Mike Receptionist,Receptionist,mike.reception@example.com,+1122334455,2024-03-10
           </Button>
           <Button
             onClick={handleUpload}
-            disabled={!selectedFile || isUploading}
+            disabled={!selectedFile || isUploading || isToastVisible}
             className="min-w-[100px]"
           >
             {isUploading ? 'Uploading...' : 'Upload'}

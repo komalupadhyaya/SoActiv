@@ -22,6 +22,7 @@ import { ClientRegistrationForm } from '../../components/forms/ClientRegistratio
 import { BulkUploadModal } from '../../components/common/BulkUploadModal';
 import { UploadResultsReport } from '../../components/common/UploadResultsReport';
 import { useClient, type BulkUploadResult } from '../../hooks/useClient';
+import { useToast } from '../../contexts/ToastContext';
 
 // Status color classes
 const statusColors = {
@@ -37,6 +38,7 @@ type LocalRecentActivity =
 
 export const ClientsPage: React.FC = () => {
   const { clients, loading, error, createClient, bulkUpload, deleteClient } = useClient();
+  const { addToast, isToastVisible } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
@@ -60,24 +62,29 @@ export const ClientsPage: React.FC = () => {
   const expiredClients = clients.filter((client) => (client.remainingDays ?? 0) <= 0);
 
   const handleCreateClient = async (formData: any) => {
+    if (isToastVisible) return { success: false, message: 'Please wait...' }; // Block interaction while toast is visible
+
     const result = await createClient(formData);
     if (result.success) {
       setRecentActivity({ type: 'add', count: 1 });
       setIsAddClientModalOpen(false);
       setTimeout(() => setRecentActivity(null), 5000);
+      addToast('Client registered successfully', 'success');
     } else {
-      alert(result.message || 'Failed to register client');
+      addToast(result.message || 'Failed to register client', 'error');
     }
     return result;
   };
 
   const handleDeleteClient = async (id: string) => {
+    if (isToastVisible) return;
     await deleteClient(id);
     setRecentActivity((prev) => {
       if (prev?.type === 'delete') return { ...prev, count: prev.count + 1 };
       return { type: 'delete', count: 1 };
     });
     setTimeout(() => setRecentActivity(null), 5000);
+    addToast('Client deleted successfully', 'success');
   };
 
   const handleBulkUpload = async (file: File) => {
@@ -126,6 +133,7 @@ export const ClientsPage: React.FC = () => {
             variant="outline"
             onClick={() => setIsBulkUploadModalOpen(true)}
             className="flex items-center gap-2"
+            disabled={isToastVisible}
           >
             <Upload size={16} />
             Bulk Upload
@@ -133,6 +141,7 @@ export const ClientsPage: React.FC = () => {
           <Button
             onClick={() => setIsAddClientModalOpen(true)}
             className="flex items-center gap-2"
+            disabled={isToastVisible}
           >
             <Plus size={16} />
             Add New Client
@@ -349,7 +358,7 @@ export const ClientsPage: React.FC = () => {
                           : `${client.remainingDays ?? 0} days`}
                       </span>
                       <div className="flex space-x-2">
-                        <Button size="sm" variant="outline">
+                        <Button size="sm" variant="outline" disabled={isToastVisible}>
                           Edit
                         </Button>
                         <Button
@@ -357,6 +366,7 @@ export const ClientsPage: React.FC = () => {
                           variant="ghost"
                           onClick={() => handleDeleteClient(client._id)}
                           className="text-red-400 hover:bg-red-50 dark:hover:bg-red-800"
+                          disabled={isToastVisible}
                         >
                           <Trash2 size={14} />
                         </Button>

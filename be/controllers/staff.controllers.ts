@@ -6,6 +6,7 @@ import { User } from '../models/user.model';
 import type { IStaff } from '../models/staff.model';
 import type { FilterQuery } from 'mongoose';
 import { Types } from 'mongoose';
+import { Gym } from '../models/gym.model';
 import { generateSecurePassword } from '../utils/password.util';
 import { sendStaffWelcomeEmail, sendAdminStaffCopyEmail } from '../utils/emailSender';
 import { getVisibleStaffIds } from '../utils/staffPermissions.util';
@@ -130,11 +131,25 @@ export const createStaff = async (req: Request, res: Response): Promise<void> =>
       const savedStaff = await newStaff.save();
       console.log('✅ Staff record created:', savedStaff._id);
 
+      // --- Fetch Gym Details for Email ---
+      let gymName = 'SoActiv Gym';
+      if (adminGymId) {
+        try {
+          const gymDoc = await Gym.findById(adminGymId);
+          if (gymDoc) {
+            gymName = gymDoc.name;
+          }
+        } catch (gymErr) {
+          console.error('⚠️ Could not fetch gym name for email:', gymErr);
+        }
+      }
+
       // --- 4. SEND EMAIL (Non-blocking) ---
       const emailResult = await sendStaffWelcomeEmail(
         email.toLowerCase(),
         fullName,
-        generatedPassword
+        generatedPassword,
+        gymName
       );
 
       if (!emailResult.success) {
@@ -151,7 +166,7 @@ export const createStaff = async (req: Request, res: Response): Promise<void> =>
           fullName,
           email.toLowerCase(),
           generatedPassword,
-          adminGymId
+          gymName
         );
         if (adminEmailResult.success) {
           console.log('✅ Admin copy email sent to:', user.email);
@@ -565,6 +580,110 @@ export const deleteStaffById = async (req: Request, res: Response): Promise<void
       success: false,
       message: 'Server error during deletion',
       error: error.message,
+    });
+  }
+};
+
+/**
+ * Update the logged-in staff's profile (Avatar, Password, Details)
+ */
+export const updateStaffProfile = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as any).user;
+    const userId = user?.id;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: 'Unauthorized',
+      });
+      return;
+    }
+
+    const { fullName, phone, currentPassword, newPassword } = req.body;
+    const avatarFile = req.file; // From multer
+
+    const userDoc = await User.findById(userId);
+    if (!userDoc) {
+      res.status(404).json({ success: false, message: 'User not found' });
+      return;
+    }
+
+    // 1. Password Update
+    if (newPassword) {
+      if (!currentPassword) {
+        res.status(400).json({ success: false, message: 'Current password is required to set a new password' });
+        return;
+      }
+
+      // Verify current password
+      const isMatch = await userDoc.isPasswordCorrect(currentPassword);
+      if (!isMatch) {
+        res.status(400).json({ success: false, message: 'Incorrect current password' });
+        return;
+      }
+
+      if (newPassword.length < 6) {
+        res.status(400).json({ success: false, message: 'New password must be at least 6 characters' });
+        return;
+      }
+
+      userDoc.password = newPassword; // Will be hashed by pre-save
+    }
+
+    // 2. Avatar Update
+    if (avatarFile) {
+      // Construct URL - assuming served statically from /uploads
+      const baseUrl = process.env.API_URL || 'http://localhost:8000';
+      const avatarUrl = `${baseUrl}/uploads/${avatarFile.filename}`;
+      userDoc.avatar = avatarUrl;
+    }
+
+    // 3. Update Basic Details
+    let dataChanged = false;
+    if (fullName && fullName !== userDoc.fullname) {
+      userDoc.fullname = fullName;
+      dataChanged = true;
+    }
+    if (phone && phone !== userDoc.phone) {
+      userDoc.phone = phone;
+      dataChanged = true;
+    }
+
+    // Save User
+    await userDoc.save();
+
+    // 4. Sync with Staff Record
+    const staffDoc = await Staff.findOne({ userId: userId });
+    if (staffDoc) {
+      if (fullName) staffDoc.fullName = fullName;
+      if (phone) staffDoc.contactNumber = phone;
+
+      // If user uploaded new avatar, sync it.
+      // If user didn't upload but name changed, we might want to update ui-avatar if they were using one,
+      // but simpler to just sync if explicit avatar on userDoc.
+      if (userDoc.avatar) {
+        staffDoc.avatar = userDoc.avatar;
+      }
+
+      await staffDoc.save();
+    }
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: {
+        user: userDoc.toFrontendUser(),
+        avatar: userDoc.avatar
+      }
+    });
+
+  } catch (error: any) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while updating profile',
+      error: error.message
     });
   }
 };

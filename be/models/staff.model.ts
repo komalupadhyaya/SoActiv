@@ -24,6 +24,7 @@ export interface IStaff extends Document {
     push: boolean;
     whatsapp: boolean;
   };
+  avatar?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -48,6 +49,10 @@ const staffSchema = new Schema<IStaff>(
       ref: 'Gym',
       required: true,
     },
+    avatar: {
+      type: String,
+      default: '',
+    },
     fullName: {
       type: String,
       required: [true, 'Full name is required'],
@@ -58,8 +63,8 @@ const staffSchema = new Schema<IStaff>(
       type: String,
       required: [true, 'Position is required'],
       enum: {
-        values: ["manager", "receptionist", "cleaner", "sales", "maintenance"],
-        message: 'Position must be either manager", "receptionist", "cleaner", "sales", "maintenance" ',
+        values: ["manager", "receptionist", "cleaner", "sales", "maintenance", "trainer"],
+        message: 'Position must be either "manager", "receptionist", "cleaner", "sales", "maintenance", or "trainer"',
       },
       trim: true,
     },

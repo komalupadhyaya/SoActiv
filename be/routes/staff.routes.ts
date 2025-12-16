@@ -7,53 +7,71 @@ import {
   getStaffById,
   updateStaffById,
   deleteStaffById,
+  updateStaffProfile,
 } from '../controllers/staff.controllers';
 import { bulkUploadStaff } from '../controllers/staff.bulk.controllers';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { bulkUpload } from '../middlewares/upload.middleware';
+import { requireAdmin, requirePosition } from '../middlewares/permission.middleware';
 
 const staffRouter = Router();
 
 /**
  * @route   POST /api/v1/staff/bulk-upload
  * @desc    Bulk upload staff via CSV or XML
- * @access  Private
+ * @access  Private (Admin Only)
  */
-staffRouter.post('/bulk-upload', authMiddleware, bulkUpload.single('file'), bulkUploadStaff);
+staffRouter.post('/bulk-upload', authMiddleware, requireAdmin(), bulkUpload.single('file'), bulkUploadStaff);
 
 /**
  * @route   POST /api/staff
  * @desc    Create a new staff member (user-owned)
- * @access  Private
+ * @access  Private (Admin Only)
  */
-staffRouter.post('/', authMiddleware, createStaff);
+staffRouter.post('/', authMiddleware, requireAdmin(), createStaff);
 
 /**
  * @route   GET /api/staff
  * @desc    Get all staff members for logged-in user (with optional filters)
- * @access  Private
+ * @access  Private (Admin + Manager)
  */
-staffRouter.get('/', authMiddleware, getAllStaff);
+staffRouter.get('/', authMiddleware, requirePosition(['admin', 'manager']), getAllStaff);
 
 /**
  * @route   GET /api/staff/:id
  * @desc    Get a single staff member by ID (must belong to user)
- * @access  Private
+ * @access  Private (Admin + Manager)
+ * Note: Trainer seeing self is handled by separate profile route or lenient check if needed, 
+ * but for "Staff Management" usually Admin/Manager.
  */
-staffRouter.get('/:id', authMiddleware, getStaffById);
+staffRouter.get('/:id', authMiddleware, requirePosition(['admin', 'manager']), getStaffById);
 
 /**
  * @route   PUT /api/staff/:id
  * @desc    Update a staff member (must belong to user)
- * @access  Private
+ * @access  Private (Admin Only - Managers cannot edit)
  */
-staffRouter.put('/:id', authMiddleware, updateStaffById);
+staffRouter.put('/:id', authMiddleware, requireAdmin(), updateStaffById);
 
 /**
  * @route   DELETE /api/staff/:id
  * @desc    Delete a staff member (must belong to user)
- * @access  Private
+ * @access  Private (Admin Only)
  */
-staffRouter.delete('/:id', authMiddleware, deleteStaffById);
+staffRouter.delete('/:id', authMiddleware, requireAdmin(), deleteStaffById);
+
+import upload from '../middlewares/upload.middleware';
+
+/**
+ * @route   PATCH /api/staff/update-profile
+ * @desc    Update logged-in staff's profile (Avatar, Password, Details)
+ * @access  Private (Any Staff)
+ */
+staffRouter.patch(
+  '/update-profile',
+  authMiddleware,
+  upload.single('avatar'),
+  updateStaffProfile
+);
 
 export default staffRouter;

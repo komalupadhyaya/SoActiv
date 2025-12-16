@@ -14,6 +14,15 @@ import { RegisterPage } from './pages/auth/RegisterPage';
 // Staff Pages
 import { StaffLoginPage } from './pages/staff/StaffLoginPage';
 import { StaffDashboard } from './pages/staff/StaffDashboard';
+import { StaffLayout } from './components/layout/StaffLayout';
+import { Attendance } from './pages/staff/Attendance';
+import { Schedule } from './pages/staff/Schedule';
+import { StaffAttendance } from './pages/staff/StaffAttendance';
+import { MembersList } from './pages/staff/MembersList';
+import { TrainerMembers } from './pages/staff/TrainerMembers';
+import { SalesLeads } from './pages/staff/SalesLeads';
+import { ProfileEdit } from './pages/staff/ProfileEdit';
+import { StaffFollowUps } from './pages/staff/StaffFollowUps';
 
 // Protected Route
 import { ProtectedRoute } from './components/routing/ProtectedRoute';
@@ -33,6 +42,11 @@ import { PTExpiringPage } from './pages/admin/PTExpiringPage';
 import { FollowUpsPage } from './pages/admin/FollowUpsPage';
 import { FollowUpFormPage } from './pages/admin/FollowUpFormPage';
 import { CalendarPage } from './pages/admin/CalendarPage';
+import { PTPlansPage } from './pages/admin/PTPlansPage';
+import { PTAssignmentsPage } from './pages/admin/PTAssignmentsPage';
+import { TrainerPTClientsPage } from './pages/staff/TrainerPTClientsPage';
+import { AdminAnnouncementsPage } from './pages/admin/AdminAnnouncementsPage';
+import { StaffAnnouncementsPage } from './pages/staff/StaffAnnouncementsPage';
 
 function App() {
   return (
@@ -72,20 +86,113 @@ function App() {
                   <Route path="follow-ups" element={<FollowUpsPage />} />
                   <Route path="follow-ups/new" element={<FollowUpFormPage />} />
                   <Route path="calendar" element={<CalendarPage />} />
+                  <Route path="schedule" element={<Schedule />} />
                   <Route path="reports" element={<ReportsPage />} />
                   <Route path="profile" element={<UserProfilePage />} />
                   <Route path="staff-attendance" element={<AttendanceSheet />} />
+                  <Route path="attendance" element={<Attendance />} />
+                  <Route path="pt-plans" element={<PTPlansPage />} />
+                  <Route path="pt-assignments" element={<PTAssignmentsPage />} />
+                  <Route path="announcements" element={<AdminAnnouncementsPage />} />
+                  {/* <Route path="check-in" element={<QRCheckInPage />} /> */}
                 </Route>
 
                 {/* Staff Routes */}
                 <Route
-                  path="/staff/dashboard"
+                  path="/staff"
                   element={
                     <ProtectedRoute allowedRoles={['staff']}>
-                      <StaffDashboard />
+                      <StaffLayout />
                     </ProtectedRoute>
                   }
-                />
+                >
+                  <Route index element={<Navigate to="/staff/dashboard" replace />} />
+                  <Route path="dashboard" element={<StaffDashboard />} />
+                  <Route path="follow-ups" element={<StaffFollowUps />} />
+                  {/* <Route path="my-qr" element={<MyQRCodePage />} /> */}
+                  <Route path="profile" element={<UserProfilePage />} />
+                  <Route path="profile/edit" element={<Navigate to="/staff/profile" replace />} />
+                  <Route path="profile/:id/edit" element={<ProfileEdit />} />
+                  <Route path="announcements" element={<StaffAnnouncementsPage />} />
+
+                  <Route
+                    path="members"
+                    element={
+                      <ProtectedRoute allowedPositions={['manager', 'receptionist', 'trainer']}>
+                        <MembersList />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="enquiries"
+                    element={
+                      <ProtectedRoute allowedPositions={['manager', 'sales']}>
+                        <SalesLeads />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="schedule"
+                    element={
+                      <ProtectedRoute allowedPositions={['manager', 'receptionist', 'trainer', 'sales']}>
+                        <Schedule />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="staff-list"
+                    element={
+                      <ProtectedRoute allowedPositions={['manager']}>
+                        <StaffManagerPage />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="team-attendance"
+                    element={
+                      <ProtectedRoute allowedPositions={['manager']}>
+                        <StaffAttendance />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="my-clients"
+                    element={
+                      <ProtectedRoute allowedPositions={['trainer']}>
+                        <TrainerMembers />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="attendance"
+                    // All staff can view their own attendance
+                    element={<Attendance />}
+                  />
+
+                  {/* PT Routes for Staff */}
+                  <Route
+                    path="pt-clients"
+                    element={
+                      <ProtectedRoute allowedPositions={['trainer']}>
+                        <TrainerPTClientsPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="pt-assignments"
+                    element={
+                      <ProtectedRoute allowedPositions={['manager']}>
+                        <PTAssignmentsPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                </Route>
 
                 {/* Catch-all for undefined routes */}
                 <Route path="*" element={<Navigate to="/" replace />} />

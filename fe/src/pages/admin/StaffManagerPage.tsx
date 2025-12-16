@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Plus,
     Search,
@@ -21,8 +21,8 @@ import { BulkUploadModal } from '../../components/common/BulkUploadModal';
 import { UploadResultsReport } from '../../components/common/UploadResultsReport';
 import { useStaff, type BulkUploadResult, Staff } from '../../hooks/useStaff';
 import { useNavigate } from 'react-router-dom';
-import { StaffFormModal } from './StaffFormModal';
-import { StaffFormData } from './StaffValidation';
+import { StaffFormModal } from '../admin/StaffFormModal';
+import { StaffFormData } from '../admin/StaffValidation';
 import { useToast } from '../../contexts/ToastContext';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -32,33 +32,59 @@ const statusColors = {
 };
 
 export const StaffManagerPage: React.FC = () => {
+    const navigate = useNavigate();
+    const { user, isLoading: authLoading } = useAuth();
+    const { staff, createStaff, updateStaff, deleteStaff, bulkUpload, loading, error, fetchAllStaff } = useStaff();
+    const { isToastVisible } = useToast();
+
+    // ============================================================
+    // [1] STRICT ACCESS CONTROL GUARD
+    // ============================================================
+    // Only Admin OR (Staff with Manager position) can access this page
+    // All other staff positions must be redirected
+    useEffect(() => {
+        if (authLoading) return; // Wait for auth to load
+
+        if (!user) {
+            navigate('/login');
+            return;
+        }
+
+        // Check if user has permission to access this page
+        const isAdmin = user.role === 'admin' || user.role === 'superadmin';
+        const isManager = user.role === 'staff' && user.position === 'manager';
+
+        if (!isAdmin && !isManager) {
+            // Redirect unauthorized staff (trainer, sales, maintenance, cleaner, etc.)
+            navigate('/not-authorized');
+        } else {
+            // Fetch staff if authorized
+            fetchAllStaff();
+        }
+    }, [user, authLoading, navigate, fetchAllStaff]);
+
+    // ============================================================
+    // [2] PERMISSION LEVELS
+    // ============================================================
+    // Admin: Full CRUD (Create, Read, Update, Delete)
+    // Manager: CRU only (Create, Read, Update) - NO DELETE
+    const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+    const isManager = user?.role === 'staff' && user?.position === 'manager';
+    const canManageStaff = isAdmin || isManager;
+    const canDelete = isAdmin; // ONLY Admin can delete
+
+    // State Management
     const [searchQuery, setSearchQuery] = useState('');
     const [roleFilter, setRoleFilter] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
-
-    // Modal States
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
     const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
     const [isResultsModalOpen, setIsResultsModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-
-    // Data States
     const [selectedStaff, setSelectedStaff] = useState<Staff | undefined>(undefined);
     const [deletingStaff, setDeletingStaff] = useState<Staff | null>(null);
     const [uploadResult, setUploadResult] = useState<BulkUploadResult | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-
-    const navigate = useNavigate();
-    const { staff, createStaff, updateStaff, deleteStaff, bulkUpload, loading, error } = useStaff();
-    const { isToastVisible } = useToast();
-    const { user } = useAuth();
-
-    // Find current user's staff record to check position
-    // We match by userId (preferred) or email
-    const currentStaffMember = staff.find(s => s.userId === user?._id || s.email === user?.email);
-
-    // Permission Check: Admin or Manager can manage staff
-    const canManageStaff = user?.role === 'admin' || (user?.role === 'staff' && currentStaffMember?.position === 'manager');
 
     const filteredStaff = staff.filter((member) => {
         const matchesSearch =
@@ -148,7 +174,7 @@ export const StaffManagerPage: React.FC = () => {
     }
 
     return (
-        <div className="space-y-6 px-4 py-6 max-w-7xl mx-auto">
+        <div className="space-y-3 px-2 py-3 max-w-7xl mx-auto">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
@@ -158,18 +184,28 @@ export const StaffManagerPage: React.FC = () => {
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-3">
-                    <Button variant="outline" onClick={() => navigate('/admin/staff-attendance')} disabled={isToastVisible}>
-                        Mark Attendance
-                    </Button>
+                    {/* Mark Attendance → ADMIN ONLY */}
+                    {isAdmin && (
+                        <Button
+                            variant="outline"
+                            onClick={() => navigate('/admin/staff-attendance')}
+                            disabled={isToastVisible}
+                        >
+                            Mark Attendance
+                        </Button>
+                    )}
+
                     {canManageStaff && (
                         <>
-                            <Button variant="outline" onClick={() => setIsBulkUploadModalOpen(true)} disabled={isToastVisible}>
-                                <Upload size={16} className="mr-2" />
-                                Bulk Upload
-                            </Button>
+                            {isAdmin && (
+                                <Button variant="outline" onClick={() => setIsBulkUploadModalOpen(true)} disabled={isToastVisible}>
+                                    <Upload size={16} className="mr-2" />
+                                    Bulk Upload
+                                </Button>
+                            )}
                             <Button onClick={handleCreate} disabled={isToastVisible}>
                                 <Plus size={16} className="mr-2" />
-                                Add New Staff
+                                Add Staff
                             </Button>
                         </>
                     )}
@@ -265,7 +301,7 @@ export const StaffManagerPage: React.FC = () => {
                                     { value: 'receptionist', label: 'Receptionists' },
                                     { value: 'manager', label: 'Managers' },
                                     { value: 'sales', label: 'Sales' },
-                                    { value: 'housekeep', label: 'Housekeeps' },
+                                    { value: 'cleaner', label: 'Cleaners' },
                                 ]}
                                 value={roleFilter}
                                 onChange={(value) => setRoleFilter(value)}
@@ -385,15 +421,18 @@ export const StaffManagerPage: React.FC = () => {
                                                         <Edit size={14} className="mr-1" />
                                                         Edit
                                                     </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        className="text-red-500 hover:bg-red-100 dark:hover:bg-red-900"
-                                                        onClick={() => handleDeleteClick(member)}
-                                                        disabled={isToastVisible}
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </Button>
+                                                    {/* [2] ONLY ADMIN CAN DELETE - Manager cannot */}
+                                                    {canDelete && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="text-red-500 hover:bg-red-100 dark:hover:bg-red-900"
+                                                            onClick={() => handleDeleteClick(member)}
+                                                            disabled={isToastVisible}
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             </td>
                                         )}
@@ -477,15 +516,18 @@ export const StaffManagerPage: React.FC = () => {
                                                 <Edit size={14} className="mr-1" />
                                                 Edit
                                             </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                className="text-red-500 hover:bg-red-100 dark:hover:bg-red-900"
-                                                onClick={() => handleDeleteClick(member)}
-                                                disabled={isToastVisible}
-                                            >
-                                                <Trash2 size={14} />
-                                            </Button>
+                                            {/* [2] ONLY ADMIN CAN DELETE - Manager cannot */}
+                                            {canDelete && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="text-red-500 hover:bg-red-100 dark:hover:bg-red-900"
+                                                    onClick={() => handleDeleteClick(member)}
+                                                    disabled={isToastVisible}
+                                                >
+                                                    <Trash2 size={14} />
+                                                </Button>
+                                            )}
                                         </div>
                                     )}
                                 </CardContent>

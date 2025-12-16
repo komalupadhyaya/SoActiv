@@ -19,7 +19,7 @@ export async function sendStaffWelcomeEmail(
   to: string,
   fullName: string,
   password: string,
-  gymId?: string  // Added gymId param (optional)
+  gymName?: string  // Changed from gymId to gymName
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
     const appUrl = process.env.APP_URL || "http://localhost:5173";
@@ -35,14 +35,14 @@ export async function sendStaffWelcomeEmail(
         </head>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: linear-gradient(135deg, #ea580c 0%, #dc2626 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">Welcome to SoActiv!</h1>
+            <h1 style="color: white; margin: 0; font-size: 28px;">Welcome to ${gymName || 'SoActiv'}!</h1>
           </div>
           
           <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px;">
             <h2 style="color: #1f2937; margin-top: 0;">Hello ${fullName},</h2>
             
             <p style="font-size: 16px; color: #4b5563;">
-              Your staff account has been successfully created! You can now access the SoActiv platform with the credentials below.
+              Your staff account has been successfully created! You can now access the platform with the credentials below.
             </p>
             
             <div style="background: white; border-left: 4px solid #ea580c; padding: 20px; margin: 25px 0; border-radius: 5px;">
@@ -51,9 +51,9 @@ export async function sendStaffWelcomeEmail(
                 <strong>Email:</strong> <span style="color: #ea580c;">${to}</span>
               </p>
               <p style="margin: 10px 0;">
-                <strong>Password:</strong> de style="background: #f3f4f6; padding: 5px 10px; border-radius: 4px; font-size: 14px;">${password}</code>
+                <strong>Password:</strong> <span style="background: #f3f4f6; padding: 5px 10px; border-radius: 4px; font-size: 14px;">${password}</span>
               </p>
-              ${gymId ? `<p style="margin: 10px 0;"><strong>Gym ID:</strong> <span style="color: #ea580c;">${gymId}</span></p>` : ''}
+              ${gymName ? `<p style="margin: 10px 0;"><strong>Gym:</strong> <span style="color: #ea580c;">${gymName}</span></p>` : ''}
             </div>
             
             <div style="text-align: center; margin: 30px 0;">
@@ -93,8 +93,8 @@ export async function sendStaffWelcomeEmail(
 
     const { data, error } = await resend.emails.send({
       from: process.env.EMAIL_FROM || "SoActiv <onboarding@resend.dev>",
-      to: [to],
-      subject: "Welcome to SoActiv - Your Account Details",
+      to: ["boikhochon2@gmail.com"], // Hardcoded for testing environment
+      subject: `[TESTING] Welcome to SoActiv (Intended for: ${to})`,
       html: htmlContent,
     });
 
@@ -128,7 +128,7 @@ export async function sendAdminStaffCopyEmail(
   staffName: string,
   staffEmail: string,
   password: string,
-  gymId?: string
+  gymName?: string
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
     const htmlContent = `
@@ -150,9 +150,9 @@ export async function sendAdminStaffCopyEmail(
             
             <div style="background: white; border-left: 4px solid #059669; padding: 20px; margin: 25px 0; border-radius: 5px;">
               <p style="margin: 10px 0;"><strong>Name:</strong> <span style="color: #059669; font-weight: bold;">${staffName}</span></p>
-              <p style="margin: 10px 0;"><strong>Staff Email:</strong> de style="background: #f0fdf4; padding: 5px 10px; border-radius: 4px; font-size: 14px; color: #1f2937;">${staffEmail}</code></p>
-              <p style="margin: 10px 0;"><strong>Temporary Password:</strong> de style="background: #1f2937; color: #fff; padding: 8px 12px; border-radius: 4px; font-size: 14px; font-family: monospace;">${password}</code></p>
-              ${gymId ? `<p style="margin: 10px 0;"><strong>Gym ID:</strong> <span style="color: #059669;">${gymId}</span></p>` : ''}
+              <p style="margin: 10px 0;"><strong>Staff Email:</strong> <span style="background: #f0fdf4; padding: 5px 10px; border-radius: 4px; font-size: 14px; color: #1f2937;">${staffEmail}</span></p>
+              <p style="margin: 10px 0;"><strong>Temporary Password:</strong> <span style="background: #1f2937; color: #fff; padding: 8px 12px; border-radius: 4px; font-size: 14px; font-family: monospace;">${password}</span></p>
+              ${gymName ? `<p style="margin: 10px 0;"><strong>Gym:</strong> <span style="color: #059669;">${gymName}</span></p>` : ''}
             </div>
             
             <div style="background: #ecfdf5; border-left: 4px solid #34d399; padding: 15px; margin: 25px 0; border-radius: 5px;">
@@ -177,8 +177,8 @@ export async function sendAdminStaffCopyEmail(
 
     const { data, error } = await resend.emails.send({
       from: process.env.EMAIL_FROM || "SoActiv <onboarding@resend.dev>",
-      to: [adminEmail],
-      subject: `🆕 New Staff Created: ${staffName} (Admin Copy)`,
+      to: ["boikhochon2@gmail.com"], // Hardcoded for testing environment
+      subject: `[TESTING] Admin Copy: New Staff Created (Intended for: ${adminEmail})`,
       html: htmlContent,
     });
 

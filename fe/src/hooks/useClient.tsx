@@ -276,6 +276,7 @@ export const useClient = () => {
     bulkUpload,
     deleteClient,
     refresh: fetchClients,
+    fetchClients,
     recentActivities,
   };
 };

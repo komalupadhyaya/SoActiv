@@ -7,11 +7,56 @@ import {
   updateFollowUp,
   completeFollowUp,
   deleteFollowUp,
+  // Staff-specific endpoints
+  getMyFollowUps,
+  updateFollowUpStatus,
+  completeFollowUpWithNotes,
+  failFollowUp,
 } from '../controllers/followUp.controllers';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { asyncHandler } from '../lib/AsyncHandler';
 
 const followUpRouter = Router();
+
+/**
+ * ============================================================
+ * STAFF-SPECIFIC ROUTES (must come before generic routes)
+ * ============================================================
+ */
+
+/**
+ * @route   GET /api/v1/follow-up/my-tasks
+ * @desc    Get follow-ups assigned to logged-in staff
+ * @access  Private (Staff)
+ */
+followUpRouter.get('/my-tasks', authMiddleware, asyncHandler(getMyFollowUps));
+
+/**
+ * @route   PUT /api/v1/follow-up/:id/status
+ * @desc    Update follow-up status (staff can only update their own)
+ * @access  Private (Staff)
+ */
+followUpRouter.put('/:id/status', authMiddleware, asyncHandler(updateFollowUpStatus));
+
+/**
+ * @route   PUT /api/v1/follow-up/:id/complete-with-notes
+ * @desc    Mark follow-up as completed with notes
+ * @access  Private (Staff)
+ */
+followUpRouter.put('/:id/complete-with-notes', authMiddleware, asyncHandler(completeFollowUpWithNotes));
+
+/**
+ * @route   PUT /api/v1/follow-up/:id/fail
+ * @desc    Mark follow-up as failed with reason
+ * @access  Private (Staff)
+ */
+followUpRouter.put('/:id/fail', authMiddleware, asyncHandler(failFollowUp));
+
+/**
+ * ============================================================
+ * GENERAL ROUTES
+ * ============================================================
+ */
 
 /**
  * @route   GET /api/v1/follow-up/upcoming
@@ -24,7 +69,7 @@ followUpRouter.get('/upcoming', authMiddleware, asyncHandler(getUpcomingFollowUp
 /**
  * @route   POST /api/v1/follow-up
  * @desc    Create a new follow-up
- * @access  Private (Admin, Sales, Trainer)
+ * @access  Private (Admin, Manager)
  */
 followUpRouter.post('/', authMiddleware, asyncHandler(createFollowUp));
 
@@ -57,4 +102,3 @@ followUpRouter.put('/:id', authMiddleware, asyncHandler(updateFollowUp));
 followUpRouter.delete('/:id', authMiddleware, asyncHandler(deleteFollowUp));
 
 export default followUpRouter;
-

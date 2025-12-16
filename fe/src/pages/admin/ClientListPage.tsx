@@ -109,7 +109,7 @@ export const ClientListPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 px-4 py-6 max-w-7xl mx-auto">
+    <div className="space-y-3 px-2 py-3 max-w-7xl mx-auto">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>

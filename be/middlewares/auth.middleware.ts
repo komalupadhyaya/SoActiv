@@ -5,6 +5,9 @@ import jwt, { type JwtPayload } from "jsonwebtoken";
 import { HttpStatusCode } from "../lib/const.js";
 import type { NextFunction, Request, Response } from "express";
 
+// ... existing imports
+import { Staff } from "../models/staff.model.js";
+
 interface DecodedToken extends JwtPayload {
   _id: string;
   gym?: string;
@@ -18,7 +21,12 @@ if (!ACCESS_TOKEN_SECRET) {
 
 export const authMiddleware = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
-    const token = req.cookies?.accessToken;
+    let token = req.cookies?.accessToken;
+
+    // Fallback to Authorization header
+    if (!token && req.headers.authorization?.startsWith("Bearer ")) {
+      token = req.headers.authorization.split(" ")[1];
+    }
 
     if (!token) {
       throw new ApiError(HttpStatusCode.UNAUTHORIZED, "Access token is missing");
@@ -37,9 +45,35 @@ export const authMiddleware = asyncHandler(
         throw new ApiError(HttpStatusCode.UNAUTHORIZED, "User not found");
       }
 
-      // ✅ Attach user and gym info to request
-      (req as any).user = user;
-      (req as any).gym = decoded.gym || user.gym?.toString();
+      // Convert to frontend-safe object (maps fullname -> name, _id -> id)
+      const reqUser = user.toFrontendUser() as any;
+      reqUser.gym = decoded.gym || user.gym?.toString(); // Ensure gym string is set
+
+      // --- Normalize Position ---
+      if (user.role === 'admin') {
+        reqUser.position = 'admin';
+      } else if (user.role === 'superadmin') {
+        reqUser.position = 'superadmin';
+      } else if (user.role === 'trainer') {
+        reqUser.position = 'trainer';
+        // Check if there is a linked staff record to sync any updates (optional/future)
+      } else if (user.role === 'staff') {
+        // Fetch specific staff position from Staff collection
+        const staffRecord = await Staff.findOne({ userId: user._id });
+        if (staffRecord) {
+          reqUser.position = staffRecord.position;
+          reqUser.staffId = staffRecord._id; // Useful for efficient queries
+          reqUser.adminId = staffRecord.createdBy; // Important: Staff are scoped by their creator (Admin)
+        } else {
+          // Fallback if staff record missing (should not happen for valid staff)
+          reqUser.position = 'unknown';
+        }
+      } else {
+        reqUser.position = 'member';
+      }
+
+      (req as any).user = reqUser; // Re-assign with position
+      (req as any).gym = reqUser.gym;
 
       next();
     } catch (error: any) {
