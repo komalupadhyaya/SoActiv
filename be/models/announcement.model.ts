@@ -40,6 +40,6 @@ const announcementSchema = new Schema<IAnnouncement>(
 
 // Index for efficient filtering
 announcementSchema.index({ adminId: 1, targetAudience: 1, isActive: 1 });
-announcementSchema.index({ expiresAt: 1 }); // Useful for cleanup or exclusion
+// Useful for cleanup or exclusion
 
 export const Announcement = model<IAnnouncement>('Announcement', announcementSchema);

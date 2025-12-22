@@ -1,7 +1,9 @@
 // routes/enquiryRoutes.ts
 import { Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import {
   createEnquiry,
+  createPublicEnquiry,
   getEnquiries,
   getEnquiryById,
   updateEnquiry,
@@ -20,6 +22,18 @@ import { bulkUpload } from '../middlewares/upload.middleware';
 import { asyncHandler } from '../lib/AsyncHandler';
 
 const enquiryRouter = Router();
+
+// Rate limiter for public enquiries: 5 requests per 15 minutes per IP
+const publicEnquiryLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: {
+    success: false,
+    message: 'Too many enquiries from this IP, please try again after 15 minutes',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 /**
  * @route   POST /api/enquiries/bulk-upload
@@ -58,6 +72,7 @@ enquiryRouter.get('/my', authMiddleware, getEnquiriesByUser);
  * @access  Private
  */
 enquiryRouter.post('/', authMiddleware, createEnquiry);
+enquiryRouter.post('/public', publicEnquiryLimiter, createPublicEnquiry);
 
 /**
  * @route   GET /api/enquiries

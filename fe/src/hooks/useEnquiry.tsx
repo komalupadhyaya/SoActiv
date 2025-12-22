@@ -1,18 +1,18 @@
 // src/hooks/useEnquiry.ts
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '../contexts/ToastContext';
-import axios, { AxiosError } from 'axios';
+import axios from 'axios';
 
 export interface IEnquiry {
   _id: string;
-  userId: { _id: string; name: string; email: string } | string;
+  userId: { _id: string; fullname: string; email: string } | string;
   name: string;
   phone: string;
   email?: string;
   source: string;
   status: 'new' | 'contacted' | 'interested' | 'converted' | 'lost';
   assignedStaff?:
-  | { _id: string; name: string; email: string; role: string }
+  | { _id: string; fullName: string; email: string; role: string }
   | string
   | null;
   followUpDate?: string | null;
@@ -29,12 +29,6 @@ const API = axios.create({
   withCredentials: true,
 });
 
-interface ApiResponse<T> {
-  success: boolean;
-  message?: string;
-  data?: T;
-  errors?: string[];
-}
 
 type CreateEnquiryData = Omit<IEnquiry, '_id' | 'userId' | 'createdAt' | 'updatedAt'>;
 
@@ -152,6 +146,30 @@ export const useEnquiry = () => {
       setError(msg);
       addToast(msg, 'error');
       return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createPublicEnquiry = async (data: { name: string; phone: string; email?: string; interests?: string; comments?: string }): Promise<boolean> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await API.post('/public', data);
+      if (res.data.success) {
+        addToast('Enquiry submitted successfully!', 'success');
+        return true;
+      } else {
+        const msg = res.data.message || 'Failed to submit enquiry';
+        setError(msg);
+        addToast(msg, 'error');
+        return false;
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to submit enquiry';
+      setError(msg);
+      addToast(msg, 'error');
+      return false;
     } finally {
       setLoading(false);
     }
@@ -315,6 +333,7 @@ export const useEnquiry = () => {
     loading,
     error,
     createEnquiry,
+    createPublicEnquiry,
     getEnquiryById,
     updateEnquiry,
     deleteEnquiry,

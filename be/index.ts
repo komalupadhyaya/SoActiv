@@ -18,7 +18,10 @@ import followUpRouter from "./routes/followUp.routes";
 import scheduleRouter from "./routes/schedule.routes";
 import ptRouter from "./routes/pt.routes";
 import announcementRouter from "./routes/announcement.routes";
+import superAdminRouter from "./routes/superAdmin.routes";
+import contactRouter from "./routes/contact.routes";
 import Enquiry from './models/enquiry.model';
+import Contact from './models/contact.model';
 dotenv.config();
 
 const app = express();
@@ -50,7 +53,10 @@ app.get("/", (req, res) => {
 connectDB()
   .then(async () => {
     // Sync indexes after DB connection
-    await Enquiry.syncIndexes();
+    await Promise.all([
+      Enquiry.syncIndexes(),
+      Contact.syncIndexes()
+    ]);
 
     const server = http.createServer(app);
     const io = new IOServer(server, {
@@ -78,6 +84,8 @@ connectDB()
     app.use("/api/v1/schedule", scheduleRouter);
     app.use("/api/v1/pt", ptRouter);
     app.use("/api/v1/announcements", announcementRouter);
+    app.use("/api/v1/super-admin", superAdminRouter);
+    app.use("/api/v1/contact", contactRouter);
 
     // Global Error Handler
     app.use(

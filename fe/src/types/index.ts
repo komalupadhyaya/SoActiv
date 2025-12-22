@@ -9,6 +9,13 @@ export interface User {
   staffId?: string; // ID of the Staff record (if role is staff)
   gym?: string;
   avatar?: string;
+  avatarSettings?: {
+    textColor?: string;
+    backgroundColor?: string;
+    backgroundType?: 'solid' | 'gradient';
+    gradientStart?: string;
+    gradientEnd?: string;
+  };
   createdAt: string;
 }
 

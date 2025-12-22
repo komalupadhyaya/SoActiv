@@ -17,9 +17,37 @@ export const AdminLayout: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [dateFilter, setDateFilter] = useState<'monthly' | 'yearly'>('monthly');
 
-  const { user, isLoading } = useAuth();
+  const { user, role, isLoading, logout } = useAuth();
   const { recentActivities: clientActions } = useClient();
   const { recentStaffActions } = useStaff();
+
+  // ===== HARD ROLE GUARD (PREVENT ROLE MUTATION) =====
+  // ONLY run guard AFTER auth initialization completes
+  useEffect(() => {
+    if (!isLoading && role !== 'admin') {
+      // Role mismatch detected - another role logged in
+      // AuthContext handles storage clearing
+      logout();
+      window.location.href = '/login'; // Hard redirect to login
+    }
+  }, [isLoading, role, logout]);
+
+  // ===== WAIT FOR AUTH INITIALIZATION =====
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ===== BLOCK RENDER ON ROLE MISMATCH =====
+  if (!user || role !== 'admin') {
+    return null; // Prevent any rendering until role is correct
+  }
 
   useEffect(() => {
     const now = new Date();

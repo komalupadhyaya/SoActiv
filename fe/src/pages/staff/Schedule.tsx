@@ -18,6 +18,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/ui/Button';
 import { ScheduleFormModal } from '../../components/schedule/ScheduleFormModal';
 import { useToast } from '../../contexts/ToastContext';
+import { useConfirm } from '../../hooks/useConfirm';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 
 const TYPE_COLORS: Record<string, string> = {
     followup: 'bg-blue-500',
@@ -37,6 +39,7 @@ export const Schedule: React.FC = () => {
     const { user } = useAuth();
     const { fetchSchedules, schedules, deleteScheduleEvent, completeScheduleEvent, checkHoliday } = useSchedule();
     const { addToast } = useToast();
+    const { confirm, confirmState, handleConfirm, handleCancel } = useConfirm();
 
     // Calendar State
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -148,7 +151,7 @@ export const Schedule: React.FC = () => {
             await completeScheduleEvent(event._id, 'Completed from Calendar');
             fetchSchedules({}); // Refresh
         } else if (action === 'delete') {
-            if (window.confirm('Are you sure?')) {
+            if (await confirm('Are you sure you want to delete this event?', { title: 'Delete Event' })) {
                 await deleteScheduleEvent(event._id);
                 fetchSchedules({});
             }
@@ -309,6 +312,17 @@ export const Schedule: React.FC = () => {
                 onSuccess={() => { fetchSchedules({}); setIsFormModalOpen(false); }}
                 initialData={selectedEvent}
                 defaultDate={selectedEvent ? undefined : (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined)}
+            />
+
+            <ConfirmModal
+                isOpen={confirmState.isOpen}
+                onClose={handleCancel}
+                onConfirm={handleConfirm}
+                title={confirmState.title}
+                message={confirmState.message}
+                confirmText={confirmState.confirmText}
+                cancelText={confirmState.cancelText}
+                type={confirmState.type}
             />
         </div>
     );

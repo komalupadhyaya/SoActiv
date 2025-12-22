@@ -6,6 +6,8 @@ import { AdminLayout } from './components/layout/AdminLayout';
 
 // Public Pages
 import { LandingPage } from './pages/LandingPage';
+import { PricingPage } from './pages/PricingPage';
+import ContactPage from './pages/ContactPage';
 
 // Auth Pages
 import { LoginPage } from './pages/auth/LoginPage';
@@ -36,7 +38,8 @@ import { ClientFormPage } from './pages/admin/ClientFormPage';
 import { StaffManagerPage } from './pages/admin/StaffManagerPage';
 import { ReportsPage } from './pages/admin/ReportsPage';
 import { AttendanceSheet } from './pages/admin/staffAttendance';
-import { UserProfilePage } from './pages/admin/SetupPage';
+import { UserProfilePage } from './pages/common/UserProfilePage'; // For Admin (gym owner)
+import { SuperAdminProfilePage } from './pages/superAdmin/SuperAdminProfilePage'; // For SuperAdmin
 import { EnquiriesExpiringPage } from './pages/admin/EnquiriesExpiringPage';
 import { PTExpiringPage } from './pages/admin/PTExpiringPage';
 import { FollowUpsPage } from './pages/admin/FollowUpsPage';
@@ -48,6 +51,17 @@ import { TrainerPTClientsPage } from './pages/staff/TrainerPTClientsPage';
 import { AdminAnnouncementsPage } from './pages/admin/AdminAnnouncementsPage';
 import { StaffAnnouncementsPage } from './pages/staff/StaffAnnouncementsPage';
 
+// Super Admin Pages
+import { SuperAdminLoginPage } from './pages/superAdmin/SuperAdminLoginPage';
+import { SuperAdminLayout } from './components/layout/SuperAdminLayout';
+import { SuperAdminDashboard } from './pages/superAdmin/SuperAdminDashboard';
+import { GymsListPage } from './pages/superAdmin/GymsListPage';
+import { GymDetailsPage } from './pages/superAdmin/GymDetailsPage';
+import AdminsListPage from './pages/superAdmin/AdminsListPage';
+import PlansPage from './pages/superAdmin/PlansPage';
+import ContactsInboxPage from './pages/superAdmin/ContactsInboxPage';
+import ContactSupportPage from './pages/admin/ContactSupportPage';
+
 function App() {
   return (
     <ThemeProvider>
@@ -58,6 +72,8 @@ function App() {
               <Routes>
                 {/* Public Routes */}
                 <Route path="/" element={<LandingPage />} />
+                <Route path="/pricing" element={<PricingPage />} />
+                <Route path="/contact" element={<ContactPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
                 <Route path="/staff/login" element={<StaffLoginPage />} />
@@ -94,6 +110,7 @@ function App() {
                   <Route path="pt-plans" element={<PTPlansPage />} />
                   <Route path="pt-assignments" element={<PTAssignmentsPage />} />
                   <Route path="announcements" element={<AdminAnnouncementsPage />} />
+                  <Route path="contact-support" element={<ContactSupportPage />} />
                   {/* <Route path="check-in" element={<QRCheckInPage />} /> */}
                 </Route>
 
@@ -192,6 +209,19 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
+                </Route>
+
+                {/* Super Admin Routes */}
+                <Route path="/super-admin/login" element={<SuperAdminLoginPage />} />
+                <Route path="/super-admin" element={<SuperAdminLayout />}>
+                  <Route index element={<Navigate to="/super-admin/dashboard" replace />} />
+                  <Route path="dashboard" element={<SuperAdminDashboard />} />
+                  <Route path="gyms" element={<GymsListPage />} />
+                  <Route path="gyms/:id" element={<GymDetailsPage />} />
+                  <Route path="admins" element={<AdminsListPage />} />
+                  <Route path="plans" element={<PlansPage />} />
+                  <Route path="contacts" element={<ContactsInboxPage />} />
+                  <Route path="profile" element={<SuperAdminProfilePage />} />
                 </Route>
 
                 {/* Catch-all for undefined routes */}

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import {
     Dumbbell,
     Users,
@@ -8,8 +8,6 @@ import {
     Mail,
     MessageSquare,
     CheckCircle,
-    Menu,
-    X,
     ChevronRight,
     BarChart3,
     Heart,
@@ -20,10 +18,10 @@ import {
     Lock,
     Database,
 } from 'lucide-react';
+import { PublicNavbar } from '../components/layout/PublicNavbar';
 
 export const LandingPage: React.FC = () => {
     const navigate = useNavigate();
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     const features = [
         {
@@ -66,75 +64,7 @@ export const LandingPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-white dark:bg-gray-900">
-            {/* Navigation */}
-            <nav className="fixed top-0 w-full bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm shadow-sm z-50">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between items-center h-16">
-                        {/* Logo */}
-                        <div className="flex items-center space-x-2">
-                            <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center">
-                                <Dumbbell className="w-6 h-6 text-white" />
-                            </div>
-                            <span className="text-2xl font-bold">
-                                <span className="text-orange-600">SO</span>
-                                <span className="text-gray-900 dark:text-white">ACTIV</span>
-                            </span>
-                        </div>
-
-                        {/* Desktop Navigation */}
-                        <div className="hidden md:flex items-center space-x-8">
-                            <a href="#features" className="text-gray-700 dark:text-gray-300 hover:text-orange-600 transition">Features</a>
-                            <a href="#business-types" className="text-gray-700 dark:text-gray-300 hover:text-orange-600 transition">Business Types</a>
-                            <a href="#pricing" className="text-gray-700 dark:text-gray-300 hover:text-orange-600 transition">Pricing</a>
-                            <a href="#contact" className="text-gray-700 dark:text-gray-300 hover:text-orange-600 transition">Contact</a>
-                            <button
-                                onClick={() => navigate('/login')}
-                                className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-orange-600 transition"
-                            >
-                                Login
-                            </button>
-                            <button
-                                onClick={() => navigate('/login')}
-                                className="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition shadow-lg hover:shadow-xl"
-                            >
-                                Get a Demo
-                            </button>
-                        </div>
-
-                        {/* Mobile Menu Button */}
-                        <button
-                            className="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                        >
-                            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-                        </button>
-                    </div>
-                </div>
-
-                {/* Mobile Menu */}
-                {mobileMenuOpen && (
-                    <div className="md:hidden bg-white dark:bg-gray-900 border-t dark:border-gray-800">
-                        <div className="px-4 py-4 space-y-3">
-                            <a href="#features" className="block py-2 text-gray-700 dark:text-gray-300 hover:text-orange-600">Features</a>
-                            <a href="#business-types" className="block py-2 text-gray-700 dark:text-gray-300 hover:text-orange-600">Business Types</a>
-                            <a href="#pricing" className="block py-2 text-gray-700 dark:text-gray-300 hover:text-orange-600">Pricing</a>
-                            <a href="#contact" className="block py-2 text-gray-700 dark:text-gray-300 hover:text-orange-600">Contact</a>
-                            <button
-                                onClick={() => navigate('/login')}
-                                className="block w-full text-left py-2 text-gray-700 dark:text-gray-300 hover:text-orange-600"
-                            >
-                                Login
-                            </button>
-                            <button
-                                onClick={() => navigate('/login')}
-                                className="block w-full px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition"
-                            >
-                                Get a Demo
-                            </button>
-                        </div>
-                    </div>
-                )}
-            </nav>
+            <PublicNavbar />
 
             {/* Hero Section */}
             <section className="pt-24 pb-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-orange-50 to-white dark:from-gray-900 dark:to-gray-800">
@@ -543,7 +473,7 @@ export const LandingPage: React.FC = () => {
                                 Member Engagement
                             </h2>
                             <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
-                                Turbo charge your service delivery with Yoactiv's mobile-first member engagement tools.
+                                Turbo charge your service delivery with Soactiv's mobile-first member engagement tools.
                             </p>
                             <div className="space-y-4">
                                 {[
@@ -576,7 +506,7 @@ export const LandingPage: React.FC = () => {
                                 Club Administration
                             </h2>
                             <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
-                                Yoactiv's all-in-one solution for effective and efficient club administration.
+                                Soactiv's all-in-one solution for effective and efficient club administration.
                             </p>
                             <div className="space-y-4">
                                 {[
@@ -680,7 +610,7 @@ export const LandingPage: React.FC = () => {
                                 A complete solution for Enterprises
                             </h2>
                             <p className="text-lg text-gray-300 mb-8">
-                                Yoactiv is scalable enterprise software, designed for your growing, multi-location business.
+                                Soactiv is scalable enterprise software, designed for your growing, multi-location business.
                             </p>
                         </div>
                         <div className="grid grid-cols-2 gap-6">
@@ -750,7 +680,7 @@ export const LandingPage: React.FC = () => {
                         Keeping your data safe is our topmost priority
                     </h2>
                     <p className="text-lg text-gray-600 dark:text-gray-300 mb-16">
-                        A Secure Fitness, Wellness & Sports Management Software - Yoactiv
+                        A Secure Fitness, Wellness & Sports Management Software - Soactiv
                     </p>
 
                     <div className="grid md:grid-cols-2 gap-12 text-left max-w-5xl mx-auto">
@@ -781,7 +711,7 @@ export const LandingPage: React.FC = () => {
                             <div>
                                 <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">Role Based</h3>
                                 <p className="text-gray-600 dark:text-gray-400">
-                                    Yoactiv allows assigning permissions to users based on their role within your organisation.
+                                    Soactiv allows assigning permissions to users based on their role within your organisation.
                                 </p>
                             </div>
                             <div>
@@ -868,7 +798,7 @@ export const LandingPage: React.FC = () => {
                                 </div>
                             </div>
                             <p className="text-gray-700 dark:text-gray-300 italic">
-                                "When it comes to a CRM which can manage your studio in and out, nothing comes to our mind apart from Yoactiv. Yoactiv Software gives you the best experience and the team is always there for you. Yoactiv gives you all the features which helps you to keep a track of what is happening in the studio all the time."
+                                "When it comes to a CRM which can manage your studio in and out, nothing comes to our mind apart from Soactiv. Soactiv Software gives you the best experience and the team is always there for you. Soactiv gives you all the features which helps you to keep a track of what is happening in the studio all the time."
                             </p>
                         </div>
                         <div>
@@ -897,7 +827,7 @@ export const LandingPage: React.FC = () => {
                                 </div>
                             </div>
                             <p className="text-gray-700 dark:text-gray-300 italic">
-                                "Yoactiv has proven to be an end-to-end solution for us. Our sales staff uses the software effectively thanks to their hands on training and the simplicity of the software. Yoactiv has absolutely helped us boost our sales and help us manage more than 500 customers daily using our facilities."
+                                "Soactiv has proven to be an end-to-end solution for us. Our sales staff uses the software effectively thanks to their hands on training and the simplicity of the software. Soactiv has absolutely helped us boost our sales and help us manage more than 500 customers daily using our facilities."
                             </p>
                         </div>
 
@@ -912,7 +842,7 @@ export const LandingPage: React.FC = () => {
                                 </div>
                             </div>
                             <p className="text-gray-700 dark:text-gray-300 italic">
-                                "In our experience, Yoactiv team showed good understanding of our business needs and workflows They gave us a software that value adds to our operations in a cost efficient manner. They proved proactive with excellent communication skills and a fast response time"
+                                "In our experience, Soactiv team showed good understanding of our business needs and workflows They gave us a software that value adds to our operations in a cost efficient manner. They proved proactive with excellent communication skills and a fast response time"
                             </p>
                         </div>
                     </div>
@@ -932,7 +862,7 @@ export const LandingPage: React.FC = () => {
                         </div>
                         <div className="text-center md:text-left">
                             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-6">
-                                Join 25000+ professionals who use Yoactiv everyday
+                                Join 25000+ professionals who use Soactiv everyday
                             </h2>
                             <button
                                 onClick={() => navigate('/login')}
@@ -949,7 +879,7 @@ export const LandingPage: React.FC = () => {
             <section className="py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 dark:bg-gray-800">
                 <div className="max-w-7xl mx-auto">
                     <p className="text-gray-700 dark:text-gray-300 text-center leading-relaxed">
-                        Grow your business multifold with <span className="font-semibold">Yoactiv's</span> all-in-one business management software for fitness, wellness, and sports.
+                        Grow your business multifold with <span className="font-semibold">Soactiv's</span> all-in-one business management software for fitness, wellness, and sports.
                         Select a software solution from our specialized suite of{' '}
                         <a href="#" className="text-orange-600 hover:text-orange-700 underline">gym management software</a>,{' '}
                         <a href="#" className="text-orange-600 hover:text-orange-700 underline">yoga studio management software</a>,{' '}
@@ -957,7 +887,7 @@ export const LandingPage: React.FC = () => {
                         <a href="#" className="text-orange-600 hover:text-orange-700 underline">health & fitness club management software</a>{' '}
                         based on your requirements and business type.{' '}
                         <a href="#" className="text-orange-600 hover:text-orange-700 underline">Connect</a> with us and get a free demo of our modern and affordable business management software.
-                        If you are an industry expert, you can partner with Yoactiv and explore new avenues of financial growth for your business.
+                        If you are an industry expert, you can partner with Soactiv and explore new avenues of financial growth for your business.
                     </p>
                 </div>
             </section>
@@ -999,7 +929,7 @@ export const LandingPage: React.FC = () => {
                             <h3 className="font-bold text-white mb-4">Product</h3>
                             <ul className="space-y-2 text-sm">
                                 <li><a href="#" className="hover:text-orange-500 transition">Features</a></li>
-                                <li><a href="#" className="hover:text-orange-500 transition">Pricing</a></li>
+                                <li><Link to="/pricing" className="hover:text-orange-500 transition">Pricing</Link></li>
                                 <li><a href="#" className="hover:text-orange-500 transition">Demo</a></li>
                             </ul>
                         </div>

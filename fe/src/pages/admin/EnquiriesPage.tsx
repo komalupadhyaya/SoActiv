@@ -10,6 +10,9 @@ import { useNavigate } from 'react-router-dom';
 import { BulkUploadModal } from '../../components/enquiry/BulkUploadModal';
 import { UploadResultsReport } from '../../components/enquiry/UploadResultsReport';
 import type { BulkUploadResult } from '../../hooks/useEnquiry';
+import { useConfirm } from '../../hooks/useConfirm';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { useToast } from '../../contexts/ToastContext';
 
 const statusColors = {
   new: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
@@ -22,7 +25,7 @@ const statusColors = {
 const getStaffName = (staff: any): string => {
   if (!staff) return 'Unassigned';
   if (typeof staff === 'string') return staff;
-  if (typeof staff === 'object' && staff.name) return staff.name;
+  if (typeof staff === 'object' && staff.fullName) return staff.fullName;
   return 'Unassigned';
 };
 
@@ -44,6 +47,9 @@ export const EnquiriesPage: React.FC = () => {
     bulkUpload,
     isAdmin,
   } = useEnquiry();
+
+  const { confirm, confirmState, handleConfirm, handleCancel } = useConfirm();
+  const { addToast } = useToast();
 
   const navigate = useNavigate();
 
@@ -259,8 +265,9 @@ export const EnquiriesPage: React.FC = () => {
                               variant="ghost"
                               className="text-red-400 hover:text-red-50 dark:hover:text-orange-600"
                               onClick={async () => {
-                                if (window.confirm('Are you sure you want to delete this enquiry?')) {
+                                if (await confirm('Are you sure you want to delete this enquiry?', { title: 'Delete Enquiry' })) {
                                   await deleteEnquiry(enquiry._id);
+                                  addToast('Enquiry deleted successfully', 'success');
                                 }
                               }}
                               aria-label="Delete enquiry"
@@ -319,8 +326,9 @@ export const EnquiriesPage: React.FC = () => {
                           variant="ghost"
                           className="text-red-400 hover:text-red-50 dark:hover:text-orange-600"
                           onClick={async () => {
-                            if (window.confirm('Are you sure you want to delete this enquiry?')) {
+                            if (await confirm('Are you sure you want to delete this enquiry?', { title: 'Delete Enquiry' })) {
                               await deleteEnquiry(enquiry._id);
+                              addToast('Enquiry deleted successfully', 'success');
                             }
                           }}
                           aria-label="Delete enquiry"
@@ -353,6 +361,17 @@ export const EnquiriesPage: React.FC = () => {
           result={uploadResult}
         />
       )}
+
+      <ConfirmModal
+        isOpen={confirmState.isOpen}
+        onClose={handleCancel}
+        onConfirm={handleConfirm}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmText={confirmState.confirmText}
+        cancelText={confirmState.cancelText}
+        type={confirmState.type}
+      />
     </div>
   );
 };

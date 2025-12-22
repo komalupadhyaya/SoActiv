@@ -12,6 +12,7 @@ interface DecodedToken extends JwtPayload {
   _id: string;
   gym?: string;
   role?: string;
+  tokenVersion?: number;
 }
 
 const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET;
@@ -44,6 +45,22 @@ export const authMiddleware = asyncHandler(
       if (!user) {
         throw new ApiError(HttpStatusCode.UNAUTHORIZED, "User not found");
       }
+
+      // Track Online Status (Update at most once per minute)
+      const now = new Date();
+      const lastActive = user.lastActiveAt ? new Date(user.lastActiveAt) : null;
+      const oneMinuteAgo = new Date(now.getTime() - 60 * 1000);
+
+      if (!lastActive || lastActive < oneMinuteAgo) {
+        user.lastActiveAt = now;
+        await user.save();
+      }
+
+      // ===== BROWSER-SCOPED AUTH =====
+      // No global session validation needed
+      // Each browser manages its own session via localStorage
+      // Token validation is sufficient for browser-scoped auth
+      // ===== END BROWSER-SCOPED AUTH =====
 
       // Convert to frontend-safe object (maps fullname -> name, _id -> id)
       const reqUser = user.toFrontendUser() as any;

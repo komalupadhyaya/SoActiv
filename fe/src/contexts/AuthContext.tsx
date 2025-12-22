@@ -13,6 +13,7 @@ interface RegisterData {
 
 interface AuthContextType {
   user: User | null;
+  role: string | null;
   login: (email: string, password: string) => Promise<void>;
   register: (userData: RegisterData) => Promise<void>;
   googleSignIn: (idToken: string, gymId?: string) => Promise<void>;
@@ -23,26 +24,46 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1/user';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [role, setRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshUser = async () => {
     try {
       const token = localStorage.getItem('accessToken');
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
+      const savedRole = localStorage.getItem('role');
 
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+      if (!token || !savedRole) {
+        // No auth data to refresh
+        return;
       }
 
-      const res = await fetch(`${API_URL}/getCurrentUser`, {
+      // ===== ROLE-AWARE ENDPOINT SELECTION =====
+      let endpoint = '';
+      if (savedRole === 'superadmin') {
+        endpoint = '/api/v1/super-admin/me';
+      } else if (savedRole === 'admin') {
+        endpoint = '/api/v1/user/getCurrentUser';
+      } else {
+        // Unknown role - clear auth
+        localStorage.removeItem('user');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('role');
+        localStorage.removeItem('gym');
+        setUser(null);
+        setRole(null);
+        return;
+      }
+
+      const res = await fetch(`${API_URL}${endpoint}`, {
         method: 'GET',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         credentials: 'include',
       });
 
@@ -50,15 +71,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const data = await res.json();
         const freshUser = data.data as User;
         setUser(freshUser);
+        setRole(freshUser.role || null);
         localStorage.setItem('user', JSON.stringify(freshUser));
+        localStorage.setItem('role', freshUser.role || '');
       } else {
-        if (res.status === 401) {
+        if (res.status === 401 || res.status === 403) {
           // Token expired or invalid
           localStorage.removeItem('user');
           localStorage.removeItem('accessToken');
           localStorage.removeItem('role');
           localStorage.removeItem('gym');
           setUser(null);
+          setRole(null);
         }
       }
     } catch {
@@ -70,11 +94,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const initializeAuth = async () => {
       // 1. Try to load from localStorage first for immediate UI
       const savedUser = localStorage.getItem('user');
+      const savedRole = localStorage.getItem('role');
       if (savedUser) {
         try {
           setUser(JSON.parse(savedUser) as User);
+          setRole(savedRole);
         } catch {
           localStorage.removeItem('user');
+          localStorage.removeItem('role');
         }
       }
 
@@ -85,6 +112,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     initializeAuth();
+
+    // ===== CROSS-TAB SYNCHRONIZATION (SAME BROWSER ONLY) =====
+    const handleStorageChange = (e: StorageEvent) => {
+      // Detect auth changes from other tabs in SAME browser
+      if (e.key === 'accessToken' && !e.newValue) {
+        // Token removed = logout in another tab
+        setUser(null);
+        setRole(null);
+        setIsLoading(false);
+      }
+
+      if (e.key === 'role' && e.newValue) {
+        // Role changed = new login in another tab
+        setRole(e.newValue);
+      }
+
+      if (e.key === 'user' && e.newValue) {
+        // User data changed = new login in another tab
+        try {
+          const newUser = JSON.parse(e.newValue);
+          setUser(newUser);
+          setRole(newUser.role || null);
+        } catch {
+          // Invalid user data
+          setUser(null);
+          setRole(null);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -106,7 +165,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    const res = await fetch(`${API_URL}/login`, {
+    // ===== BROWSER-SCOPED SESSION ENFORCEMENT =====
+    // Clear ALL auth data in THIS browser before new login
+    clearSession();
+
+    const res = await fetch(`${API_URL}/api/v1/user/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -117,15 +180,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!res.ok) throw new Error(data.message || 'Login failed');
 
     const userData = data.data as User;
+    const token = data.data.accessToken;
 
-    // Save user data
+    // Save user data to browser storage
     setUser(userData);
+    setRole(userData.role || null);
     localStorage.setItem('user', JSON.stringify(userData));
-
-    // Save accessToken if provided
-    if (data.accessToken) {
-      localStorage.setItem('accessToken', data.accessToken);
-    }
+    localStorage.setItem('accessToken', token);
+    localStorage.setItem('role', userData.role || '');
 
     // Save role and gym for quick access
     if (userData.role) {
@@ -134,6 +196,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (userData.gym) {
       localStorage.setItem('gym', userData.gym);
     }
+  };
+
+  const clearSession = () => {
+    // Clear ALL auth-related data from browser storage
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('user');
+    localStorage.removeItem('gym');
+    localStorage.removeItem('role');
   };
 
   const register = async (userData: RegisterData) => {
@@ -158,7 +228,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       payload.gymId = userData.gymId;
     }
 
-    const res = await fetch(`${API_URL}/register`, {
+    const res = await fetch(`${API_URL}/api/v1/user/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -174,7 +244,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const googleSignIn = async (idToken: string, gymId?: string) => {
-    const res = await fetch(`${API_URL}/google-signin`, {
+    const res = await fetch(`${API_URL}/api/v1/user/google-signin`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idToken, gymId }),
@@ -190,22 +260,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
-    try {
-      await fetch(`${API_URL}/logout`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-    } finally {
-      setUser(null);
-      localStorage.removeItem('user');
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('role');
-      localStorage.removeItem('gym');
-    }
+    // Browser-scoped logout: clear only THIS browser's auth data
+    // Do NOT call backend to invalidate globally
+
+    // Clear all session data (triggers storage event for other tabs in SAME browser)
+    clearSession();
+
+    // Update state
+    setUser(null);
+    setRole(null);
+    setIsLoading(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, googleSignIn, logout, isLoading, refreshUser }}>
+    <AuthContext.Provider value={{ user, role, login, register, googleSignIn, logout, isLoading, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,4 +1,4 @@
-import { Model, Schema, model } from "mongoose";
+import mongoose, { Model, Schema, model, Document, Types } from "mongoose";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
@@ -10,29 +10,57 @@ export interface User {
   phone?: string;
   role: string;
   gym?: string; // <— Added for tenant tracking
+  avatar?: string; // Added avatar field
   createdAt: string;
+  avatarSettings?: {
+    textColor?: string;
+    backgroundColor?: string;
+    backgroundType?: 'solid' | 'gradient';
+    gradientStart?: string;
+    gradientEnd?: string;
+  };
+  currentSessionId?: string;
+  sessionCreatedAt?: string;
+  tokenVersion: number;
 }
 
-// 👇 DB Document Interface
-interface IUser {
-  _id: string;
-  owner?: Schema.Types.ObjectId;
-  fullname: string;
-  email: string;
-  phone?: string;
-  avatar: string;
-  password: string;
-  role: "member" | "admin" | "staff" | "trainer" | "superadmin";
-  gym?: Schema.Types.ObjectId; // <— Add this reference
-  createdAt: Date;
-  updatedAt: Date;
+export interface AvatarSettings {
+  textColor: string;
+  backgroundColor: string;
+  backgroundType: 'solid' | 'gradient';
+  gradientStart: string;
+  gradientEnd: string;
 }
 
-// 👇 Define methods
+// 👇 Methods Interface
 interface IUserMethods {
   isPasswordCorrect(password: string): Promise<boolean>;
   generateAccessToken(): string;
   toFrontendUser(): User;
+}
+
+// 👇 DB Document Interface
+export interface IUser extends Document, IUserMethods {
+  _id: Types.ObjectId;
+  fullname: string;
+  email: string;
+  password: string;
+  phone?: string;
+  avatar?: string;
+  avatarSettings?: AvatarSettings;
+  role: 'superadmin' | 'admin' | 'staff' | 'trainer' | 'member';
+  gym?: Types.ObjectId;
+  owner?: Types.ObjectId; // Added missing property
+  createdAt: Date;
+  updatedAt: Date;
+
+  // Session Management Fields
+  currentSessionId?: string;
+  sessionCreatedAt?: Date;
+  tokenVersion: number;
+
+  // Online Status
+  lastActiveAt?: Date;
 }
 
 type UserModel = Model<IUser, {}, IUserMethods>;
@@ -79,6 +107,31 @@ const userSchema = new Schema<IUser, UserModel, IUserMethods>(
         return this.role !== "superadmin";
       },
     },
+    tokenVersion: {
+      type: Number,
+      default: 0, // Incremented on each login
+    },
+    lastActiveAt: {
+      type: Date,
+    },
+
+    // Session Management Fields
+    currentSessionId: {
+      type: String,
+      default: null,
+    },
+    sessionCreatedAt: {
+      type: Date,
+      default: null,
+    },
+
+    avatarSettings: {
+      textColor: { type: String, default: '#FFFFFF' },
+      backgroundColor: { type: String, default: '#3B82F6' },
+      backgroundType: { type: String, enum: ['solid', 'gradient'], default: 'solid' },
+      gradientStart: { type: String, default: '#3B82F6' },
+      gradientEnd: { type: String, default: '#8B5CF6' }
+    },
   },
   { timestamps: true }
 );
@@ -98,11 +151,16 @@ userSchema.methods.isPasswordCorrect = async function (password: string) {
 // 👇 Generate JWT
 userSchema.methods.generateAccessToken = function () {
   return jwt.sign(
-    { _id: this._id, email: this.email, role: this.role, gym: this.gym },
-    process.env.ACCESS_TOKEN_SECRET || "your-secret-key",
     {
-      expiresIn: "7d",
-    }
+      _id: this._id,
+      email: this.email,
+      role: this.role,
+      gym: this.gym,
+      sessionId: this.currentSessionId,      // Include session ID
+      tokenVersion: this.tokenVersion,       // Include token version
+    },
+    process.env.ACCESS_TOKEN_SECRET!,
+    { expiresIn: process.env.ACCESS_TOKEN_EXPIRY || "7d" } as any
   );
 };
 
@@ -115,7 +173,10 @@ userSchema.methods.toFrontendUser = function (): User {
     phone: this.phone || "",
     role: this.role,
     gym: this.gym?.toString(),
+    avatar: this.avatar,
+    avatarSettings: this.avatarSettings,
     createdAt: this.createdAt.toISOString(),
+    tokenVersion: this.tokenVersion,
   };
 };
 

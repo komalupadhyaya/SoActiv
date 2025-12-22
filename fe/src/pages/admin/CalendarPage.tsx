@@ -17,6 +17,8 @@ import { useSchedule, Schedule } from '../../hooks/useSchedule';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/ui/Button';
 import { ScheduleFormModal } from '../../components/schedule/ScheduleFormModal';
+import { useConfirm } from '../../hooks/useConfirm';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 
 const TYPE_COLORS: Record<string, string> = {
   followup: 'bg-blue-500 text-white',
@@ -35,6 +37,7 @@ const TYPE_COLORS: Record<string, string> = {
 export const CalendarPage: React.FC = () => {
   const { user } = useAuth();
   const { fetchSchedules, schedules, deleteScheduleEvent, completeScheduleEvent } = useSchedule();
+  const { confirm, confirmState, handleConfirm, handleCancel } = useConfirm();
 
   // Calendar State
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -116,7 +119,7 @@ export const CalendarPage: React.FC = () => {
     if (action === 'complete') {
       await completeScheduleEvent(event._id, 'Completed from Calendar');
     } else if (action === 'delete') {
-      if (window.confirm('Are you sure you want to delete this event?')) {
+      if (await confirm('Are you sure you want to delete this event?', { title: 'Delete Event' })) {
         await deleteScheduleEvent(event._id);
       }
     }
@@ -353,6 +356,17 @@ export const CalendarPage: React.FC = () => {
         }}
         initialData={selectedEvent}
         defaultDate={selectedEvent ? undefined : (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined)}
+      />
+
+      <ConfirmModal
+        isOpen={confirmState.isOpen}
+        onClose={handleCancel}
+        onConfirm={handleConfirm}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmText={confirmState.confirmText}
+        cancelText={confirmState.cancelText}
+        type={confirmState.type}
       />
     </div>
   );

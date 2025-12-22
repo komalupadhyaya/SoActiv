@@ -17,6 +17,7 @@ import {
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { Avatar } from '../ui/Avatar';
 
 interface Notification {
   id: string;
@@ -302,9 +303,14 @@ export const Header: React.FC<HeaderProps> = ({
               className="flex items-center space-x-2 p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               aria-label="User menu"
             >
-              <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
-                <User size={16} className="text-white" />
-              </div>
+              <Avatar
+                src={user?.avatar}
+                name={user?.name || 'User'}
+                userId={user?.id}
+                size="md"
+                forceInitials={true}
+                customColors={user?.avatarSettings}
+              />
               {/* <span className="hidden sm:block text-sm font-medium">{user?.name}</span> */}
             </button>
 

@@ -1,15 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { useAnnouncement, Announcement } from '../../hooks/useAnnouncement';
+import { useAnnouncement } from '../../hooks/useAnnouncement';
 import { Button } from '../../components/ui/Button';
-import { Card, CardContent, CardHeader } from '../../components/ui/Card';
+import { Card, CardContent } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
-import { Plus, Trash2, AlertTriangle, Info, Megaphone } from 'lucide-react';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { useConfirm } from '../../hooks/useConfirm';
+import { Plus, Trash2, AlertTriangle, Megaphone } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
-import { Select } from '../../components/ui/Select';
+// import { Select } from '../../components/ui/Select';
 
 export const AdminAnnouncementsPage: React.FC = () => {
     const { announcements, loading, fetchAnnouncements, createAnnouncement, deleteAnnouncement } = useAnnouncement();
+    const { confirm, confirmState, handleConfirm, handleCancel } = useConfirm();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [formData, setFormData] = useState({
         title: '',
@@ -54,7 +57,7 @@ export const AdminAnnouncementsPage: React.FC = () => {
     };
 
     const handleDelete = async (id: string) => {
-        if (window.confirm('Are you sure you want to delete this announcement?')) {
+        if (await confirm('Are you sure you want to delete this announcement?', { title: 'Delete Announcement' })) {
             await deleteAnnouncement(id);
         }
     };
@@ -182,6 +185,17 @@ export const AdminAnnouncementsPage: React.FC = () => {
                     </div>
                 </form>
             </Modal>
-        </div>
+
+            <ConfirmModal
+                isOpen={confirmState.isOpen}
+                onClose={handleCancel}
+                onConfirm={handleConfirm}
+                title={confirmState.title}
+                message={confirmState.message}
+                confirmText={confirmState.confirmText}
+                cancelText={confirmState.cancelText}
+                type={confirmState.type}
+            />
+        </div >
     );
 };

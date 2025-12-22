@@ -1,0 +1,241 @@
+            {/* REPLACE LINES 155-405 IN UserProfilePage.tsx WITH THIS CORRECTED LAYOUT */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Left Col: Profile Picture & Account Info */}
+                <div className="space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Profile Picture</h2>
+                        </CardHeader>
+                        <CardContent className="flex flex-col items-center p-6">
+                            <div className="relative group">
+                                <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                                    {avatarPreview ? (
+                                        <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center">
+                                            <span className="text-3xl font-bold text-gray-400">{user.name?.charAt(0).toUpperCase()}</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <label className="absolute bottom-0 right-0 p-2 bg-blue-600 rounded-full text-white cursor-pointer hover:bg-blue-700 transition-colors shadow-lg">
+                                    <Camera size={16} />
+                                    <input
+                                        type="file"
+                                        className="hidden"
+                                        accept="image/*"
+                                        onChange={handleAvatarChange}
+                                    />
+                                </label>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-4 text-center">
+                                Click camera icon to upload new photo
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardContent className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Account Info</h3>
+                            <div className="space-y-3 text-sm text-gray-600 dark:text-gray-400">
+                                <div>
+                                    <span className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Email</span>
+                                    {user.email}
+                                </div>
+                                <div className="capitalize">
+                                    <span className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Role</span>
+                                    {user.role === 'superadmin' ? 'Super Admin' :
+                                        user.role === 'admin' ? 'Gym Owner' :
+                                            user.role === 'staff' ? 'Staff Member' : user.role}
+                                </div>
+                                <div className="capitalize">
+                                    <span className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Joined</span>
+                                    {new Date().toLocaleDateString()}
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Middle Col: Edit Details Form */}
+                <div>
+                    <Card>
+                        <CardHeader>
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Edit Details</h2>
+                        </CardHeader>
+                        <CardContent className="p-6">
+                            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                                {/* Personal Details */}
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Full Name</label>
+                                            <Input
+                                                {...register('fullname', { required: 'Full name is required' })}
+                                                placeholder="Your Name"
+                                            />
+                                            {errors.fullname && <p className="text-red-500 text-xs mt-1">{errors.fullname.message}</p>}
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phone Number</label>
+                                            <Input
+                                                {...register('phone')}
+                                                placeholder="Your Phone"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Change Password Section */}
+                                <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Change Password</h3>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Current Password</label>
+                                            <Input
+                                                type="password"
+                                                {...register('currentPassword')}
+                                                placeholder="Leave blank if you don't want to change it"
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">New Password</label>
+                                                <Input
+                                                    type="password"
+                                                    {...register('newPassword', {
+                                                        minLength: { value: 6, message: 'Min 6 chars' }
+                                                    })}
+                                                    placeholder="Min 6 chars"
+                                                />
+                                                {errors.newPassword && <p className="text-red-500 text-xs mt-1">{errors.newPassword.message}</p>}
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Confirm New Password</label>
+                                                <Input
+                                                    type="password"
+                                                    {...register('confirmPassword', {
+                                                        validate: (value) => value === newPassword || 'Passwords do not match'
+                                                    })}
+                                                    placeholder="Confirm new password"
+                                                />
+                                                {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">{errors.confirmPassword.message}</p>}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Submit Button */}
+                                <div className="flex justify-end pt-4">
+                                    <Button
+                                        type="submit"
+                                        disabled={isSubmitting}
+                                        className="flex items-center gap-2"
+                                    >
+                                        {isSubmitting ? (
+                                            <>
+                                                <Loader2 className="animate-spin" size={16} />
+                                                Saving...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Save size={16} />
+                                                Save Changes
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
+                            </form>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Right Col: Avatar Appearance */}
+                <div>
+                    <Card>
+                        <CardHeader>
+                            <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                                <Palette size={18} />
+                                Avatar Appearance
+                            </h2>
+                        </CardHeader>
+                        <CardContent className="p-6 space-y-4">
+                            {/* Live Preview */}
+                            <div className="flex justify-center mb-4">
+                                <Avatar
+                                    name={user.name}
+                                    userId={user.id}
+                                    size="xl"
+                                    forceInitials={true}
+                                    customColors={avatarSettings}
+                                />
+                            </div>
+
+                            {/* Background Type Toggle */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Background Style
+                                </label>
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setAvatarSettings({ ...avatarSettings, backgroundType: 'solid' })}
+                                        className={`flex-1 px-4 py-2 rounded-lg border-2 transition-all ${
+                                            avatarSettings.backgroundType === 'solid'
+                                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                                                : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 text-gray-700 dark:text-gray-300'
+                                        }`}
+                                    >
+                                        Solid Color
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setAvatarSettings({ ...avatarSettings, backgroundType: 'gradient' })}
+                                        className={`flex-1 px-4 py-2 rounded-lg border-2 transition-all ${
+                                            avatarSettings.backgroundType === 'gradient'
+                                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                                                : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 text-gray-700 dark:text-gray-300'
+                                        }`}
+                                    >
+                                        Gradient
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Text Color */}
+                            <ColorPicker
+                                label="Text Color"
+                                value={avatarSettings.textColor}
+                                onChange={(color) => setAvatarSettings({ ...avatarSettings, textColor: color })}
+                            />
+
+                            {/* Background Color (Solid) */}
+                            {avatarSettings.backgroundType === 'solid' && (
+                                <ColorPicker
+                                    label="Background Color"
+                                    value={avatarSettings.backgroundColor}
+                                    onChange={(color) => setAvatarSettings({ ...avatarSettings, backgroundColor: color })}
+                                />
+                            )}
+
+                            {/* Gradient Colors */}
+                            {avatarSettings.backgroundType === 'gradient' && (
+                                <div className="space-y-4">
+                                    <ColorPicker
+                                        label="Gradient Start"
+                                        value={avatarSettings.gradientStart}
+                                        onChange={(color) => setAvatarSettings({ ...avatarSettings, gradientStart: color })}
+                                    />
+                                    <ColorPicker
+                                        label="Gradient End"
+                                        value={avatarSettings.gradientEnd}
+                                        onChange={(color) => setAvatarSettings({ ...avatarSettings, gradientEnd: color })}
+                                    />
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+        </div>
+    );
+};

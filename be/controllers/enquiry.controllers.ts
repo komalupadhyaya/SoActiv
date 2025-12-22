@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import Enquiry, { type IEnquiry } from '../models/enquiry.model';
+import { Staff } from '../models/staff.model';
 import { Types } from 'mongoose';
 
 // POST: Create a new enquiry (user-based)
@@ -95,6 +96,47 @@ export const createEnquiry = async (req: Request, res: Response): Promise<any> =
   }
 };
 
+// POST: Create a new enquiry from public website
+export const createPublicEnquiry = async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { name, phone, email, interests, comments } = req.body;
+
+    if (!name || !phone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name and phone are required fields.',
+      });
+    }
+
+    const enquiryData: Partial<IEnquiry> = {
+      name,
+      phone,
+      email: email || '',
+      source: 'website',
+      status: 'new',
+      interests: interests || '',
+      comments: comments || '',
+      assignedStaff: null,
+      userId: undefined, // Explicitly no user ID for public
+    };
+
+    const enquiry = new Enquiry(enquiryData);
+    const savedEnquiry = await enquiry.save();
+
+    return res.status(201).json({
+      success: true,
+      message: 'Enquiry submitted successfully. We will contact you shortly.',
+      data: savedEnquiry,
+    });
+  } catch (error: any) {
+    console.error('Error creating public enquiry:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error. Could not submit enquiry.',
+    });
+  }
+};
+
 // GET: Fetch all enquiries (admin or filtered)
 // GET: Fetch enquiries — but only the current user's own enquiries
 // Even admins can only see their own
@@ -112,26 +154,38 @@ export const getEnquiries = async (req: Request, res: Response): Promise<any> =>
       });
     }
 
-    if (!Types.ObjectId.isValid(currentUser.id)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid user ID.',
-      });
+    const filter: any = {};
+
+    // 🔒 Access Control Logic
+    if (currentUser.role === 'admin' || currentUser.role === 'superadmin') {
+      // Admins see everything
+    } else if (currentUser.role === 'staff' || currentUser.role === 'trainer') {
+      // Staff see only assigned enquiries
+      const staff = await Staff.findOne({ userId: currentUser.id });
+      if (!staff) {
+        return res.status(403).json({ success: false, message: 'Staff profile not found' });
+      }
+
+      // If manager, they might see all? (Requirement says Staff: Can ONLY see enquiries assigned to them)
+      // Requirement: Admin / Manager: Full access. Staff: ONLY assigned.
+      if (staff.position === 'manager') {
+        // Managers see everything (assuming they help admin)
+      } else {
+        filter.assignedStaff = staff._id;
+      }
+    } else {
+      // Other roles (like members) only see their own (if any)
+      filter.userId = new Types.ObjectId(currentUser.id);
     }
 
-    // 🔒 Filter: only enquiries created by this user
-    const filter: any = {
-      userId: new Types.ObjectId(currentUser.id),
-    };
-
-    // Optional filters (only on their own data)
+    // Optional filters
     if (status) filter.status = status;
     if (source) filter.source = source;
 
     const [enquiries, total] = await Promise.all([
       Enquiry.find(filter)
-        .populate('userId', 'name email')
-        .populate('assignedStaff', 'name email role')
+        .populate('userId', 'fullname email')
+        .populate('assignedStaff', 'fullName email position')
         .sort({ createdAt: -1 })
         .skip((pageNum - 1) * limitNum)
         .limit(limitNum),
@@ -141,7 +195,7 @@ export const getEnquiries = async (req: Request, res: Response): Promise<any> =>
 
     return res.status(200).json({
       success: true,
-      message: 'Your enquiries retrieved successfully',
+      message: 'Enquiries retrieved successfully',
       data: enquiries,
       pagination: {
         currentPage: pageNum,
@@ -155,7 +209,7 @@ export const getEnquiries = async (req: Request, res: Response): Promise<any> =>
     console.error('Error fetching enquiries:', error);
     return res.status(500).json({
       success: false,
-      message: 'Server error. Could not retrieve your enquiries.',
+      message: 'Server error. Could not retrieve enquiries.',
     });
   }
 };
@@ -166,11 +220,11 @@ export const getEnquiryById = async (req: Request, res: Response): Promise<any> 
     const { id } = req.params;
 
     if (!id) {
-  return res.status(400).json({
-    success: false,
-    message: 'Enquiry ID is required.',
-  });
-}
+      return res.status(400).json({
+        success: false,
+        message: 'Enquiry ID is required.',
+      });
+    }
 
     if (!Types.ObjectId.isValid(id)) {
       return res.status(400).json({
@@ -229,11 +283,11 @@ export const updateEnquiry = async (req: Request, res: Response): Promise<any> =
     } = req.body;
 
     if (!id) {
-  return res.status(400).json({
-    success: false,
-    message: 'Enquiry ID is required.',
-  });
-}
+      return res.status(400).json({
+        success: false,
+        message: 'Enquiry ID is required.',
+      });
+    }
 
     if (!Types.ObjectId.isValid(id)) {
       return res.status(400).json({
@@ -244,14 +298,27 @@ export const updateEnquiry = async (req: Request, res: Response): Promise<any> =
 
     const updateData: Partial<IEnquiry> = {};
 
-    if (name) updateData.name = name;
-    if (phone) updateData.phone = phone;
-    if (email !== undefined) updateData.email = email;
-    if (source) updateData.source = source;
-    if (status) updateData.status = status;
-    if (comments) updateData.comments = comments;
-    if (interests) updateData.interests = interests;
-    if (budget) updateData.budget = budget;
+    const currentUser = req.user;
+    const isStaff = currentUser?.role === 'staff' || currentUser?.role === 'trainer';
+    const staffProfile = isStaff ? await Staff.findOne({ userId: currentUser?.id }) : null;
+
+    // Staff restrictions: Can only update status and comments
+    if (isStaff && staffProfile?.position !== 'manager') {
+      if (status) updateData.status = status;
+      if (comments) updateData.comments = comments;
+
+      // If they try to update other fields, we just ignore them or throw error.
+      // Requirement says: "Can update status only" (and comments usually go with it).
+    } else {
+      if (name) updateData.name = name;
+      if (phone) updateData.phone = phone;
+      if (email !== undefined) updateData.email = email;
+      if (source) updateData.source = source;
+      if (status) updateData.status = status;
+      if (comments) updateData.comments = comments;
+      if (interests) updateData.interests = interests;
+      if (budget) updateData.budget = budget;
+    }
 
     if (assignedStaff !== undefined) {
       if (!assignedStaff) {
@@ -327,11 +394,11 @@ export const deleteEnquiry = async (req: Request, res: Response): Promise<any> =
     const { id } = req.params;
 
     if (!id) {
-  return res.status(400).json({
-    success: false,
-    message: 'Enquiry ID is required.',
-  });
-}
+      return res.status(400).json({
+        success: false,
+        message: 'Enquiry ID is required.',
+      });
+    }
 
     if (!Types.ObjectId.isValid(id)) {
       return res.status(400).json({
@@ -399,11 +466,11 @@ export const assignStaffToEnquiry = async (req: Request, res: Response): Promise
     const { staffId } = req.body;
 
     if (!id) {
-  return res.status(400).json({
-    success: false,
-    message: 'Enquiry ID is required.',
-  });
-}
+      return res.status(400).json({
+        success: false,
+        message: 'Enquiry ID is required.',
+      });
+    }
 
     if (!Types.ObjectId.isValid(id)) {
       return res.status(400).json({

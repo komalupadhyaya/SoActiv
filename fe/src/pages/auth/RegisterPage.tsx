@@ -12,9 +12,7 @@ export const RegisterPage: React.FC = () => {
     phone: '',
     password: '',
     confirmPassword: '',
-    role: 'admin', // default role
-    gymName: '',   // only for admin
-    gymId: '',     // only for staff/trainer
+    gymName: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -45,14 +43,9 @@ export const RegisterPage: React.FC = () => {
       return;
     }
 
-    // Role-specific validation
-    if (formData.role === 'admin' && !formData.gymName) {
-      setError('Gym Name is required for admin registration');
-      setIsLoading(false);
-      return;
-    }
-    if (['trainer', 'sales', 'frontdesk'].includes(formData.role) && !formData.gymId) {
-      setError('Gym ID is required for staff/trainer registration');
+    // Gym name validation
+    if (!formData.gymName) {
+      setError('Gym Name is required');
       setIsLoading(false);
       return;
     }
@@ -63,9 +56,8 @@ export const RegisterPage: React.FC = () => {
         email: formData.email,
         phone: formData.phone,
         password: formData.password,
-        role: formData.role,
-        gymName: formData.role === 'admin' ? formData.gymName : undefined,
-        gymId: ['trainer', 'sales', 'frontdesk'].includes(formData.role) ? formData.gymId : undefined,
+        role: 'admin', // Hard-coded to admin
+        gymName: formData.gymName,
       });
 
       // Redirect to login or dashboard
@@ -95,8 +87,8 @@ export const RegisterPage: React.FC = () => {
           </div>
 
           <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Create Account</h2>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">Register as Gym Owner/Admin or Staff</p>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Start Your Free Trial</h2>
+            <p className="text-gray-600 dark:text-gray-400 mt-2">14-day trial. No credit card required.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -134,43 +126,15 @@ export const RegisterPage: React.FC = () => {
               required
             />
 
-            {/* Role Selection */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Role</label>
-              <select
-                value={formData.role}
-                onChange={(e) => handleInputChange('role', e.target.value)}
-                className="w-full p-2 border rounded-md dark:bg-gray-700 dark:text-white"
-              >
-                <option value="admin">Admin / Gym Owner</option>
-                <option value="trainer">Trainer</option>
-                <option value="sales">Sales</option>
-                <option value="frontdesk">Front Desk</option>
-                <option value="user">User</option>
-              </select>
-            </div>
-
-            {/* Conditional gym fields */}
-            {formData.role === 'admin' && (
-              <Input
-                label="Gym Name"
-                placeholder="Enter your gym name"
-                leftIcon={<Dumbbell size={16} />}
-                value={formData.gymName}
-                onChange={(e) => handleInputChange('gymName', e.target.value)}
-                required
-              />
-            )}
-            {['trainer', 'sales', 'frontdesk'].includes(formData.role) && (
-              <Input
-                label="Gym ID"
-                placeholder="Enter gym ID"
-                leftIcon={<Dumbbell size={16} />}
-                value={formData.gymId}
-                onChange={(e) => handleInputChange('gymId', e.target.value)}
-                required
-              />
-            )}
+            {/* Gym Name - Always shown */}
+            <Input
+              label="Gym Name"
+              placeholder="Enter your gym name"
+              leftIcon={<Dumbbell size={16} />}
+              value={formData.gymName}
+              onChange={(e) => handleInputChange('gymName', e.target.value)}
+              required
+            />
 
             <Input
               label="Password"

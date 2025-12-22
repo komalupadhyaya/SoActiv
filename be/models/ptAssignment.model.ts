@@ -50,7 +50,6 @@ const ptAssignmentSchema = new Schema<IPTAssignment>(
 // Indexes for fast lookup
 ptAssignmentSchema.index({ adminId: 1, status: 1 });
 ptAssignmentSchema.index({ trainerId: 1, status: 1 });
-ptAssignmentSchema.index({ memberId: 1 });
 ptAssignmentSchema.index({ expiryDate: 1 }); // For finding expiring assignments
 
 // Pre-save to check expiry/completion

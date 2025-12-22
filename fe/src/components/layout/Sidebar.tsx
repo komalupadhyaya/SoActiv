@@ -13,6 +13,7 @@ import {
   X,
   Calendar,
   Megaphone,
+  MessageSquare,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { clsx } from 'clsx';
@@ -29,6 +30,7 @@ const navigationItems = [
   { name: 'Calendar', href: '/admin/schedule', icon: Calendar },
   { name: 'Follow-Ups', href: '/admin/follow-ups', icon: Bell },
   { name: 'Reports', href: '/admin/reports', icon: BarChart3 },
+  { name: 'Contact Support', href: '/admin/contact-support', icon: MessageSquare },
 ];
 
 interface SidebarProps {

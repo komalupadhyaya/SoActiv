@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from 'uuid';
 import type { Request, Response } from "express";
 import { Types } from "mongoose";
 import apiError from "../lib/ApiError.ts";
@@ -8,6 +9,8 @@ import { User } from "../models/user.model.js";
 import { Gym } from "../models/gym.model.js"; // 👈 NEW import
 import admin from "../firebase/admin";
 
+import { Subscription } from "../models/subscription.model.js"; // 👈 NEW import
+
 /**
  * REGISTER USER (Admin or Staff)
  * - If role = admin → create a new Gym + link user to it
@@ -16,11 +19,18 @@ import admin from "../firebase/admin";
 const registerUser = asyncHandler(async (req: Request, res: Response) => {
   console.log("📥 Register request received:", req.body);
 
-  const { fullname, email, password, phone, role, gymName, gymId } = req.body;
+  const { fullname, email, password, phone, gymName } = req.body;
 
   // Basic validation
   if (!fullname || !email || !password) {
     throw new apiError(HttpStatusCode.BAD_REQUEST, "fullname, email, and password are required");
+  }
+
+  // CRITICAL: Public registration is ONLY for gym owners (admin role)
+  const role = 'admin';
+
+  if (!gymName) {
+    throw new apiError(HttpStatusCode.BAD_REQUEST, "Gym name is required for registration");
   }
 
   // Check if user already exists
@@ -29,56 +39,73 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
     throw new apiError(HttpStatusCode.CONFLICT, "Email already in use");
   }
 
-  let gymRef: Types.ObjectId | undefined;
+  // 1. Pre-generate IDs for atomicity
+  const gymId = new Types.ObjectId();
+  const userId = new Types.ObjectId();
 
-  // 🧱 CASE 1: Admin registering a new Gym
-  if (role === "admin") {
-    if (!gymName) {
-      throw new apiError(HttpStatusCode.BAD_REQUEST, "Gym name is required for admin registration");
-    }
+  try {
+    // 2. Create Gym with TRIAL status
+    const trialEndsAt = new Date();
+    trialEndsAt.setDate(trialEndsAt.getDate() + 14);
 
-    // Create Gym
     const newGym = await Gym.create({
+      _id: gymId,
       name: gymName,
+      status: 'trial',
+      trialEndsAt,
+      plan: 'pro', // Default to pro for trial
+      owner: userId,
+      features: {
+        payments: true,
+        attendance: true,
+        pt: true,
+        classes: true,
+        memberPortal: true
+      }
     });
-    gymRef = newGym._id as Types.ObjectId;
+
+    // 3. Create User
+    const user = await User.create({
+      _id: userId,
+      fullname,
+      email,
+      phone,
+      password,
+      avatar: fullname.charAt(0).toUpperCase(),
+      role: 'admin',
+      gym: gymId,
+    });
+
+    // 4. Create initial trial subscription
+    await Subscription.create({
+      gymId: gymId,
+      plan: 'pro',
+      status: 'trialing',
+      billingCycle: 'monthly',
+      amount: 0,
+      currency: 'INR',
+      nextBillingDate: trialEndsAt
+    });
+
+    const token = user.generateAccessToken();
+    const safeUser = user.toFrontendUser();
+
+    return res
+      .status(HttpStatusCode.CREATED)
+      .cookie("accessToken", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      })
+      .json(new ApiResponse(HttpStatusCode.CREATED, safeUser, "Account created! Your 14-day trial has started."));
+
+  } catch (error) {
+    // Cleanup on failure
+    await Gym.findByIdAndDelete(gymId);
+    await User.findByIdAndDelete(userId);
+    await Subscription.deleteOne({ gymId });
+    throw error;
   }
-
-  // 🧱 CASE 2: Staff/Trainer joining existing Gym
-  else {
-    if (!gymId) {
-      throw new apiError(HttpStatusCode.BAD_REQUEST, "gymId is required for non-admin registration");
-    }
-    gymRef = new Types.ObjectId(gymId);
-  }
-
-  // Create User
-  const user = await User.create({
-    fullname,
-    email,
-    phone,
-    password,
-    avatar: fullname.charAt(0).toUpperCase(),
-    role: role || "user",
-    gym: gymRef,
-  });
-
-  // If admin → update Gym owner
-  if (role === "admin") {
-    await Gym.findByIdAndUpdate(gymRef, { owner: user._id });
-  }
-
-  const token = user.generateAccessToken();
-  const safeUser = user.toFrontendUser();
-
-  return res
-    .status(HttpStatusCode.CREATED)
-    .cookie("accessToken", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    })
-    .json(new ApiResponse(HttpStatusCode.CREATED, safeUser, "User registered successfully"));
 });
 
 /**
@@ -100,6 +127,22 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
   if (!isPasswordCorrect) {
     throw new apiError(HttpStatusCode.UNAUTHORIZED, "Invalid credentials");
   }
+
+  // ===== BROWSER-SCOPED SESSION TRACKING =====
+  // Generate session ID for logging/analytics (not used for validation)
+  const sessionId = uuidv4();
+
+  // Store session info for logging purposes only
+  user.currentSessionId = sessionId;
+  user.sessionCreatedAt = new Date();
+  user.lastActiveAt = new Date();
+
+  // NOTE: We do NOT increment tokenVersion here
+  // Browser-scoped auth means each browser manages its own session
+  // No global invalidation across browsers/devices
+
+  await user.save();
+  // ===== END SESSION TRACKING =====
 
   const token = user.generateAccessToken();
   // Fetch Staff Position if role is staff
@@ -126,7 +169,13 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
       secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     })
-    .json(new ApiResponse(HttpStatusCode.OK, safeUser, "User logged in successfully"));
+    // CRITICAL: Clear SuperAdmin cookie to prevent collisions
+    .clearCookie("super_admin_token")
+    .json(new ApiResponse(HttpStatusCode.OK, {
+      ...safeUser,
+      accessToken: token,
+      sessionId: sessionId  // Return for frontend logging only
+    }, "User logged in successfully"));
 });
 
 /**
@@ -173,6 +222,7 @@ const googleSignIn = asyncHandler(async (req: Request, res: Response) => {
       secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     })
+    .clearCookie("super_admin_token")
     .json(new ApiResponse(HttpStatusCode.OK, safeUser, "Google Sign-In successful"));
 });
 
@@ -180,6 +230,12 @@ const googleSignIn = asyncHandler(async (req: Request, res: Response) => {
  * LOGOUT
  */
 const logoutUser = asyncHandler(async (req: Request, res: Response) => {
+  // Clear active status on logout
+  const userId = (req as any).user?._id || (req as any).user?.id;
+  if (userId) {
+    await User.findByIdAndUpdate(userId, { lastActiveAt: null });
+  }
+
   return res
     .status(HttpStatusCode.OK)
     .clearCookie("accessToken", {
@@ -187,6 +243,7 @@ const logoutUser = asyncHandler(async (req: Request, res: Response) => {
       secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     })
+    .clearCookie("super_admin_token")
     .json(new ApiResponse(HttpStatusCode.OK, {}, "User logged out successfully"));
 });
 
@@ -204,4 +261,104 @@ const getCurrentUser = asyncHandler(async (req: Request, res: Response) => {
     .json(new ApiResponse(HttpStatusCode.OK, user, "Current user fetched successfully"));
 });
 
-export { registerUser, loginUser, logoutUser, getCurrentUser, googleSignIn };
+
+/**
+ * UPDATE USER PROFILE
+ * PATCH /api/v1/users/profile
+ */
+const updateUserProfile = asyncHandler(async (req: Request, res: Response) => {
+  const { fullname, phone, email, avatar } = req.body;
+  let avatarSettings = req.body.avatarSettings;
+  const userId = (req as any).user.id;
+
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new apiError(HttpStatusCode.NOT_FOUND, "User not found");
+  }
+
+  // Parse avatarSettings if it's a JSON string (from FormData)
+  if (typeof avatarSettings === 'string') {
+    try {
+      avatarSettings = JSON.parse(avatarSettings);
+    } catch (error) {
+      console.error('Failed to parse avatarSettings:', error);
+      avatarSettings = undefined;
+    }
+  }
+
+  // Update allowed fields
+  if (fullname) user.fullname = fullname;
+  if (phone !== undefined) user.phone = phone;
+
+  // Handle avatar update
+  if (req.file) {
+    // If a file is uploaded, use its path
+    // Remove "public" from path if it was saved relative to public root, but here we saved to "uploads" which is served at /uploads
+    // Our static serve is app.use('/uploads', express.static(...)) matching the folder structure.
+    // The middleware saves to ../../uploads
+    // So the URL should be /uploads/filename
+    user.avatar = `/uploads/${req.file.filename}`;
+  } else if (avatar) {
+    // If no file but avatar string provided (e.g. url), use it
+    user.avatar = avatar;
+  }
+
+  // Handle avatar settings update
+  if (avatarSettings) {
+    user.avatarSettings = {
+      textColor: avatarSettings.textColor,
+      backgroundColor: avatarSettings.backgroundColor,
+      backgroundType: avatarSettings.backgroundType,
+      gradientStart: avatarSettings.gradientStart,
+      gradientEnd: avatarSettings.gradientEnd,
+    };
+  }
+
+  if (email && email !== user.email) {
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      throw new apiError(HttpStatusCode.CONFLICT, "Email already in use");
+    }
+    user.email = email;
+  }
+
+  await user.save();
+
+  const safeUser = user.toFrontendUser();
+
+  return res
+    .status(HttpStatusCode.OK)
+    .json(new ApiResponse(HttpStatusCode.OK, safeUser, "Profile updated successfully"));
+});
+
+/**
+ * CHANGE PASSWORD
+ * POST /api/v1/users/change-password
+ */
+const changeCurrentPassword = asyncHandler(async (req: Request, res: Response) => {
+  const { oldPassword, newPassword } = req.body;
+  const userId = (req as any).user.id;
+
+  if (!oldPassword || !newPassword) {
+    throw new apiError(HttpStatusCode.BAD_REQUEST, "Old and new password are required");
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new apiError(HttpStatusCode.NOT_FOUND, "User not found");
+  }
+
+  const isPasswordCorrect = await user.isPasswordCorrect(oldPassword);
+  if (!isPasswordCorrect) {
+    throw new apiError(HttpStatusCode.BAD_REQUEST, "Invalid old password");
+  }
+
+  user.password = newPassword;
+  await user.save();
+
+  return res
+    .status(HttpStatusCode.OK)
+    .json(new ApiResponse(HttpStatusCode.OK, {}, "Password changed successfully"));
+});
+
+export { registerUser, loginUser, logoutUser, getCurrentUser, googleSignIn, updateUserProfile, changeCurrentPassword };

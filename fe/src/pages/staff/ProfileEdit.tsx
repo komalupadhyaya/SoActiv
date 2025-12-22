@@ -82,6 +82,27 @@ export const ProfileEdit: React.FC = () => {
     const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
+            // VALIDATION: Check size (2MB)
+            if (file.size > 2 * 1024 * 1024) {
+                alert('Image size must be less than 2MB'); // Staff profile might rely on system alerts or Toast if context available?
+                // The snippet shows useAuth but not useToast. Let's use alert for safety or check imports.
+                // Ah, line 5 has useAuth. No useToast.
+                // Wait, UserProfilePage used useToast.
+                // ProfileEdit imports: useAuth... but NOT useToast.
+                // I will use alert() as a fallback or add useToast if I dared.
+                // But better to stick to existing patterns. If no Toast context, alert is safer.
+                e.target.value = '';
+                return;
+            }
+
+            // VALIDATION: Check type
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+            if (!allowedTypes.includes(file.type)) {
+                alert('Only JPG, PNG, WEBP, or GIF images are allowed');
+                e.target.value = '';
+                return;
+            }
+
             setAvatarPreview(URL.createObjectURL(file));
         }
     };

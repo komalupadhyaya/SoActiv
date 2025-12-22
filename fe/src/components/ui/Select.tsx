@@ -9,6 +9,7 @@ interface SelectProps {
   value?: string;
   onChange?: (value: string) => void;
   placeholder?: string;
+  disabled?: boolean;
 }
 
 export const Select: React.FC<SelectProps> = ({
@@ -18,6 +19,7 @@ export const Select: React.FC<SelectProps> = ({
   value,
   onChange,
   placeholder = "Select an option",
+  disabled = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -35,13 +37,15 @@ export const Select: React.FC<SelectProps> = ({
         {/* Custom Trigger */}
         <button
           type="button"
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => !disabled && setIsOpen(!isOpen)}
+          disabled={disabled}
           className={clsx(
             'relative w-full px-3 py-2 text-left border rounded-lg shadow-sm',
             'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600',
             'focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500',
             'flex items-center justify-between',
-            error && 'border-red-500'
+            error && 'border-red-500',
+            disabled && 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-700'
           )}
         >
           <span className="block truncate">

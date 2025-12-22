@@ -12,30 +12,36 @@ import {
 import { bulkUploadStaff } from '../controllers/staff.bulk.controllers';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { bulkUpload } from '../middlewares/upload.middleware';
-import { requireAdmin, requirePosition } from '../middlewares/permission.middleware';
+import { requireAdmin, requirePosition, requireAdminOrManager } from '../middlewares/permission.middleware';
+import { checkGymStatus } from '../middlewares/checkGymStatus.middleware';
+import { checkPlanLimit } from '../middlewares/checkPlanLimit.middleware';
 
 const staffRouter = Router();
+
+// Apply authentication and gym status check to all routes
+staffRouter.use(authMiddleware);
+staffRouter.use(checkGymStatus);
 
 /**
  * @route   POST /api/v1/staff/bulk-upload
  * @desc    Bulk upload staff via CSV or XML
  * @access  Private (Admin Only)
  */
-staffRouter.post('/bulk-upload', authMiddleware, requireAdmin(), bulkUpload.single('file'), bulkUploadStaff);
+staffRouter.post('/bulk-upload', requireAdmin(), bulkUpload.single('file'), bulkUploadStaff);
 
 /**
  * @route   POST /api/staff
  * @desc    Create a new staff member (user-owned)
  * @access  Private (Admin Only)
  */
-staffRouter.post('/', authMiddleware, requireAdmin(), createStaff);
+staffRouter.post('/', requireAdmin(), checkPlanLimit('staff'), createStaff);
 
 /**
  * @route   GET /api/staff
  * @desc    Get all staff members for logged-in user (with optional filters)
  * @access  Private (Admin + Manager)
  */
-staffRouter.get('/', authMiddleware, requirePosition(['admin', 'manager']), getAllStaff);
+staffRouter.get('/', requirePosition(['admin', 'manager']), getAllStaff);
 
 /**
  * @route   GET /api/staff/:id
@@ -44,21 +50,21 @@ staffRouter.get('/', authMiddleware, requirePosition(['admin', 'manager']), getA
  * Note: Trainer seeing self is handled by separate profile route or lenient check if needed, 
  * but for "Staff Management" usually Admin/Manager.
  */
-staffRouter.get('/:id', authMiddleware, requirePosition(['admin', 'manager']), getStaffById);
+staffRouter.get('/:id', requirePosition(['admin', 'manager']), getStaffById);
 
 /**
  * @route   PUT /api/staff/:id
  * @desc    Update a staff member (must belong to user)
  * @access  Private (Admin Only - Managers cannot edit)
  */
-staffRouter.put('/:id', authMiddleware, requireAdmin(), updateStaffById);
+staffRouter.put('/:id', requireAdmin(), updateStaffById);
 
 /**
  * @route   DELETE /api/staff/:id
  * @desc    Delete a staff member (must belong to user)
  * @access  Private (Admin Only)
  */
-staffRouter.delete('/:id', authMiddleware, requireAdmin(), deleteStaffById);
+staffRouter.delete('/:id', requireAdmin(), deleteStaffById);
 
 import upload from '../middlewares/upload.middleware';
 
@@ -69,7 +75,6 @@ import upload from '../middlewares/upload.middleware';
  */
 staffRouter.patch(
   '/update-profile',
-  authMiddleware,
   upload.single('avatar'),
   updateStaffProfile
 );

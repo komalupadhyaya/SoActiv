@@ -44,7 +44,7 @@ const EnquirySchema = new Schema<IEnquiry, IEnquiryModel>(
     userId: {
       type: Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'User ID is required'],
+      required: false,
     },
     name: {
       type: String,
