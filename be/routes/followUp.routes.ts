@@ -12,6 +12,9 @@ import {
   updateFollowUpStatus,
   completeFollowUpWithNotes,
   failFollowUp,
+  rescheduleFollowUp,
+  approveReschedule,
+  rejectReschedule,
 } from '../controllers/followUp.controllers';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { asyncHandler } from '../lib/AsyncHandler';
@@ -51,6 +54,27 @@ followUpRouter.put('/:id/complete-with-notes', authMiddleware, asyncHandler(comp
  * @access  Private (Staff)
  */
 followUpRouter.put('/:id/fail', authMiddleware, asyncHandler(failFollowUp));
+
+/**
+ * @route   PUT /api/v1/follow-up/:id/reschedule
+ * @desc    Reschedule a follow-up (Staff requests proposed reschedule)
+ * @access  Private (Staff)
+ */
+followUpRouter.put('/:id/reschedule', authMiddleware, asyncHandler(rescheduleFollowUp));
+
+/**
+ * @route   PUT /api/v1/follow-up/:id/approve-reschedule
+ * @desc    Approve a follow-up reschedule request (Admin only)
+ * @access  Private (Admin)
+ */
+followUpRouter.put('/:id/approve-reschedule', authMiddleware, asyncHandler(approveReschedule));
+
+/**
+ * @route   PUT /api/v1/follow-up/:id/reject-reschedule
+ * @desc    Reject a follow-up reschedule request (Admin only)
+ * @access  Private (Admin)
+ */
+followUpRouter.put('/:id/reject-reschedule', authMiddleware, asyncHandler(rejectReschedule));
 
 /**
  * ============================================================

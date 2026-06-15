@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { Announcement } from '../models/announcement.model';
 import ApiError from '../lib/ApiError';
 import { HttpStatusCode } from '../lib/const';
+import { notifyGymStaff, notifyGymMembers } from '../utils/notification.helper';
 
 /**
  * Create Announcement
@@ -13,25 +14,65 @@ export const createAnnouncement = async (req: Request, res: Response, next: Next
         const { title, message, targetAudience, visibleRoles, priority, expiresAt } = req.body;
         const user = (req as any).user;
         const adminId = user.adminId || user.id || user._id;
-
-        // Managers restrictions?
-        // Let's allow Managers to create announcements, but maybe not 'admin' target?
-        // User requirements say "Manager -> Create staff-only announcements" but possibly members too?
-        // Let's be permissive but validate fields.
+        const isSuperAdmin = user.role === 'superadmin';
+        const finalTargetAudience = isSuperAdmin ? 'admin' : targetAudience;
 
         const announcement = await Announcement.create({
             title,
             message,
-            targetAudience, // 'staff', 'members', 'all'
+            targetAudience: finalTargetAudience,
             visibleRoles: visibleRoles || [],
             priority: priority || 'normal',
             createdBy: user.id || user._id,
             adminId,
             expiresAt: new Date(expiresAt),
-            isActive: true
+            isActive: true,
+            isPlatformWide: isSuperAdmin
         });
 
         res.status(201).json({ success: true, data: announcement, message: 'Announcement created' });
+
+        // ── Fan-out in-app notifications after response is sent ────────────────────────
+        if (isSuperAdmin) {
+            try {
+                const { User } = await import('../models/user.model');
+                const gymAdmins = await User.find({ role: 'admin' }).select('_id gym');
+                const { createNotification } = await import('../utils/notification.helper');
+                for (const admin of gymAdmins) {
+                    await createNotification({
+                        recipientId: admin._id.toString(),
+                        recipientRole: 'admin',
+                        gymId: admin.gym?.toString(),
+                        type: 'announcement' as const,
+                        title: `📢 ${title}`,
+                        message,
+                        link: '/admin/announcements',
+                        metadata: { announcementId: (announcement as any)._id.toString(), priority },
+                    });
+                }
+            } catch (err) {
+                console.error('[AnnouncementController] Super Admin notification dispatch failed:', err);
+            }
+        } else {
+            const gymId = (req as any).user?.gym;
+            if (gymId) {
+                const notifPayload = {
+                    gymId,
+                    type: 'announcement' as const,
+                    title: `📢 ${title}`,
+                    message,
+                    link: '/staff/announcements',
+                    metadata: { announcementId: (announcement as any)._id.toString(), priority },
+                };
+
+                if (finalTargetAudience === 'staff' || finalTargetAudience === 'all') {
+                    await notifyGymStaff(notifPayload);
+                }
+                if (finalTargetAudience === 'members' || finalTargetAudience === 'all') {
+                    await notifyGymMembers({ ...notifPayload, link: '/member/dashboard' });
+                }
+            }
+        }
     } catch (error) {
         next(error);
     }
@@ -43,48 +84,57 @@ export const createAnnouncement = async (req: Request, res: Response, next: Next
 export const getAnnouncements = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const user = (req as any).user;
-        const adminId = user.adminId || user.id || user._id;
         const now = new Date();
+        const role = user.role;
+        const position = user.position;
+
+        let adminId: string;
+
+        if (role === 'member') {
+            // ⚠️ Members don't have adminId in their JWT.
+            // We look up their Client record to get the gym owner's userId (adminId).
+            // Without this, the query filters by the member's own ID and returns nothing.
+            const { Client } = await import('../models/client.model');
+            const clientRecord = await Client.findOne({ email: user.email?.toLowerCase() }).select('userId');
+            if (!clientRecord) {
+                return res.status(200).json({ success: true, data: [] });
+            }
+            adminId = clientRecord.userId.toString();
+        } else {
+            adminId = user.adminId || user.id || user._id;
+        }
 
         const query: any = {
-            adminId,
             isActive: true,
             expiresAt: { $gt: now } // Only show non-expired
         };
 
-        const role = user.role; // 'admin', 'staff', 'member'
-        const position = user.position; // 'trainer', 'manager', 'sales', etc.
-
-        // --- FILTERING LOGIC ---
-
         if (role === 'admin' || role === 'superadmin') {
-            // Admin sees all? Or only ones targeting 'admin'/'all'?
-            // Usually Admin wants to see what they posted too. So ALL.
-            // No extra filter needed.
+            // Admin sees their own gym's announcements OR platform-wide announcements
+            query.$or = [
+                { adminId },
+                { isPlatformWide: true }
+            ];
+        } else {
+            // Non-admins only see their own gym's announcements
+            query.adminId = adminId;
         }
-        else if (role === 'staff') {
+
+        const role2 = role; // alias for filtering block below
+        if (role2 === 'admin' || role2 === 'superadmin') {
+            // Admin sees all they created
+        } else if (role2 === 'staff') {
             if (position === 'manager') {
-                // Manager sees 'admin' announcements?, 'staff', 'all', 'members'?
-                // Requirement: "return announcements where adminId match AND targetAudience IN ['staff', 'admin']"
-                // Managers probably shouldn't see 'admin' private msgs if any.
-                // Let's assume Manager sees: 'staff', 'manager' (if in visibleRoles), 'all', 'members'
-                // Let's simplify: They see anything targeting 'staff' or 'all' or 'members'.
                 query.targetAudience = { $in: ['staff', 'all', 'members', 'admin'] };
             } else {
-                // Regular Staff (Trainer, Sales)
-                // Filter 1: Audience must be 'staff' or 'all'
                 query.targetAudience = { $in: ['staff', 'all'] };
-
-                // Filter 2: visibleRoles
-                // Logic: (visibleRoles is empty) OR (visibleRoles includes position)
                 query.$or = [
                     { visibleRoles: { $size: 0 } },
                     { visibleRoles: position }
                 ];
             }
-        }
-        else if (role === 'member') {
-            // Members see 'members' or 'all'
+        } else if (role2 === 'member') {
+            // Members see announcements targeted at 'members' or 'all'
             query.targetAudience = { $in: ['members', 'all'] };
         }
 
@@ -103,18 +153,24 @@ export const updateAnnouncement = async (req: Request, res: Response, next: Next
     try {
         const { id } = req.params;
         const updates = req.body;
+        const user = (req as any).user;
+
+        const announcement = await Announcement.findById(id);
+        if (!announcement) {
+            throw new ApiError(HttpStatusCode.NOT_FOUND, 'Announcement not found');
+        }
+
+        if (announcement.isPlatformWide && user.role !== 'superadmin') {
+            throw new ApiError(HttpStatusCode.FORBIDDEN, 'You do not have permission to edit platform-wide announcements');
+        }
 
         // Prevent changing immutable fields
         delete updates.adminId;
         delete updates.createdBy;
 
-        const announcement = await Announcement.findByIdAndUpdate(id, updates, { new: true });
+        const updatedAnnouncement = await Announcement.findByIdAndUpdate(id, updates, { new: true });
 
-        if (!announcement) {
-            throw new ApiError(HttpStatusCode.NOT_FOUND, 'Announcement not found');
-        }
-
-        res.status(200).json({ success: true, data: announcement, message: 'Announcement updated' });
+        res.status(200).json({ success: true, data: updatedAnnouncement, message: 'Announcement updated' });
     } catch (error) {
         next(error);
     }
@@ -126,14 +182,16 @@ export const updateAnnouncement = async (req: Request, res: Response, next: Next
 export const deleteAnnouncement = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { id } = req.params;
+        const user = (req as any).user;
         const announcement = await Announcement.findById(id);
 
         if (!announcement) {
             throw new ApiError(HttpStatusCode.NOT_FOUND, 'Announcement not found');
         }
 
-        // Optional: Check if manager is deleting admin's post?
-        // For now allow deletion if they have permission to route.
+        if (announcement.isPlatformWide && user.role !== 'superadmin') {
+            throw new ApiError(HttpStatusCode.FORBIDDEN, 'You do not have permission to delete platform-wide announcements');
+        }
 
         await Announcement.findByIdAndDelete(id);
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Plus, Search, Key, LogOut as LogOutIcon, Loader2, RefreshCw } from 'lucide-react';
+import { Plus, Search, Key, LogOut as LogOutIcon, Loader2, RefreshCw, Eye, EyeOff } from 'lucide-react';
 import GymModal from '../../components/modals/GymModal';
 import { useToast } from '../../contexts/ToastContext';
 import { useConfirm } from '../../hooks/useConfirm';
@@ -45,6 +45,7 @@ export default function AdminsListPage() {
         adminName: '',
         newPassword: ''
     });
+    const [showPassword, setShowPassword] = useState(false);
 
     useEffect(() => {
         fetchAdmins();
@@ -110,6 +111,7 @@ export default function AdminsListPage() {
             );
             addToast(`Password reset successfully for ${adminName}`, 'success');
             setPasswordResetState({ adminId: null, adminName: '', newPassword: '' });
+            setShowPassword(false);
         } catch (error: any) {
             console.error('Failed to reset password:', error);
             addToast(error.response?.data?.message || 'Failed to reset password', 'error');
@@ -343,7 +345,10 @@ export default function AdminsListPage() {
             {/* Password Reset Modal */}
             <Modal
                 isOpen={!!passwordResetState.adminId}
-                onClose={() => setPasswordResetState({ adminId: null, adminName: '', newPassword: '' })}
+                onClose={() => {
+                    setPasswordResetState({ adminId: null, adminName: '', newPassword: '' });
+                    setShowPassword(false);
+                }}
                 title={`Reset Password for ${passwordResetState.adminName}`}
             >
                 <div className="space-y-4">
@@ -351,18 +356,30 @@ export default function AdminsListPage() {
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             New Password
                         </label>
-                        <input
-                            type="password"
-                            value={passwordResetState.newPassword}
-                            onChange={(e) => setPasswordResetState({ ...passwordResetState, newPassword: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                            placeholder="Enter new password (min 6 chars)"
-                            autoFocus
-                        />
+                        <div className="relative">
+                            <input
+                                type={showPassword ? 'text' : 'password'}
+                                value={passwordResetState.newPassword}
+                                onChange={(e) => setPasswordResetState({ ...passwordResetState, newPassword: e.target.value })}
+                                className="w-full pl-3 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                placeholder="Enter new password (min 6 chars)"
+                                autoFocus
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 focus:outline-none"
+                            >
+                                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                            </button>
+                        </div>
                     </div>
                     <div className="flex justify-end gap-3 pt-2">
                         <button
-                            onClick={() => setPasswordResetState({ adminId: null, adminName: '', newPassword: '' })}
+                            onClick={() => {
+                                setPasswordResetState({ adminId: null, adminName: '', newPassword: '' });
+                                setShowPassword(false);
+                            }}
                             className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                         >
                             Cancel

@@ -135,7 +135,7 @@ export const useClient = () => {
   }, [addToast]);
 
   // Create client
-  const createClient = async (data: CreateClientData): Promise<{ success: boolean; message?: string }> => {
+  const createClient = async (data: CreateClientData): Promise<{ success: boolean; message?: string; data?: any }> => {
     setLoading(true);
     setError(null);
     try {
@@ -143,7 +143,7 @@ export const useClient = () => {
       if (res.data.success) {
         setClients((prev) => [res.data.data, ...prev]);
         addToast('Client created successfully', 'success');
-        return { success: true };
+        return { success: true, data: res.data.data };
       } else {
         const msg = res.data.message || 'Failed to create client';
         setError(msg);
@@ -161,7 +161,7 @@ export const useClient = () => {
   };
 
   // Update client
-  const updateClient = async (id: string, data: Partial<CreateClientData>): Promise<{ success: boolean; message?: string }> => {
+  const updateClient = async (id: string, data: Partial<CreateClientData>): Promise<{ success: boolean; message?: string; data?: any }> => {
     setLoading(true);
     setError(null);
     try {
@@ -171,7 +171,7 @@ export const useClient = () => {
           prev.map((client) => (client._id === id ? res.data.data : client))
         );
         addToast('Client updated successfully', 'success');
-        return { success: true };
+        return { success: true, data: res.data.data };
       } else {
         const msg = res.data.message || 'Failed to update client';
         setError(msg);
@@ -195,8 +195,15 @@ export const useClient = () => {
     try {
       const res = await API.delete(`/${id}`);
       if (res.data.success) {
-        setClients((prev) => prev.filter((client) => client._id !== id));
-        addToast('Client deleted successfully', 'success');
+        if (res.data.requested) {
+          // Manager requested delete: update client in state
+          setClients((prev) =>
+            prev.map((client) => (client._id === id ? res.data.data : client))
+          );
+        } else {
+          // Admin deleted: remove from state
+          setClients((prev) => prev.filter((client) => client._id !== id));
+        }
         return true;
       } else {
         const msg = res.data.message || 'Failed to delete client';
@@ -213,6 +220,34 @@ export const useClient = () => {
       setLoading(false);
     }
   };
+
+  // Reject deletion request
+  const rejectDelete = useCallback(async (id: string): Promise<boolean> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await API.patch(`/${id}/reject-delete`);
+      if (res.data.success) {
+        setClients((prev) =>
+          prev.map((client) => (client._id === id ? res.data.data : client))
+        );
+        addToast('Client deletion request rejected', 'success');
+        return true;
+      } else {
+        const msg = res.data.message || 'Failed to reject deletion request';
+        setError(msg);
+        addToast(msg, 'error');
+        return false;
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to reject deletion request';
+      setError(msg);
+      addToast(msg, 'error');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [addToast]);
 
   // Bulk upload
   const bulkUpload = async (file: File): Promise<BulkUploadResult | null> => {
@@ -264,8 +299,61 @@ export const useClient = () => {
   }, [clients]);
 
   useEffect(() => {
-    fetchClients();
+    let isCleaner = false;
+    try {
+      const savedUserStr = localStorage.getItem('user');
+      if (savedUserStr) {
+        const savedUser = JSON.parse(savedUserStr);
+        if (savedUser.role === 'staff' && savedUser.position === 'cleaner') {
+          isCleaner = true;
+        }
+      }
+    } catch (e) {
+      // Ignore
+    }
+
+    if (!isCleaner) {
+      fetchClients();
+    }
   }, [fetchClients]);
+
+  const notifyRenewal = async (id: string): Promise<boolean> => {
+    setLoading(true);
+    try {
+      const res = await API.post(`/${id}/notify-renewal`);
+      if (res.data.success) {
+        addToast(res.data.message || 'Renewal notification sent', 'success');
+        return true;
+      } else {
+        addToast(res.data.message || 'Failed to send renewal notification', 'error');
+        return false;
+      }
+    } catch (err: any) {
+      addToast(err.response?.data?.message || err.message || 'Failed to send renewal notification', 'error');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const forwardRenewal = async (id: string, salesStaffId: string, note?: string): Promise<boolean> => {
+    setLoading(true);
+    try {
+      const res = await API.post(`/${id}/forward-renewal`, { salesStaffId, note });
+      if (res.data.success) {
+        addToast(res.data.message || 'Renewal forwarded to sales rep', 'success');
+        return true;
+      } else {
+        addToast(res.data.message || 'Failed to forward renewal', 'error');
+        return false;
+      }
+    } catch (err: any) {
+      addToast(err.response?.data?.message || err.message || 'Failed to forward renewal', 'error');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return {
     clients,
@@ -275,8 +363,11 @@ export const useClient = () => {
     updateClient,
     bulkUpload,
     deleteClient,
+    rejectDelete,
     refresh: fetchClients,
     fetchClients,
     recentActivities,
+    notifyRenewal,
+    forwardRenewal,
   };
 };

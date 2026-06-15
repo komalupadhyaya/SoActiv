@@ -7,7 +7,9 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
+  Lock,
 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 import { StatsCard } from '../../components/dashboard/StatsCard';
 import { Card, CardHeader, CardContent } from '../../components/ui/Card';
 import { Select } from '../../components/ui/Select';
@@ -100,6 +102,7 @@ const timeAgo = (timestamp: string): string => {
 };
 
 export const DashboardPage: React.FC = () => {
+  const { user } = useAuth();
   const { dateFilter, setDateFilter } = useOutletContext<DashboardContext>();
   const navigate = useNavigate();
 
@@ -270,6 +273,28 @@ export const DashboardPage: React.FC = () => {
           Welcome back! Here's what's happening at your gym today.
         </p>
       </div>
+
+      {/* Disabled Feature Alerts for Admin */}
+      {user?.gymFeatures && Object.values(user.gymFeatures).some(val => val === false) && (
+        <div className="space-y-3">
+          <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border-l-4 border-amber-500 rounded-r-xl shadow-sm flex items-start gap-3">
+            <Lock className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <h4 className="text-sm font-bold text-amber-900 dark:text-amber-400">Gym Features Partially Disabled</h4>
+              <p className="text-xs text-amber-700 dark:text-amber-500 mt-1">
+                The platform administration has disabled the following features for your gym:
+              </p>
+              <ul className="list-disc list-inside mt-2 text-xs text-amber-800 dark:text-amber-500/80 font-medium space-y-1">
+                {user.gymFeatures.payments === false && <li>Billing, Payments, and Invoices</li>}
+                {user.gymFeatures.attendance === false && <li>Member Attendance Tracking & Check-ins</li>}
+                {user.gymFeatures.pt === false && <li>Personal Training & PT Assignments</li>}
+                {user.gymFeatures.classes === false && <li>Group Class Scheduling</li>}
+                {user.gymFeatures.memberPortal === false && <li>Member Portal Access (Workouts, Diet, Goals, Photos)</li>}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <Card>

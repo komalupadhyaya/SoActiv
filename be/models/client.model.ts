@@ -44,6 +44,10 @@ export interface IClient extends Document {
     whatsapp: boolean;
   };
 
+  deleteRequested?: boolean;
+  deleteRequestedBy?: Types.ObjectId;
+  deleteRequestedAt?: Date;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -134,6 +138,10 @@ const clientSchema = new Schema<IClient>(
       push: { type: Boolean, default: true },
       whatsapp: { type: Boolean, default: true },
     },
+
+    deleteRequested: { type: Boolean, default: false },
+    deleteRequestedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Staff' },
+    deleteRequestedAt: { type: Date },
   },
   { timestamps: true }
 );

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, MessageSquare, Filter } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -8,6 +8,7 @@ import { Modal } from '../../components/ui/Modal';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { useFollowUp } from '../../hooks/useFollowUp';
+import { useStaffPermissions } from '../../hooks/useStaffPermissions';
 import type { FollowUp } from '../../types';
 
 const statusColors = {
@@ -16,6 +17,7 @@ const statusColors = {
     failed: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
     rescheduled: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
     cancelled: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300',
+    reschedule_pending: 'bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300',
 };
 
 const typeIcons: Record<string, string> = {
@@ -30,18 +32,26 @@ const typeIcons: Record<string, string> = {
 
 export const StaffFollowUps: React.FC = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const targetId = searchParams.get('id');
+    const [highlightedId, setHighlightedId] = useState<string | null>(null);
     const { user, isLoading: authLoading } = useAuth();
+    const { isCleaner } = useStaffPermissions();
     const { addToast } = useToast();
-    const { followUps, loading, getMyFollowUps, completeFollowUpWithNotes, failFollowUp } = useFollowUp();
+    const { followUps, loading, getMyFollowUps, completeFollowUpWithNotes, failFollowUp, rescheduleFollowUp } = useFollowUp();
 
     const [statusFilter, setStatusFilter] = useState<string>('');
 
     // Modal states
     const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
     const [isFailModalOpen, setIsFailModalOpen] = useState(false);
+    const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
     const [selectedFollowUp, setSelectedFollowUp] = useState<FollowUp | null>(null);
     const [completionNotes, setCompletionNotes] = useState('');
     const [failureReason, setFailureReason] = useState('');
+    const [newScheduledDate, setNewScheduledDate] = useState('');
+    const [newScheduledTime, setNewScheduledTime] = useState('');
+    const [rescheduleNotes, setRescheduleNotes] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
     // NEW: mobile filter dropdown
@@ -78,6 +88,39 @@ export const StaffFollowUps: React.FC = () => {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user, statusFilter]);
+
+    // Adjust status filter if a specific follow-up ID is requested
+    useEffect(() => {
+        if (targetId && followUps.length > 0) {
+            const targetFollowUp = followUps.find(f => f._id === targetId);
+            if (targetFollowUp && statusFilter !== '' && targetFollowUp.status !== statusFilter) {
+                setStatusFilter('');
+            }
+        }
+    }, [targetId, followUps, statusFilter]);
+
+    // Handle scroll and highlight for target follow-up
+    useEffect(() => {
+        if (!loading && targetId && followUps.some(f => f._id === targetId)) {
+            setHighlightedId(targetId);
+
+            const timer = setTimeout(() => {
+                const element = document.getElementById(`followup-${targetId}`);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 250);
+
+            const clearTimer = setTimeout(() => {
+                setHighlightedId(null);
+            }, 5000);
+
+            return () => {
+                clearTimeout(timer);
+                clearTimeout(clearTimer);
+            };
+        }
+    }, [loading, targetId, followUps]);
 
     const handleCompleteClick = (followUp: FollowUp) => {
         setSelectedFollowUp(followUp);
@@ -124,6 +167,37 @@ export const StaffFollowUps: React.FC = () => {
         }
     };
 
+    const handleRescheduleClick = (followUp: FollowUp) => {
+        setSelectedFollowUp(followUp);
+        setNewScheduledDate('');
+        setNewScheduledTime('');
+        setRescheduleNotes('');
+        setIsRescheduleModalOpen(true);
+    };
+
+    const handleRescheduleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedFollowUp || !newScheduledDate || !newScheduledTime || !rescheduleNotes.trim()) {
+            addToast('Please fill in all required fields', 'error');
+            return;
+        }
+
+        try {
+            setSubmitting(true);
+            const result = await rescheduleFollowUp(selectedFollowUp._id, {
+                newScheduledDate,
+                newScheduledTime,
+                rescheduleNotes
+            });
+            if (result.success) {
+                setIsRescheduleModalOpen(false);
+                fetchMyFollowUps();
+            }
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -151,9 +225,11 @@ export const StaffFollowUps: React.FC = () => {
         <div className="space-y-3 px-2 py-3 max-w-7xl mx-auto">
             {/* Header */}
             <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Follow-Ups</h1>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {isCleaner ? 'My Cleaning Tasks' : 'My Follow-Ups'}
+                </h1>
                 <p className="text-gray-600 dark:text-gray-400 mt-1">
-                    Manage your assigned follow-up tasks
+                    {isCleaner ? 'Manage your assigned cleaning and maintenance tasks' : 'Manage your assigned follow-up tasks'}
                 </p>
             </div>
 
@@ -163,7 +239,9 @@ export const StaffFollowUps: React.FC = () => {
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Pending Tasks</p>
+                                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                    {isCleaner ? 'Pending Cleaning Tasks' : 'Pending Tasks'}
+                                </p>
                                 <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{pendingCount}</p>
                             </div>
                             <AlertCircle className="w-8 h-8 text-orange-500" />
@@ -174,7 +252,9 @@ export const StaffFollowUps: React.FC = () => {
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Today's Tasks</p>
+                                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                    {isCleaner ? "Today's Cleaning Tasks" : "Today's Tasks"}
+                                </p>
                                 <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{todayFollowUps.length}</p>
                             </div>
                             <Calendar className="w-8 h-8 text-blue-500" />
@@ -185,7 +265,9 @@ export const StaffFollowUps: React.FC = () => {
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Tasks</p>
+                                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                    {isCleaner ? 'Total Cleaning Tasks' : 'Total Tasks'}
+                                </p>
                                 <p className="text-2xl font-bold text-gray-900 dark:text-white">{followUps.length}</p>
                             </div>
                             <MessageSquare className="w-8 h-8 text-gray-500" />
@@ -230,6 +312,15 @@ export const StaffFollowUps: React.FC = () => {
                             >
                                 Failed
                             </Button>
+                            {!isCleaner && (
+                                <Button
+                                    size="sm"
+                                    variant={statusFilter === 'rescheduled' ? 'primary' : 'outline'}
+                                    onClick={() => setStatusFilter('rescheduled')}
+                                >
+                                    Rescheduled
+                                </Button>
+                            )}
                         </div>
                     </div>
 
@@ -307,6 +398,21 @@ export const StaffFollowUps: React.FC = () => {
                                 >
                                     Failed
                                 </button>
+                                {!isCleaner && (
+                                    <button
+                                        type="button"
+                                        className={`w-full text-left px-3 py-2 rounded text-sm ${statusFilter === 'rescheduled'
+                                                ? 'bg-orange-50 text-orange-700 dark:bg-orange-900/40 dark:text-orange-200'
+                                                : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
+                                            }`}
+                                        onClick={() => {
+                                            setStatusFilter('rescheduled');
+                                            setIsFilterDropdownOpen(false);
+                                        }}
+                                    >
+                                        Rescheduled
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>
@@ -321,8 +427,8 @@ export const StaffFollowUps: React.FC = () => {
                             <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                             <p className="text-gray-600 dark:text-gray-400">
                                 {statusFilter
-                                    ? `No ${statusFilter} follow-ups found`
-                                    : 'No follow-ups assigned to you'}
+                                    ? `No ${statusFilter} ${isCleaner ? 'cleaning tasks' : 'follow-ups'} found`
+                                    : `No ${isCleaner ? 'cleaning tasks' : 'follow-ups'} assigned to you`}
                             </p>
                         </CardContent>
                     </Card>
@@ -330,11 +436,16 @@ export const StaffFollowUps: React.FC = () => {
                     filteredFollowUps.map((followUp) => (
                         <Card
                             key={followUp._id}
-                            className={
+                            id={`followup-${followUp._id}`}
+                            className={`transition-all duration-500 ${
                                 isToday(followUp.scheduledDate) && followUp.status === 'pending'
                                     ? 'border-2 border-orange-500'
                                     : ''
-                            }
+                            } ${
+                                highlightedId === followUp._id
+                                    ? 'ring-2 ring-orange-500 dark:ring-orange-400 bg-orange-50/50 dark:bg-orange-950/20 border-orange-500 dark:border-orange-400 shadow-lg'
+                                    : ''
+                            }`}
                         >
                             <CardContent className="p-4">
                                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -364,7 +475,7 @@ export const StaffFollowUps: React.FC = () => {
                                                 <span>{followUp.scheduledTime}</span>
                                             </div>
                                             <span className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-xs">
-                                                {followUp.type}
+                                                {isCleaner ? 'cleaning' : followUp.type}
                                             </span>
                                         </div>
                                         <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
@@ -374,6 +485,12 @@ export const StaffFollowUps: React.FC = () => {
                                             <p className="text-sm text-gray-600 dark:text-gray-400 italic">
                                                 <strong>Completion Notes:</strong> {followUp.completionNotes}
                                             </p>
+                                        )}
+                                        {followUp.status === 'reschedule_pending' && followUp.proposedDate && (
+                                            <div className="mt-2 p-2 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900 rounded-lg text-sm text-orange-800 dark:text-orange-300">
+                                                <strong>Proposed Reschedule:</strong> {formatDate(followUp.proposedDate)} at {followUp.proposedTime}
+                                                {followUp.rescheduleReason && <p className="mt-1 italic">Reason: "{followUp.rescheduleReason}"</p>}
+                                            </div>
                                         )}
                                     </div>
 
@@ -397,7 +514,23 @@ export const StaffFollowUps: React.FC = () => {
                                                 <XCircle size={16} className="mr-1" />
                                                 Mark Failed
                                             </Button>
+                                            {!isCleaner && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="text-blue-600 border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900"
+                                                    onClick={() => handleRescheduleClick(followUp)}
+                                                >
+                                                    <Clock size={16} className="mr-1" />
+                                                    Reschedule
+                                                </Button>
+                                            )}
                                         </div>
+                                    )}
+                                    {followUp.status === 'reschedule_pending' && (
+                                        <span className="text-sm font-semibold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900 px-3 py-1.5 rounded-lg flex items-center gap-1">
+                                            <Clock size={16} /> Awaiting Admin Approval
+                                        </span>
                                     )}
                                 </div>
                             </CardContent>
@@ -481,6 +614,69 @@ export const StaffFollowUps: React.FC = () => {
                         </Button>
                     </div>
                 </div>
+            </Modal>
+
+            {/* Reschedule Modal */}
+            <Modal
+                isOpen={isRescheduleModalOpen}
+                onClose={() => setIsRescheduleModalOpen(false)}
+                title="Reschedule Follow-Up"
+                size="md"
+            >
+                <form onSubmit={handleRescheduleSubmit} className="p-4 space-y-4">
+                    <p className="text-gray-700 dark:text-gray-300">
+                        Reschedule the follow-up task for <strong>{selectedFollowUp?.relatedName}</strong>.
+                    </p>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            New Scheduled Date <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="date"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                            value={newScheduledDate}
+                            onChange={(e) => setNewScheduledDate(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            New Scheduled Time <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="time"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                            value={newScheduledTime}
+                            onChange={(e) => setNewScheduledTime(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Reason for Rescheduling <span className="text-red-500">*</span>
+                        </label>
+                        <textarea
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                            rows={3}
+                            value={rescheduleNotes}
+                            onChange={(e) => setRescheduleNotes(e.target.value)}
+                            placeholder="e.g., Client requested call on Tuesday, not available today..."
+                            required
+                        />
+                    </div>
+                    <div className="flex justify-end gap-3 pt-2">
+                        <Button variant="outline" type="button" onClick={() => setIsRescheduleModalOpen(false)} disabled={submitting}>
+                            Cancel
+                        </Button>
+                        <Button
+                            type="submit"
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                            disabled={submitting || !newScheduledDate || !newScheduledTime || !rescheduleNotes.trim()}
+                        >
+                            {submitting ? 'Rescheduling...' : 'Reschedule Follow-Up'}
+                        </Button>
+                    </div>
+                </form>
             </Modal>
         </div>
     );

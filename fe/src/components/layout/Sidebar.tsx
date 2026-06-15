@@ -14,6 +14,9 @@ import {
   Calendar,
   Megaphone,
   MessageSquare,
+  Sparkles,
+  Inbox,
+  GraduationCap,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { clsx } from 'clsx';
@@ -23,6 +26,7 @@ const navigationItems = [
   { name: 'Enquiries', href: '/admin/enquiries', icon: FileText },
   { name: 'Enquiries Expiring', href: '/admin/enquiries-expiring', icon: AlertCircle },
   { name: 'Clients', href: '/admin/clients', icon: Users },
+  { name: 'Classes', href: '/admin/classes', icon: GraduationCap },
   { name: 'PT Plans', href: '/admin/pt-plans', icon: Dumbbell },
   { name: 'PT Assignments', href: '/admin/pt-assignments', icon: Users },
   { name: 'Announcements', href: '/admin/announcements', icon: Megaphone },
@@ -30,6 +34,9 @@ const navigationItems = [
   { name: 'Calendar', href: '/admin/schedule', icon: Calendar },
   { name: 'Follow-Ups', href: '/admin/follow-ups', icon: Bell },
   { name: 'Reports', href: '/admin/reports', icon: BarChart3 },
+  { name: 'Exercise Library', href: '/admin/exercises', icon: Dumbbell },
+  { name: 'Cleaning Checklist', href: '/admin/cleaning', icon: Sparkles },
+  { name: 'Member Support', href: '/admin/member-support', icon: Inbox },
   { name: 'Contact Support', href: '/admin/contact-support', icon: MessageSquare },
 ];
 

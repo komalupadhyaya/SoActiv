@@ -17,6 +17,13 @@ export interface User {
     gradientEnd?: string;
   };
   createdAt: string;
+  gymFeatures?: {
+    payments: boolean;
+    attendance: boolean;
+    pt: boolean;
+    classes: boolean;
+    memberPortal: boolean;
+  };
 }
 
 export interface Client {
@@ -102,7 +109,7 @@ export interface FollowUp {
   scheduledDate: string;
   scheduledTime: string;
   note: string;
-  status: 'pending' | 'completed' | 'failed' | 'rescheduled' | 'cancelled';
+  status: 'pending' | 'completed' | 'failed' | 'rescheduled' | 'cancelled' | 'reschedule_pending';
   completedAt: string | null;
   completedBy?: {
     _id: string;

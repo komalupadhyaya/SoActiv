@@ -3,12 +3,25 @@ import {
     createContact,
     getContacts,
     updateContactStatus,
-    getContactStats
+    getContactStats,
+    getGymContacts,
+    updateGymContactStatus,
+    getMyContacts
 } from '../controllers/contact.controllers';
 import { requireSuperAdminAuth } from '../middlewares/superAdminAuth.middleware';
 import { softAuthMiddleware } from '../middlewares/softAuth.middleware';
+import { authMiddleware } from '../middlewares/auth.middleware';
+import { requireAdminOrManager, requirePosition } from '../middlewares/permission.middleware';
+import { asyncHandler } from '../lib/AsyncHandler';
 
 const router = Router();
+
+/**
+ * @route   GET /api/v1/contact/my
+ * @desc    Get support messages sent by the logged-in member
+ * @access  Private (Member)
+ */
+router.get('/my', authMiddleware, asyncHandler(getMyContacts));
 
 /**
  * @route   POST /api/v1/contact
@@ -37,5 +50,19 @@ router.get('/superadmin/stats', requireSuperAdminAuth, getContactStats);
  * @access  Private (SuperAdmin)
  */
 router.patch('/superadmin/:id/status', requireSuperAdminAuth, updateContactStatus);
+
+/**
+ * @route   GET /api/v1/contact/gym/list
+ * @desc    List support messages from members of the current gym
+ * @access  Private (Gym Admin / Manager)
+ */
+router.get('/gym/list', authMiddleware, requirePosition(['manager', 'receptionist']), getGymContacts);
+
+/**
+ * @route   PATCH /api/v1/contact/gym/:id/status
+ * @desc    Update support message status for the current gym
+ * @access  Private (Gym Admin / Manager)
+ */
+router.patch('/gym/:id/status', authMiddleware, requireAdminOrManager(), updateGymContactStatus);
 
 export default router;

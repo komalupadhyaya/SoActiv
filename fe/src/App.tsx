@@ -25,6 +25,7 @@ import { TrainerMembers } from './pages/staff/TrainerMembers';
 import { SalesLeads } from './pages/staff/SalesLeads';
 import { ProfileEdit } from './pages/staff/ProfileEdit';
 import { StaffFollowUps } from './pages/staff/StaffFollowUps';
+import { TrainerNutrition } from './pages/staff/TrainerNutrition';
 
 // Protected Route
 import { ProtectedRoute } from './components/routing/ProtectedRoute';
@@ -50,6 +51,14 @@ import { PTAssignmentsPage } from './pages/admin/PTAssignmentsPage';
 import { TrainerPTClientsPage } from './pages/staff/TrainerPTClientsPage';
 import { AdminAnnouncementsPage } from './pages/admin/AdminAnnouncementsPage';
 import { StaffAnnouncementsPage } from './pages/staff/StaffAnnouncementsPage';
+import { AdminCleaningPage } from './pages/admin/AdminCleaningPage';
+import { CleaningChecklistPage } from './pages/staff/CleaningChecklistPage';
+import { ClientFormPage as StaffClientFormPage } from './pages/staff/ClientFormPage';
+import CheckInPage from './pages/staff/receptionist/CheckInPage';
+import BookClassPage from './pages/staff/receptionist/BookClassPage';
+import BookAppointmentPage from './pages/staff/receptionist/BookAppointmentPage';
+import RegisterComplaintPage from './pages/staff/receptionist/RegisterComplaintPage';
+import { StaffEnquiryFormPage } from './pages/staff/StaffEnquiryFormPage';
 
 // Super Admin Pages
 import { SuperAdminLoginPage } from './pages/superAdmin/SuperAdminLoginPage';
@@ -61,6 +70,24 @@ import AdminsListPage from './pages/superAdmin/AdminsListPage';
 import PlansPage from './pages/superAdmin/PlansPage';
 import ContactsInboxPage from './pages/superAdmin/ContactsInboxPage';
 import ContactSupportPage from './pages/admin/ContactSupportPage';
+import { AdminSupportInboxPage } from './pages/admin/AdminSupportInboxPage';
+import { SuperAdminAnnouncementsPage } from './pages/superAdmin/SuperAdminAnnouncementsPage';
+
+// Member Pages
+import { MemberLayout } from './components/layout/MemberLayout';
+import { MemberDashboard } from './pages/member/MemberDashboard';
+import { MemberPayments } from './pages/member/MemberPayments';
+import { MemberAttendance } from './pages/member/MemberAttendance';
+import { MemberProgressPhotos } from './pages/member/MemberProgressPhotos';
+import { MemberGoals } from './pages/member/MemberGoals';
+import { MemberNutrition } from './pages/member/MemberNutrition';
+import { MemberExerciseLibrary } from './pages/member/MemberExerciseLibrary';
+import { AdminExerciseLibrary } from './pages/admin/AdminExerciseLibrary';
+import { MemberSupportPage } from './pages/member/MemberSupportPage';
+import { ClassManagementPage } from './pages/admin/ClassManagementPage';
+import { TrainerClassesPage } from './pages/staff/TrainerClassesPage';
+import { MemberClassesPage } from './pages/member/MemberClassesPage';
+
 
 function App() {
   return (
@@ -110,7 +137,11 @@ function App() {
                   <Route path="pt-plans" element={<PTPlansPage />} />
                   <Route path="pt-assignments" element={<PTAssignmentsPage />} />
                   <Route path="announcements" element={<AdminAnnouncementsPage />} />
+                  <Route path="cleaning" element={<AdminCleaningPage />} />
+                  <Route path="exercises" element={<AdminExerciseLibrary />} />
                   <Route path="contact-support" element={<ContactSupportPage />} />
+                  <Route path="member-support" element={<AdminSupportInboxPage />} />
+                  <Route path="classes" element={<ClassManagementPage />} />
                   {/* <Route path="check-in" element={<QRCheckInPage />} /> */}
                 </Route>
 
@@ -140,12 +171,44 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
+                  <Route
+                    path="members/new"
+                    element={
+                      <ProtectedRoute allowedPositions={['manager']}>
+                        <StaffClientFormPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="members/edit/:id"
+                    element={
+                      <ProtectedRoute allowedPositions={['manager']}>
+                        <StaffClientFormPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
                   <Route
                     path="enquiries"
                     element={
-                      <ProtectedRoute allowedPositions={['manager', 'sales']}>
+                      <ProtectedRoute allowedPositions={['manager', 'sales', 'receptionist']}>
                         <SalesLeads />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="enquiries/new"
+                    element={
+                      <ProtectedRoute allowedPositions={['manager', 'receptionist']}>
+                        <StaffEnquiryFormPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="enquiries/edit/:id"
+                    element={
+                      <ProtectedRoute allowedPositions={['manager', 'receptionist']}>
+                        <StaffEnquiryFormPage />
                       </ProtectedRoute>
                     }
                   />
@@ -209,6 +272,146 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
+                  <Route
+                    path="member-support"
+                    element={
+                      <ProtectedRoute allowedPositions={['manager']}>
+                        <AdminSupportInboxPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="client-nutrition"
+                    element={
+                      <ProtectedRoute allowedPositions={['trainer']}>
+                        <TrainerNutrition />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="cleaning"
+                    element={
+                      <ProtectedRoute allowedPositions={['manager', 'cleaner']}>
+                        <CleaningChecklistPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="exercises"
+                    element={
+                      <ProtectedRoute allowedPositions={['manager']}>
+                        <AdminExerciseLibrary />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="classes"
+                    element={
+                      <ProtectedRoute allowedPositions={['manager']}>
+                        <ClassManagementPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="my-classes"
+                    element={
+                      <ProtectedRoute allowedPositions={['trainer']}>
+                        <TrainerClassesPage />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  {/* Receptionist-only pages */}
+                  <Route
+                    path="check-in"
+                    element={
+                      <ProtectedRoute allowedPositions={['receptionist']}>
+                        <CheckInPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="book-class"
+                    element={
+                      <ProtectedRoute allowedPositions={['receptionist']}>
+                        <BookClassPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="book-appointment"
+                    element={
+                      <ProtectedRoute allowedPositions={['receptionist']}>
+                        <BookAppointmentPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="complaints"
+                    element={
+                      <ProtectedRoute allowedPositions={['receptionist']}>
+                        <RegisterComplaintPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                </Route>
+
+                {/* Member Routes */}
+                <Route
+                  path="/member"
+                  element={
+                    <ProtectedRoute allowedRoles={['member']}>
+                      <MemberLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<Navigate to="/member/dashboard" replace />} />
+                  <Route path="dashboard" element={<MemberDashboard />} />
+                  <Route path="announcements" element={<StaffAnnouncementsPage />} />
+                  <Route
+                    path="payments"
+                    element={
+                      <ProtectedRoute requiredFeature="memberPortal">
+                        <MemberPayments />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route path="attendance" element={<MemberAttendance />} />
+                  <Route
+                    path="progress-photos"
+                    element={
+                      <ProtectedRoute requiredFeature="memberPortal">
+                        <MemberProgressPhotos />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="fitness-goals"
+                    element={
+                      <ProtectedRoute requiredFeature="memberPortal">
+                        <MemberGoals />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="nutrition"
+                    element={
+                      <ProtectedRoute requiredFeature="memberPortal">
+                        <MemberNutrition />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="exercises"
+                    element={
+                      <ProtectedRoute requiredFeature="memberPortal">
+                        <MemberExerciseLibrary />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route path="profile" element={<UserProfilePage />} />
+                  <Route path="contact-support" element={<MemberSupportPage />} />
+                  <Route path="classes" element={<MemberClassesPage />} />
                 </Route>
 
                 {/* Super Admin Routes */}
@@ -221,6 +424,7 @@ function App() {
                   <Route path="admins" element={<AdminsListPage />} />
                   <Route path="plans" element={<PlansPage />} />
                   <Route path="contacts" element={<ContactsInboxPage />} />
+                  <Route path="announcements" element={<SuperAdminAnnouncementsPage />} />
                   <Route path="profile" element={<SuperAdminProfilePage />} />
                 </Route>
 

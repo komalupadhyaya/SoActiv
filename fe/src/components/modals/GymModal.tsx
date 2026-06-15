@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { X, AlertCircle } from 'lucide-react';
+import { X, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import axios from 'axios';
 import { useToast } from '../../contexts/ToastContext';
+import CreatePlanModal from './CreatePlanModal';
 
 interface GymModalProps {
     isOpen: boolean;
@@ -47,6 +48,8 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
     const [loadingPlans, setLoadingPlans] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [showCreatePlanModal, setShowCreatePlanModal] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     // Fetch Plans on mount
     useEffect(() => {
@@ -75,8 +78,7 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
     useEffect(() => {
         if (isOpen) {
             setError('');
-            // If plans are loaded and no plan selected, select first one
-            const defaultPlan = plans.length > 0 ? plans[0].name.toLowerCase() : 'pro';
+            setShowPassword(false);
 
             if (gym) {
                 setFormData({
@@ -84,7 +86,7 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
                     address: gym.address || '',
                     phone: gym.phone || '',
                     status: gym.status,
-                    plan: gym.plan || defaultPlan,
+                    plan: gym.plan || '',
                     ownerName: '',    // Not editable here
                     ownerEmail: '',   // Not editable here
                     ownerPassword: '' // Not editable here
@@ -95,14 +97,14 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
                     address: '',
                     phone: '',
                     status: 'trial',
-                    plan: defaultPlan,
+                    plan: '',
                     ownerName: '',
                     ownerEmail: '',
                     ownerPassword: ''
                 });
             }
         }
-    }, [isOpen, gym, plans]);
+    }, [isOpen, gym]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -223,24 +225,28 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
                                         </label>
                                         <select
                                             value={formData.plan}
-                                            onChange={(e) => setFormData({ ...formData, plan: e.target.value })}
+                                            onChange={(e) => {
+                                                if (e.target.value === 'create_new_plan') {
+                                                    setShowCreatePlanModal(true);
+                                                } else {
+                                                    setFormData({ ...formData, plan: e.target.value });
+                                                }
+                                            }}
                                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
                                             disabled={loadingPlans}
                                             required
                                         >
                                             <option value="">{loadingPlans ? 'Loading plans...' : 'Select Plan'}</option>
+                                            {!loadingPlans && (
+                                                <option value="create_new_plan" className="text-blue-600 font-semibold bg-blue-50 dark:bg-blue-900/20">
+                                                    + Create Plan
+                                                </option>
+                                            )}
                                             {plans.map(p => (
                                                 <option key={p._id} value={p.name.toLowerCase()}>
                                                     {p.name} ({p.currency} {p.price}/{p.billingCycle === 'monthly' ? 'mo' : 'yr'})
                                                 </option>
                                             ))}
-                                            {plans.length === 0 && !loadingPlans && (
-                                                <>
-                                                    <option value="free">Free (Legacy)</option>
-                                                    <option value="pro">Pro (Legacy)</option>
-                                                    <option value="enterprise">Enterprise (Legacy)</option>
-                                                </>
-                                            )}
                                         </select>
                                     </div>
                                     <div>
@@ -317,14 +323,23 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                             Owner Password <span className="text-red-500">*</span>
                                         </label>
-                                        <input
-                                            type="password"
-                                            value={formData.ownerPassword}
-                                            onChange={(e) => setFormData({ ...formData, ownerPassword: e.target.value })}
-                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                                            minLength={6}
-                                            required
-                                        />
+                                        <div className="relative">
+                                            <input
+                                                type={showPassword ? 'text' : 'password'}
+                                                value={formData.ownerPassword}
+                                                onChange={(e) => setFormData({ ...formData, ownerPassword: e.target.value })}
+                                                className="w-full pl-3 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                                minLength={6}
+                                                required
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 focus:outline-none"
+                                            >
+                                                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                            </button>
+                                        </div>
                                         <p className="text-xs text-gray-500 mt-1">Min 6 characters</p>
                                     </div>
                                 </div>
@@ -352,6 +367,35 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
                     </form>
                 </div>
             </div>
+            <CreatePlanModal
+                isOpen={showCreatePlanModal}
+                onClose={() => setShowCreatePlanModal(false)}
+                onSuccess={async () => {
+                    const oldPlanIds = new Set(plans.map(p => p._id));
+                    try {
+                        setLoadingPlans(true);
+                        const response = await axios.get(`${API_URL}/api/v1/super-admin/plans`, {
+                            params: { includeInactive: 'true' },
+                            withCredentials: true
+                        });
+                        if (response.data.success) {
+                            const newPlans = response.data.data;
+                            setPlans(newPlans);
+                            
+                            // Auto-select the newly created plan
+                            const addedPlan = newPlans.find((p: any) => !oldPlanIds.has(p._id));
+                            if (addedPlan) {
+                                setFormData(prev => ({ ...prev, plan: addedPlan.name.toLowerCase() }));
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Failed to auto-select new plan:', error);
+                    } finally {
+                        setLoadingPlans(false);
+                    }
+                    addToast('Subscription plan created successfully!', 'success');
+                }}
+            />
         </div>
     );
 }

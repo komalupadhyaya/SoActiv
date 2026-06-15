@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { Plus, Edit, Trash2, Loader2, Building2 } from 'lucide-react';
 import CreatePlanModal from '../../components/modals/CreatePlanModal';
@@ -30,6 +30,7 @@ interface Plan {
 
 export default function PlansPage() {
     const navigate = useNavigate();
+    const location = useLocation();
     const { addToast } = useToast();
     const [plans, setPlans] = useState<Plan[]>([]);
     const [loading, setLoading] = useState(true);
@@ -39,7 +40,12 @@ export default function PlansPage() {
 
     useEffect(() => {
         fetchPlans();
-    }, []);
+        if (location.state?.openCreateModal) {
+            setShowCreateModal(true);
+            // Clear history state so refresh/back doesn't re-trigger
+            window.history.replaceState({}, document.title);
+        }
+    }, [location]);
 
     const fetchPlans = async () => {
         try {

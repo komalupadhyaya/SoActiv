@@ -4,6 +4,7 @@ import { User } from "../models/user.model.js";
 import jwt, { type JwtPayload } from "jsonwebtoken";
 import { HttpStatusCode } from "../lib/const.js";
 import type { NextFunction, Request, Response } from "express";
+import { Gym } from "../models/gym.model.js";
 
 // ... existing imports
 import { Staff } from "../models/staff.model.js";
@@ -23,6 +24,11 @@ if (!ACCESS_TOKEN_SECRET) {
 export const authMiddleware = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     let token = req.cookies?.accessToken;
+
+    // Fallback: Check super_admin_token for platform-wide/shared operations
+    if (!token && req.cookies?.super_admin_token) {
+      token = req.cookies.super_admin_token;
+    }
 
     // Fallback to Authorization header
     if (!token && req.headers.authorization?.startsWith("Bearer ")) {
@@ -46,6 +52,11 @@ export const authMiddleware = asyncHandler(
         throw new ApiError(HttpStatusCode.UNAUTHORIZED, "User not found");
       }
 
+      // Verify token version (for force logout session invalidation)
+      if (decoded.tokenVersion !== undefined && user.tokenVersion !== undefined && decoded.tokenVersion !== user.tokenVersion) {
+        throw new ApiError(HttpStatusCode.UNAUTHORIZED, "Session has been invalidated. Please login again.");
+      }
+
       // Track Online Status (Update at most once per minute)
       const now = new Date();
       const lastActive = user.lastActiveAt ? new Date(user.lastActiveAt) : null;
@@ -65,6 +76,13 @@ export const authMiddleware = asyncHandler(
       // Convert to frontend-safe object (maps fullname -> name, _id -> id)
       const reqUser = user.toFrontendUser() as any;
       reqUser.gym = decoded.gym || user.gym?.toString(); // Ensure gym string is set
+
+      if (user.role !== 'superadmin' && user.gym) {
+        const gym = await Gym.findById(user.gym).select('features');
+        if (gym) {
+          reqUser.gymFeatures = gym.features;
+        }
+      }
 
       // --- Normalize Position ---
       if (user.role === 'admin') {
@@ -94,6 +112,9 @@ export const authMiddleware = asyncHandler(
 
       next();
     } catch (error: any) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
       if (error.name === "TokenExpiredError") {
         throw new ApiError(HttpStatusCode.UNAUTHORIZED, "Access token has expired");
       }

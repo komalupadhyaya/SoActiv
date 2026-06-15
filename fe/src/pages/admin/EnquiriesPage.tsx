@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Search, Filter, Phone, Mail, Calendar, Trash2, Upload } from 'lucide-react';
 import { Card, CardHeader, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -6,7 +6,7 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { Badge } from '../../components/ui/Badge';
 import { useEnquiry } from '../../hooks/useEnquiry';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { BulkUploadModal } from '../../components/enquiry/BulkUploadModal';
 import { UploadResultsReport } from '../../components/enquiry/UploadResultsReport';
 import type { BulkUploadResult } from '../../hooks/useEnquiry';
@@ -30,6 +30,9 @@ const getStaffName = (staff: any): string => {
 };
 
 export const EnquiriesPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const targetId = searchParams.get('id');
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [staffFilter, setStaffFilter] = useState('');
@@ -54,6 +57,58 @@ export const EnquiriesPage: React.FC = () => {
   const navigate = useNavigate();
 
   const displayedEnquiries = isAdmin ? allEnquiries : myEnquiries;
+
+  // Adjust filters if a specific enquiry ID is requested
+  useEffect(() => {
+    if (targetId && displayedEnquiries.length > 0) {
+      const targetEnquiry = displayedEnquiries.find(e => e._id === targetId || e.id === targetId);
+      if (targetEnquiry) {
+        if (statusFilter !== '' && targetEnquiry.status !== statusFilter) {
+          setStatusFilter('');
+        }
+        const staffName = getStaffName(targetEnquiry.assignedStaff);
+        if (staffFilter !== '' && staffName !== staffFilter) {
+          setStaffFilter('');
+        }
+        const matchesSearch =
+          !searchQuery ||
+          targetEnquiry.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          targetEnquiry.phone.includes(searchQuery) ||
+          (targetEnquiry.email?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
+        if (!matchesSearch) {
+          setSearchQuery('');
+        }
+      }
+    }
+  }, [targetId, displayedEnquiries, statusFilter, staffFilter, searchQuery]);
+
+  // Handle scroll and highlight for target enquiry
+  useEffect(() => {
+    if (!loading && targetId && displayedEnquiries.some(e => e._id === targetId || e.id === targetId)) {
+      setHighlightedId(targetId);
+
+      const timer = setTimeout(() => {
+        const isMobile = window.innerWidth < 640;
+        const elementId = isMobile ? `enquiry-mobile-${targetId}` : `enquiry-desktop-${targetId}`;
+        let element = document.getElementById(elementId);
+        if (!element) {
+          element = document.getElementById(`enquiry-desktop-${targetId}`) || document.getElementById(`enquiry-mobile-${targetId}`);
+        }
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 250);
+
+      const clearTimer = setTimeout(() => {
+        setHighlightedId(null);
+      }, 5000);
+
+      return () => {
+        clearTimeout(timer);
+        clearTimeout(clearTimer);
+      };
+    }
+  }, [loading, targetId, displayedEnquiries]);
 
   const staffOptions = useMemo(() => {
     const staffSet = new Set<string>();
@@ -215,7 +270,15 @@ export const EnquiriesPage: React.FC = () => {
                   </thead>
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {filteredEnquiries.map((enquiry) => (
-                      <tr key={enquiry._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <tr 
+                        key={enquiry._id} 
+                        id={`enquiry-desktop-${enquiry._id}`}
+                        className={`transition-all duration-500 hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                          highlightedId === enquiry._id
+                            ? 'ring-2 ring-orange-500 dark:ring-orange-450 bg-orange-50/50 dark:bg-orange-950/20 font-medium'
+                            : ''
+                        }`}
+                      >
                         <td className="px-2 md:px-6 py-4 whitespace-nowrap">
                           <div>
                             <div className="text-sm font-medium text-gray-900 dark:text-white">
@@ -285,7 +348,15 @@ export const EnquiriesPage: React.FC = () => {
               {/* Mobile card/list view */}
               <div className="sm:hidden space-y-4">
                 {filteredEnquiries.map((enquiry) => (
-                  <Card key={enquiry._id}>
+                  <Card 
+                    key={enquiry._id}
+                    id={`enquiry-mobile-${enquiry._id}`}
+                    className={`transition-all duration-500 ${
+                      highlightedId === enquiry._id
+                        ? 'ring-2 ring-orange-500 dark:ring-orange-450 bg-orange-50/50 dark:bg-orange-950/20 border-orange-500 shadow-md'
+                        : ''
+                    }`}
+                  >
                     <CardContent>
                       <div className="text-lg font-semibold">{enquiry.name}</div>
                       <div className="flex flex-wrap gap-3 mt-2 text-sm text-gray-700 dark:text-gray-300">

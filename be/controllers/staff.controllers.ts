@@ -10,6 +10,15 @@ import { Gym } from '../models/gym.model';
 import { generateSecurePassword } from '../utils/password.util';
 import { sendStaffWelcomeEmail, sendAdminStaffCopyEmail } from '../utils/emailSender';
 import { getVisibleStaffIds } from '../utils/staffPermissions.util';
+import { createNotification } from '../utils/notification.helper';
+import { Server as IOServer } from 'socket.io';
+
+const emitToUserRoom = (req: Request, ownerId: string, event: string, data: any) => {
+  const io = (req as any).io as IOServer;
+  if (io && ownerId) {
+    io.to(ownerId).emit(event, data);
+  }
+};
 
 /**
  * Create a new staff member with automatic User account creation
@@ -35,7 +44,8 @@ export const createStaff = async (req: Request, res: Response): Promise<void> =>
 
     // Determine Owner ID (Admin)
     let ownerId = adminUserId;
-    if (user.role === 'staff' && user.position === 'manager') {
+    const isManager = user.role === 'staff' && user.position === 'manager';
+    if (isManager) {
       // Find the admin who created this manager
       const managerStaff = await Staff.findOne({ userId: adminUserId });
       if (managerStaff && managerStaff.createdBy) {
@@ -88,6 +98,57 @@ export const createStaff = async (req: Request, res: Response): Promise<void> =>
         });
         return;
       }
+    }
+
+    if (isManager) {
+      const newStaff = new Staff({
+        createdBy: ownerId, // Set to Admin ID even if Manager creates it
+        gym: adminGymId,
+        fullName,
+        email: email.toLowerCase(),
+        position,
+        contactNumber,
+        joiningDate,
+        salary,
+        status: 'inactive', // Inactive until approved
+        approvalStatus: 'pending_create',
+        requestedBy: new Types.ObjectId(adminUserId), // Link to manager's user ID
+        requestedAt: new Date(),
+        notifications: notifications || {
+          sms: true,
+          email: true,
+          push: true,
+          whatsapp: true,
+        },
+      });
+
+      const savedStaff = await newStaff.save();
+      console.log('✅ Staff creation request created:', savedStaff._id);
+
+      emitToUserRoom(req, ownerId, 'staff:created', savedStaff);
+
+      await createNotification({
+        recipientId: ownerId,
+        recipientRole: 'admin',
+        gymId: adminGymId,
+        type: 'staff_pending',
+        title: '🚨 Staff Creation Request',
+        message: `Manager ${user.fullname || 'Staff'} has requested to create staff member: ${fullName}.`,
+        link: '/admin/staff',
+        metadata: {
+          staffId: savedStaff._id.toString()
+        }
+      });
+
+      res.status(201).json({
+        success: true,
+        message: 'Staff creation request submitted to Admin for approval',
+        data: {
+          staff: savedStaff,
+        },
+        requested: true,
+      });
+      return;
     }
 
     // --- 2. CREATE USER ---
@@ -380,7 +441,8 @@ export const updateStaffById = async (req: Request, res: Response): Promise<void
 
     // Determine Owner ID (Admin)
     let ownerId = userId;
-    if (user.role === 'staff' && user.position === 'manager') {
+    const isManager = user.role === 'staff' && user.position === 'manager';
+    if (isManager) {
       const managerStaff = await Staff.findOne({ userId: userId });
       if (managerStaff && managerStaff.createdBy) {
         ownerId = managerStaff.createdBy.toString();
@@ -443,6 +505,79 @@ export const updateStaffById = async (req: Request, res: Response): Promise<void
         });
         return;
       }
+    }
+
+    if (isManager) {
+      const staffDoc = await Staff.findById(id);
+      if (!staffDoc) {
+        res.status(404).json({ success: false, message: 'Staff member not found' });
+        return;
+      }
+
+      // Sanitise updates: allow only editable fields in pendingUpdates that actually changed
+      const allowedKeys = ['fullName', 'email', 'position', 'contactNumber', 'joiningDate', 'salary', 'status', 'notifications'];
+      
+      const areValuesEqual = (a: any, b: any, key: string) => {
+        if (a === b) return true;
+        if (key === 'joiningDate' && a && b) {
+          const timeA = Date.parse(a);
+          const timeB = Date.parse(b);
+          if (!isNaN(timeA) && !isNaN(timeB)) {
+            return new Date(timeA).toDateString() === new Date(timeB).toDateString();
+          }
+        }
+        if (typeof a === 'object' && typeof b === 'object' && a !== null && b !== null) {
+          return JSON.stringify(a) === JSON.stringify(b);
+        }
+        return false;
+      };
+
+      const filteredUpdates: any = {};
+      for (const key of allowedKeys) {
+        if (updates[key] !== undefined) {
+          const currentValue = (staffDoc as any)[key];
+          if (!areValuesEqual(currentValue, updates[key], key)) {
+            filteredUpdates[key] = updates[key];
+          }
+        }
+      }
+
+      if (Object.keys(filteredUpdates).length === 0) {
+        res.status(400).json({
+          success: false,
+          message: 'No changes detected. Please modify at least one field to submit an update request.',
+        });
+        return;
+      }
+
+      staffDoc.pendingUpdates = filteredUpdates;
+      staffDoc.approvalStatus = 'pending_update';
+      staffDoc.requestedBy = new Types.ObjectId(userId);
+      staffDoc.requestedAt = new Date();
+      await staffDoc.save();
+
+      emitToUserRoom(req, ownerId, 'staff:updated', staffDoc);
+
+      await createNotification({
+        recipientId: ownerId,
+        recipientRole: 'admin',
+        gymId: staffDoc.gym,
+        type: 'staff_pending',
+        title: '🚨 Staff Update Request',
+        message: `Manager ${user.fullname || 'Staff'} has requested to edit staff member: ${staffDoc.fullName}.`,
+        link: '/admin/staff',
+        metadata: {
+          staffId: staffDoc._id.toString()
+        }
+      });
+
+      res.json({
+        success: true,
+        message: 'Staff update request submitted to Admin for approval',
+        data: staffDoc,
+        requested: true,
+      });
+      return;
     }
 
     const updatedStaff = await Staff.findByIdAndUpdate(
@@ -547,6 +682,51 @@ export const deleteStaffById = async (req: Request, res: Response): Promise<void
       return;
     }
 
+    let ownerId = userId;
+    const isManager = user.role === 'staff' && user.position === 'manager';
+    if (isManager) {
+      const managerStaff = await Staff.findOne({ userId: userId });
+      if (managerStaff && managerStaff.createdBy) {
+        ownerId = managerStaff.createdBy.toString();
+      }
+    }
+
+    if (isManager) {
+      const staffDoc = await Staff.findById(id);
+      if (!staffDoc) {
+        res.status(404).json({ success: false, message: 'Staff member not found' });
+        return;
+      }
+
+      staffDoc.approvalStatus = 'pending_delete';
+      staffDoc.requestedBy = new Types.ObjectId(userId);
+      staffDoc.requestedAt = new Date();
+      await staffDoc.save();
+
+      emitToUserRoom(req, ownerId, 'staff:updated', staffDoc);
+
+      await createNotification({
+        recipientId: ownerId,
+        recipientRole: 'admin',
+        gymId: staffDoc.gym,
+        type: 'staff_pending',
+        title: '🚨 Staff Deletion Request',
+        message: `Manager ${user.fullname || 'Staff'} has requested to delete staff member: ${staffDoc.fullName}.`,
+        link: '/admin/staff',
+        metadata: {
+          staffId: staffDoc._id.toString()
+        }
+      });
+
+      res.json({
+        success: true,
+        message: 'Staff deletion request submitted to Admin for approval',
+        data: staffDoc,
+        requested: true,
+      });
+      return;
+    }
+
     const deletedStaff = await Staff.findByIdAndDelete(id);
 
     if (!deletedStaff) {
@@ -635,7 +815,9 @@ export const updateStaffProfile = async (req: Request, res: Response): Promise<v
     if (avatarFile) {
       // Construct URL - assuming served statically from /uploads
       const baseUrl = process.env.API_URL || 'http://localhost:8000';
-      const avatarUrl = `${baseUrl}/uploads/${avatarFile.filename}`;
+      const avatarUrl = (avatarFile.path && (avatarFile.path.startsWith('http://') || avatarFile.path.startsWith('https://')))
+        ? avatarFile.path
+        : `${baseUrl}/uploads/${avatarFile.filename}`;
       userDoc.avatar = avatarUrl;
     }
 
@@ -685,5 +867,288 @@ export const updateStaffProfile = async (req: Request, res: Response): Promise<v
       message: 'Server error while updating profile',
       error: error.message
     });
+  }
+};
+
+/**
+ * Approve a staff CRUD request (Admin Only)
+ */
+export const approveStaffRequest = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as any).user;
+    if (user.role !== 'admin' && user.role !== 'superadmin') {
+      res.status(403).json({ success: false, message: 'Access denied. Admin access required.' });
+      return;
+    }
+
+    const { id } = req.params;
+    const staffDoc = await Staff.findById(id);
+
+    if (!staffDoc) {
+      res.status(404).json({ success: false, message: 'Staff member not found' });
+      return;
+    }
+
+    const ownerId = user.id;
+
+    if (staffDoc.approvalStatus === 'pending_create') {
+      const generatedPassword = generateSecurePassword(12);
+
+      const newUser = new User({
+        fullname: staffDoc.fullName,
+        email: staffDoc.email.toLowerCase(),
+        phone: staffDoc.contactNumber,
+        password: generatedPassword,
+        role: 'staff',
+        gym: staffDoc.gym,
+        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(staffDoc.fullName)}&background=ea580c&color=fff`,
+      });
+
+      const savedUser = await newUser.save();
+      console.log('✅ User account created upon approval:', savedUser._id);
+
+      if (staffDoc.requestedBy) {
+        await createNotification({
+          recipientId: staffDoc.requestedBy,
+          recipientRole: 'staff',
+          gymId: staffDoc.gym,
+          type: 'staff_pending',
+          title: '✅ Staff Creation Approved',
+          message: `Your request to add staff member ${staffDoc.fullName} has been approved.`,
+          link: '/staff/staff-list',
+          metadata: {
+            staffId: staffDoc._id.toString()
+          }
+        });
+      }
+
+      staffDoc.userId = savedUser._id;
+      staffDoc.status = 'active';
+      staffDoc.approvalStatus = 'approved';
+      staffDoc.requestedBy = null;
+      staffDoc.requestedAt = null;
+      await staffDoc.save();
+
+      let gymName = 'SoActiv Gym';
+      try {
+        const gymDoc = await Gym.findById(staffDoc.gym);
+        if (gymDoc) gymName = gymDoc.name;
+      } catch (gymErr) {
+        console.error('⚠️ Could not fetch gym name for welcome email:', gymErr);
+      }
+
+      await sendStaffWelcomeEmail(staffDoc.email, staffDoc.fullName, generatedPassword, gymName);
+      if (user.email) {
+        await sendAdminStaffCopyEmail(user.email, staffDoc.fullName, staffDoc.email, generatedPassword, gymName);
+      }
+
+      emitToUserRoom(req, ownerId, 'staff:updated', staffDoc);
+
+      res.json({
+        success: true,
+        message: 'Staff creation request approved successfully',
+        data: staffDoc,
+      });
+
+    } else if (staffDoc.approvalStatus === 'pending_update') {
+      const updates = staffDoc.pendingUpdates;
+      if (updates) {
+        Object.assign(staffDoc, updates);
+        
+        if (staffDoc.userId) {
+          const userUpdates: any = {};
+          if (updates.fullName) {
+            userUpdates.fullname = updates.fullName;
+            userUpdates.avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(updates.fullName)}&background=ea580c&color=fff`;
+          }
+          if (updates.contactNumber) {
+            userUpdates.phone = updates.contactNumber;
+          }
+          if (Object.keys(userUpdates).length > 0) {
+            await User.findByIdAndUpdate(staffDoc.userId, userUpdates);
+            console.log('✅ Synced updates to User account upon approval');
+          }
+        }
+      }
+
+      if (staffDoc.requestedBy) {
+        await createNotification({
+          recipientId: staffDoc.requestedBy,
+          recipientRole: 'staff',
+          gymId: staffDoc.gym,
+          type: 'staff_pending',
+          title: '✅ Staff Update Approved',
+          message: `Your request to edit staff member ${staffDoc.fullName} has been approved.`,
+          link: '/staff/staff-list',
+          metadata: {
+            staffId: staffDoc._id.toString()
+          }
+        });
+      }
+
+      staffDoc.approvalStatus = 'approved';
+      staffDoc.pendingUpdates = null;
+      staffDoc.requestedBy = null;
+      staffDoc.requestedAt = null;
+      await staffDoc.save();
+
+      emitToUserRoom(req, ownerId, 'staff:updated', staffDoc);
+
+      res.json({
+        success: true,
+        message: 'Staff update request approved successfully',
+        data: staffDoc,
+      });
+
+    } else if (staffDoc.approvalStatus === 'pending_delete') {
+      if (staffDoc.userId) {
+        await User.findByIdAndDelete(staffDoc.userId);
+        console.log('✅ Associated user account deleted upon approval');
+      }
+
+      if (staffDoc.requestedBy) {
+        await createNotification({
+          recipientId: staffDoc.requestedBy,
+          recipientRole: 'staff',
+          gymId: staffDoc.gym,
+          type: 'staff_pending',
+          title: '✅ Staff Deletion Approved',
+          message: `Your request to delete staff member ${staffDoc.fullName} has been approved.`,
+          link: '/staff/staff-list',
+          metadata: {
+            staffId: staffDoc._id.toString()
+          }
+        });
+      }
+
+      await Staff.findByIdAndDelete(id);
+
+      emitToUserRoom(req, ownerId, 'staff:deleted', { id });
+
+      res.json({
+        success: true,
+        message: 'Staff deletion request approved successfully',
+      });
+    } else {
+      res.status(400).json({ success: false, message: 'No pending request to approve' });
+    }
+
+  } catch (error: any) {
+    console.error('Error approving staff request:', error);
+    res.status(500).json({ success: false, message: 'Server error during approval', error: error.message });
+  }
+};
+
+/**
+ * Reject a staff CRUD request (Admin Only)
+ */
+export const rejectStaffRequest = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as any).user;
+    if (user.role !== 'admin' && user.role !== 'superadmin') {
+      res.status(403).json({ success: false, message: 'Access denied. Admin access required.' });
+      return;
+    }
+
+    const { id } = req.params;
+    const staffDoc = await Staff.findById(id);
+
+    if (!staffDoc) {
+      res.status(404).json({ success: false, message: 'Staff member not found' });
+      return;
+    }
+
+    const ownerId = user.id;
+
+    if (staffDoc.approvalStatus === 'pending_create') {
+      if (staffDoc.requestedBy) {
+        await createNotification({
+          recipientId: staffDoc.requestedBy,
+          recipientRole: 'staff',
+          gymId: staffDoc.gym,
+          type: 'staff_pending',
+          title: '❌ Staff Creation Rejected',
+          message: `Your request to add staff member ${staffDoc.fullName} has been rejected.`,
+          link: '/staff/staff-list',
+          metadata: {
+            staffId: staffDoc._id.toString()
+          }
+        });
+      }
+
+      await Staff.findByIdAndDelete(id);
+
+      emitToUserRoom(req, ownerId, 'staff:deleted', { id });
+
+      res.json({
+        success: true,
+        message: 'Staff creation request rejected and deleted',
+      });
+
+    } else if (staffDoc.approvalStatus === 'pending_update') {
+      if (staffDoc.requestedBy) {
+        await createNotification({
+          recipientId: staffDoc.requestedBy,
+          recipientRole: 'staff',
+          gymId: staffDoc.gym,
+          type: 'staff_pending',
+          title: '❌ Staff Update Rejected',
+          message: `Your request to edit staff member ${staffDoc.fullName} has been rejected.`,
+          link: '/staff/staff-list',
+          metadata: {
+            staffId: staffDoc._id.toString()
+          }
+        });
+      }
+
+      staffDoc.approvalStatus = 'approved';
+      staffDoc.pendingUpdates = null;
+      staffDoc.requestedBy = null;
+      staffDoc.requestedAt = null;
+      await staffDoc.save();
+
+      emitToUserRoom(req, ownerId, 'staff:updated', staffDoc);
+
+      res.json({
+        success: true,
+        message: 'Staff update request rejected',
+        data: staffDoc,
+      });
+
+    } else if (staffDoc.approvalStatus === 'pending_delete') {
+      if (staffDoc.requestedBy) {
+        await createNotification({
+          recipientId: staffDoc.requestedBy,
+          recipientRole: 'staff',
+          gymId: staffDoc.gym,
+          type: 'staff_pending',
+          title: '❌ Staff Deletion Rejected',
+          message: `Your request to delete staff member ${staffDoc.fullName} has been rejected.`,
+          link: '/staff/staff-list',
+          metadata: {
+            staffId: staffDoc._id.toString()
+          }
+        });
+      }
+
+      staffDoc.approvalStatus = 'approved';
+      staffDoc.requestedBy = null;
+      staffDoc.requestedAt = null;
+      await staffDoc.save();
+
+      emitToUserRoom(req, ownerId, 'staff:updated', staffDoc);
+
+      res.json({
+        success: true,
+        message: 'Staff deletion request rejected',
+        data: staffDoc,
+      });
+    } else {
+      res.status(400).json({ success: false, message: 'No pending request to reject' });
+    }
+
+  } catch (error: any) {
+    console.error('Error rejecting staff request:', error);
+    res.status(500).json({ success: false, message: 'Server error during rejection', error: error.message });
   }
 };

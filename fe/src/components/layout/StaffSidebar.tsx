@@ -11,7 +11,15 @@ import {
     TrendingUp,
     CalendarCheck2,
     MessageSquareReply,
-    UserCog
+    UserCog,
+    Apple,
+    Sparkles,
+    Inbox,
+    GraduationCap,
+    CheckCircle2,
+    CalendarPlus,
+    ClipboardList,
+    MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useStaffPermissions } from '../../hooks/useStaffPermissions';
@@ -29,7 +37,9 @@ export const StaffSidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         canViewLeads,
         canViewStaff,
         isManager,
-        isTrainer
+        isTrainer,
+        isCleaner,
+        isReceptionist
     } = useStaffPermissions();
 
     const navigationItems = [
@@ -39,23 +49,35 @@ export const StaffSidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { name: 'Members', href: '/staff/members', icon: Users, show: canViewMembers },
 
         // { name: 'Profile', href: '/staff/profile', icon: User, show: true },
-        { name: 'My Follow-Ups', href: '/staff/follow-ups', icon: MessageSquareReply, show: true },
+        { name: isCleaner ? 'My Cleaning Tasks' : 'My Follow-Ups', href: '/staff/follow-ups', icon: MessageSquareReply, show: true },
+        { name: 'Cleaning Checklist', href: '/staff/cleaning', icon: Sparkles, show: isCleaner || isManager },
         { name: 'My Attendance', href: '/staff/attendance', icon: CalendarCheck2, show: true },
         // All Staff
-        { name: 'Calendar', href: '/staff/schedule', icon: CalendarCheck2, show: true },
+        { name: 'Calendar', href: '/staff/schedule', icon: CalendarCheck2, show: !isCleaner }, // Hide Calendar page link for Cleaner
 
         { name: 'Announcements', href: '/staff/announcements', icon: Bell, show: true },
 
         // Trainer Only
+        { name: 'My Classes', href: '/staff/my-classes', icon: GraduationCap, show: isTrainer },
         { name: 'My PT Clients', href: '/staff/pt-clients', icon: Users, show: isTrainer },
+        { name: 'Client Nutrition', href: '/staff/client-nutrition', icon: Apple, show: isTrainer },
 
         // Manager Only
         { name: 'Staff List', href: '/staff/staff-list', icon: UserCog, show: isManager && canViewStaff },
+        { name: 'Classes', href: '/staff/classes', icon: GraduationCap, show: isManager },
         { name: 'PT Assignments', href: '/staff/pt-assignments', icon: Dumbbell, show: isManager },
+        { name: 'Exercise Library', href: '/staff/exercises', icon: Dumbbell, show: isManager },
+        { name: 'Member Support', href: '/staff/member-support', icon: Inbox, show: isManager },
         // { name: 'Team Attendance', href: '/staff/team-attendance', icon: FileText, show: isManager },
 
         // Sales Only
         { name: 'Sales Leads', href: '/staff/enquiries', icon: TrendingUp, show: canViewLeads },
+
+        // Receptionist Only
+        { name: 'Check In / Out', href: '/staff/check-in', icon: CheckCircle2, show: isReceptionist },
+        { name: 'Book Class', href: '/staff/book-class', icon: CalendarPlus, show: isReceptionist },
+        { name: 'Book Appointment', href: '/staff/book-appointment', icon: ClipboardList, show: isReceptionist },
+        { name: 'Register Complaint', href: '/staff/complaints', icon: MessageSquare, show: isReceptionist },
     ];
 
     return (

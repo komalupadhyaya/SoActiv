@@ -12,6 +12,7 @@ export interface Announcement {
     priority: 'normal' | 'urgent';
     expiresAt: string;
     isActive: boolean;
+    isPlatformWide?: boolean;
     createdAt: string;
 }
 

@@ -6,6 +6,8 @@ import { Plus, Search, Filter } from 'lucide-react';
 import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { PTAssignModal } from '../../components/pt/PTAssignModal';
+import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 
 const statusColors = {
     active: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
@@ -19,15 +21,25 @@ export const PTAssignmentsPage: React.FC = () => {
     const { assignments, loading, fetchAssignments } = usePT();
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const { user } = useAuth();
+    const { addToast } = useToast();
 
     useEffect(() => {
         fetchAssignments();
     }, [fetchAssignments]);
 
     const filteredAssignments = assignments.filter(a =>
-        a.memberId.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        a.trainerId.fullName.toLowerCase().includes(searchQuery.toLowerCase())
+        (a.memberId?.fullName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (a.trainerId?.fullName || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    const handleAssignClick = () => {
+        if (user?.gymFeatures?.pt === false) {
+            addToast('Personal Training features have been disabled by platform administration.', 'error');
+            return;
+        }
+        setIsAssignModalOpen(true);
+    };
 
     return (
         <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -36,7 +48,7 @@ export const PTAssignmentsPage: React.FC = () => {
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white">PT Assignments</h1>
                     <p className="text-gray-500 dark:text-gray-400">View and manage member personal training subscriptions</p>
                 </div>
-                <Button onClick={() => setIsAssignModalOpen(true)}>
+                <Button onClick={handleAssignClick}>
                     <Plus size={16} className="mr-2" />
                     Assign PT
                 </Button>
@@ -81,15 +93,15 @@ export const PTAssignmentsPage: React.FC = () => {
                             {filteredAssignments.map((assignment) => (
                                 <tr key={assignment._id}>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm font-medium text-gray-900 dark:text-white">{assignment.memberId.fullName}</div>
-                                        <div className="text-xs text-gray-500">{assignment.memberId.contactNumber}</div>
+                                        <div className="text-sm font-medium text-gray-900 dark:text-white">{assignment.memberId?.fullName || 'Unknown Member'}</div>
+                                        <div className="text-xs text-gray-500">{assignment.memberId?.contactNumber || '--'}</div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm text-gray-900 dark:text-white">{assignment.planId.name}</div>
-                                        <div className="text-xs text-gray-500">{assignment.planId.totalSessions} Sessions</div>
+                                        <div className="text-sm text-gray-900 dark:text-white">{assignment.planId?.name || 'Unknown Plan'}</div>
+                                        <div className="text-xs text-gray-500">{assignment.planId?.totalSessions || 0} Sessions</div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm text-gray-900 dark:text-white">{assignment.trainerId.fullName}</div>
+                                        <div className="text-sm text-gray-900 dark:text-white">{assignment.trainerId?.fullName || 'Unknown Trainer'}</div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 max-w-[100px]">

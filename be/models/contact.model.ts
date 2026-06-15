@@ -1,8 +1,8 @@
 import mongoose, { Schema, Document, Types } from 'mongoose';
 
 export type ContactCategory = 'sales' | 'support' | 'billing' | 'feature_request' | 'other';
-export type ContactSource = 'public' | 'admin';
-export type ContactStatus = 'new' | 'read' | 'closed';
+export type ContactSource = 'public' | 'admin' | 'member';
+export type ContactStatus = 'new' | 'read' | 'escalated' | 'closed';
 
 export interface IContact extends Document {
     name: string;
@@ -13,6 +13,7 @@ export interface IContact extends Document {
     message: string;
     source: ContactSource;
     status: ContactStatus;
+    isEscalated?: boolean;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -53,13 +54,17 @@ const contactSchema = new Schema<IContact>(
         },
         source: {
             type: String,
-            enum: ['public', 'admin'],
+            enum: ['public', 'admin', 'member'],
             required: true,
         },
         status: {
             type: String,
-            enum: ['new', 'read', 'closed'],
+            enum: ['new', 'read', 'escalated', 'closed'],
             default: 'new',
+        },
+        isEscalated: {
+            type: Boolean,
+            default: false,
         },
     },
     {

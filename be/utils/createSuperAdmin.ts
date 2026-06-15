@@ -45,14 +45,11 @@ async function createSuperAdmin() {
             return;
         }
 
-        // Hash password with 10 salt rounds
-        const hashedPassword = await bcrypt.hash(SUPER_ADMIN_DATA.password, 10);
-
         // Create Super Admin
         const superAdmin = await User.create({
             fullname: SUPER_ADMIN_DATA.fullname,
             email: SUPER_ADMIN_DATA.email,
-            password: hashedPassword,
+            password: SUPER_ADMIN_DATA.password,
             role: SUPER_ADMIN_DATA.role,
             avatar: "default-avatar.png"
         });

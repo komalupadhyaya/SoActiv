@@ -146,11 +146,11 @@ export const createScheduleEvent = async (req: Request, res: Response) => {
         const user = (req as any).user;
         const adminId = await getAdminId(req);
 
-        // Security check: Only Admin or Manager can create
-        if (user.role === 'staff' && user.position !== 'manager') {
+        // Security check: Only Admin, Manager, or Receptionist can create
+        if (user.role === 'staff' && user.position !== 'manager' && user.position !== 'receptionist') {
             return res.status(403).json({
                 success: false,
-                message: 'Access denied. Only Admin or Manager can create schedules.'
+                message: 'Access denied. Only Admin, Manager, or Receptionist can create schedules.'
             });
         }
 
@@ -298,8 +298,8 @@ export const getAllScheduleEvents = async (req: Request, res: Response) => {
                 });
             }
 
-            // MANAGER sees ALL events for their admin
-            if (user.position === 'manager') {
+            // MANAGER and RECEPTIONIST see ALL events for their admin
+            if (user.position === 'manager' || user.position === 'receptionist') {
                 filter.adminId = staffDoc.createdBy;
             } else {
                 // STAFF (Trainer, Sales, Receptionist)
@@ -452,11 +452,11 @@ export const updateScheduleEvent = async (req: Request, res: Response) => {
         const user = (req as any).user;
         const adminId = await getAdminId(req);
 
-        // Security check: Only Admin or Manager can edit (Staff cannot edit)
-        if (user.role === 'staff' && user.position !== 'manager') {
+        // Security check: Only Admin, Manager, or Receptionist can edit
+        if (user.role === 'staff' && user.position !== 'manager' && user.position !== 'receptionist') {
             return res.status(403).json({
                 success: false,
-                message: 'Access denied. Only Admin or Manager can edit schedules.'
+                message: 'Access denied. Only Admin, Manager, or Receptionist can edit schedules.'
             });
         }
 
@@ -477,22 +477,12 @@ export const updateScheduleEvent = async (req: Request, res: Response) => {
         }
 
         // Access Control for Edit
-        // Admin: Can edit anything in their gym (adminId match)
-        // Manager: Can edit anything created by them OR in their gym?
-        // Requirement: "MANAGER: ... ❌ Cannot edit schedules created by admin"
-        // Implies Manager can ONLY edit schedules THEY created? Or maybe schedules assigned to them?
-        // Let's interpret "Cannot edit schedules created by admin" strictly.
-        if (user.role === 'staff' && user.position === 'manager') {
-            // If created by Admin (different user ID but same adminScope), deny.
-            // check if creator is an admin
-            // We can check if scheduleEvent.createdBy != user.id
-            // If manager didn't create it, they can't edit it? 
-            // "Cannot edit schedules created by admin" -> allows editing schedules created by other managers?
-            // Safest: ONLY edit if createdBy == user.id (Manager's own schedules)
+        if (user.role === 'staff' && (user.position === 'manager' || user.position === 'receptionist')) {
+            // Receptionists and Managers can only edit schedules they created.
             if (scheduleEvent.createdBy.toString() !== user.id) {
                 return res.status(403).json({
                     success: false,
-                    message: 'Managers can only edit schedules they created.'
+                    message: 'Staff can only edit schedules they created.'
                 });
             }
         } else if (user.role === 'admin' || user.role === 'superadmin') {

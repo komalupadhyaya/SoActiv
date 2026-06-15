@@ -1,10 +1,12 @@
 // controllers/followUp.controllers.ts
 
 import type { Request, Response } from 'express';
+import { Types } from 'mongoose';
 import { FollowUp } from '../models/followUp.model';
 import type { IFollowUp } from '../models/followUp.model';
 import Schedule from '../models/schedule.model';
 import { Staff } from '../models/staff.model';
+import { createNotification } from '../utils/notification.helper';
 
 /**
  * Helper: Get Admin ID (owner of the gym account)
@@ -28,6 +30,160 @@ const getAdminId = async (req: Request): Promise<string> => {
   // Default fallback
   return user.id;
 };
+
+/**
+ * Helper: Create or Update an Enquiry Follow-Up task
+ */
+export const createOrUpdateEnquiryFollowUp = async (
+  enquiryId: string,
+  name: string,
+  assignedStaff: string | null | undefined,
+  followUpDate: Date | string | null | undefined,
+  userId: string,
+  adminId: string,
+  noteText: string = 'Follow-up on lead'
+) => {
+  if (!assignedStaff || !followUpDate) {
+    // If cleared, cancel/delete pending follow-ups for this enquiry
+    await FollowUp.deleteMany({
+      relatedId: new Types.ObjectId(enquiryId),
+      type: 'enquiry',
+      status: 'pending'
+    });
+    return;
+  }
+
+  const scheduledDate = new Date(followUpDate);
+  if (isNaN(scheduledDate.getTime())) {
+    console.error(`Invalid follow-up date received: ${followUpDate}`);
+    return;
+  }
+
+  const scheduledTime = '10:00'; // Default time
+
+  // Check if a pending follow-up already exists for this enquiry
+  const existingFollowUp = await FollowUp.findOne({
+    relatedId: new Types.ObjectId(enquiryId),
+    type: 'enquiry',
+    status: 'pending'
+  });
+
+  if (existingFollowUp) {
+    // Update existing follow-up
+    existingFollowUp.assignedTo = new Types.ObjectId(assignedStaff);
+    existingFollowUp.scheduledDate = scheduledDate;
+    existingFollowUp.scheduledTime = scheduledTime;
+    existingFollowUp.note = noteText;
+    await existingFollowUp.save();
+
+    // Update corresponding schedule event if any
+    await Schedule.findOneAndUpdate(
+      { relatedFollowUp: existingFollowUp._id },
+      {
+        title: `Follow-up: ${name}`,
+        description: noteText,
+        scheduledDate,
+        scheduledTime,
+        startTime: scheduledTime,
+        assignedTo: [new Types.ObjectId(assignedStaff)],
+      }
+    );
+
+    // Send notification
+    try {
+      const staffDoc = await Staff.findById(assignedStaff);
+      if (staffDoc && staffDoc.userId) {
+        const formattedDate = scheduledDate.toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        });
+        await createNotification({
+          recipientId: staffDoc.userId.toString(),
+          recipientRole: 'staff',
+          gymId: staffDoc.gym?.toString(),
+          type: 'follow_up_due',
+          title: '📋 Follow-up Updated',
+          message: `A follow-up task for ${name} has been updated/re-assigned to you, scheduled on ${formattedDate} at ${scheduledTime}.`,
+          link: '/staff/follow-ups',
+          metadata: {
+            followUpId: existingFollowUp._id.toString(),
+            relatedId: enquiryId,
+            relatedName: name
+          }
+        });
+      }
+    } catch (err) {
+      console.error('Failed to notify staff about updated follow-up:', err);
+    }
+  } else {
+    // Create new follow-up
+    const followUp = await FollowUp.create({
+      userId: new Types.ObjectId(userId),
+      assignedTo: new Types.ObjectId(assignedStaff),
+      type: 'enquiry',
+      relatedId: new Types.ObjectId(enquiryId),
+      relatedName: name,
+      scheduledDate,
+      scheduledTime,
+      note: noteText,
+      status: 'pending'
+    });
+
+    // Create schedule event
+    try {
+      const staff = await Staff.findById(assignedStaff);
+      const roleScope = staff?.position ? [staff.position as any] : ['sales', 'trainer'];
+
+      await Schedule.create({
+        title: `Follow-up: ${name}`,
+        description: noteText,
+        scheduledDate,
+        scheduledTime,
+        startTime: scheduledTime,
+        adminId: new Types.ObjectId(adminId),
+        createdBy: new Types.ObjectId(userId),
+        assignedTo: [new Types.ObjectId(assignedStaff)],
+        type: 'followup',
+        roleScope,
+        isEditable: false,
+        relatedFollowUp: followUp._id,
+        status: 'pending'
+      });
+    } catch (err) {
+      console.error('Failed to create schedule event for follow-up:', err);
+    }
+
+    // Notify staff
+    try {
+      const staffDoc = await Staff.findById(assignedStaff);
+      if (staffDoc && staffDoc.userId) {
+        const formattedDate = scheduledDate.toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        });
+        await createNotification({
+          recipientId: staffDoc.userId.toString(),
+          recipientRole: 'staff',
+          gymId: staffDoc.gym?.toString(),
+          type: 'follow_up_due',
+          title: '📋 New Follow-up Assigned',
+          message: `You have been assigned a new follow-up for ${name} scheduled on ${formattedDate} at ${scheduledTime}.`,
+          link: '/staff/follow-ups',
+          metadata: {
+            followUpId: followUp._id.toString(),
+            relatedId: enquiryId,
+            relatedName: name
+          }
+        });
+      }
+    } catch (err) {
+      console.error('Failed to notify staff about new follow-up:', err);
+    }
+  }
+};
+
 
 /**
  * @route   POST /api/v1/follow-up
@@ -122,6 +278,35 @@ export const createFollowUp = async (req: Request, res: Response) => {
       // Don't fail the follow-up creation if schedule creation fails
     }
 
+    // SEND INITIAL ASSIGNMENT NOTIFICATION
+    try {
+      const staffDoc = await Staff.findById(assignedTo);
+      if (staffDoc && staffDoc.userId) {
+        const formattedDate = new Date(scheduledDate).toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        });
+        await createNotification({
+          recipientId: staffDoc.userId.toString(),
+          recipientRole: 'staff',
+          gymId: staffDoc.gym?.toString(),
+          type: 'follow_up_due',
+          title: '📋 New Follow-up Assigned',
+          message: `You have been assigned a new follow-up for ${relatedName} scheduled on ${formattedDate} at ${scheduledTime}.`,
+          link: '/staff/follow-ups',
+          metadata: {
+            followUpId: (followUp as any)._id.toString(),
+            relatedId: relatedId.toString(),
+            relatedName
+          }
+        });
+        console.log(`[FollowUpNotif] Dispatched assignment notification to staff user ${staffDoc.userId}`);
+      }
+    } catch (notifError) {
+      console.error('Failed to send notification for follow-up assignment:', notifError);
+    }
+
     return res.status(201).json({
       success: true,
       message: 'Follow-up created successfully',
@@ -161,9 +346,16 @@ export const getAllFollowUps = async (req: Request, res: Response) => {
     }
 
     // Role-based filtering
-    if (user.role === 'sales' || user.role === 'trainer') {
+    if (user.role === 'staff') {
+      if (user.position === 'cleaner') {
+        filter.assignedTo = user.staffId;
+        filter.type = 'other';
+      } else if (user.position === 'sales' || user.position === 'trainer') {
+        filter.assignedTo = user.staffId;
+      }
+    } else if (user.role === 'sales' || user.role === 'trainer') {
       // Sales and trainers can only see their own follow-ups
-      filter.assignedTo = user._id;
+      filter.assignedTo = user.staffId || user.id || user._id;
     }
 
     const followUps = await FollowUp.find(filter)
@@ -207,8 +399,15 @@ export const getUpcomingFollowUps = async (req: Request, res: Response) => {
     };
 
     // Role-based filtering
-    if (user.role === 'sales' || user.role === 'trainer') {
-      filter.assignedTo = user._id;
+    if (user.role === 'staff') {
+      if (user.position === 'cleaner') {
+        filter.assignedTo = user.staffId;
+        filter.type = 'other';
+      } else if (user.position === 'sales' || user.position === 'trainer') {
+        filter.assignedTo = user.staffId;
+      }
+    } else if (user.role === 'sales' || user.role === 'trainer') {
+      filter.assignedTo = user.staffId || user.id || user._id;
     }
 
     const followUps = await FollowUp.find(filter)
@@ -377,6 +576,11 @@ export const getMyFollowUps = async (req: Request, res: Response) => {
 
     // Build filter for staff's own follow-ups
     const filter: any = { assignedTo: user.staffId };
+
+    // If user is a cleaner, only allow general / cleaning tasks ('other')
+    if (user.position === 'cleaner') {
+      filter.type = 'other';
+    }
 
     if (status) filter.status = status;
     if (date) {
@@ -574,6 +778,304 @@ export const failFollowUp = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to mark follow-up as failed',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * @route   PUT /api/v1/follow-up/:id/reschedule
+ * @desc    Request a reschedule for a follow-up (sets status to reschedule_pending awaiting admin approval)
+ * @access  Private (Staff)
+ */
+export const rescheduleFollowUp = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { newScheduledDate, newScheduledTime, rescheduleNotes } = req.body;
+    const user = (req as any).user;
+
+    if (!newScheduledDate || !newScheduledTime || !rescheduleNotes) {
+      return res.status(400).json({
+        success: false,
+        message: 'newScheduledDate, newScheduledTime, and rescheduleNotes are required'
+      });
+    }
+
+    // Find original pending follow-up and verify ownership/assignment to logged-in staff
+    const originalFollowUp = await FollowUp.findOne({ _id: id, assignedTo: user.staffId });
+    if (!originalFollowUp) {
+      return res.status(404).json({
+        success: false,
+        message: 'Follow-up not found or not assigned to you'
+      });
+    }
+
+    if (originalFollowUp.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only pending follow-ups can be rescheduled'
+      });
+    }
+
+    const adminId = await getAdminId(req);
+
+    // 1. Mark original follow-up as reschedule_pending and store details
+    originalFollowUp.status = 'reschedule_pending';
+    originalFollowUp.proposedDate = new Date(newScheduledDate);
+    originalFollowUp.proposedTime = newScheduledTime;
+    originalFollowUp.rescheduleReason = rescheduleNotes;
+    await originalFollowUp.save();
+
+    // 2. Dispatch alert notification to Admin
+    try {
+      await createNotification({
+        recipientId: adminId,
+        recipientRole: 'admin',
+        gymId: originalFollowUp.userId.toString(),
+        type: 'follow_up_due',
+        title: '📅 Reschedule Request',
+        message: `Staff member requested to reschedule the follow-up for ${originalFollowUp.relatedName} to ${newScheduledDate} at ${newScheduledTime}.`,
+        link: '/admin/follow-ups',
+        metadata: {
+          followUpId: (originalFollowUp as any)._id.toString()
+        }
+      });
+    } catch (notifError) {
+      console.error('Failed to dispatch reschedule request notification to admin:', notifError);
+    }
+
+    const populatedOriginal = await FollowUp.findById(originalFollowUp._id)
+      .populate('assignedTo', 'fullName position email')
+      .populate('userId', 'fullname email');
+
+    return res.status(200).json({
+      success: true,
+      message: 'Reschedule request submitted successfully to Admin for approval',
+      data: populatedOriginal
+    });
+  } catch (error: any) {
+    console.error('Reschedule follow-up error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to submit reschedule request',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * @route   PUT /api/v1/follow-up/:id/approve-reschedule
+ * @desc    Approve a follow-up reschedule request (Admin only)
+ * @access  Private (Admin)
+ */
+export const approveReschedule = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = (req as any).user;
+
+    // Restrict to Admin
+    if (user.role !== 'admin' && user.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Forbidden: Only admins can approve reschedules'
+      });
+    }
+
+    const followUp = await FollowUp.findById(id);
+    if (!followUp) {
+      return res.status(404).json({
+        success: false,
+        message: 'Follow-up not found'
+      });
+    }
+
+    if (followUp.status !== 'reschedule_pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'This follow-up is not awaiting reschedule approval'
+      });
+    }
+
+    const { proposedDate, proposedTime, rescheduleReason } = followUp;
+    if (!proposedDate || !proposedTime) {
+      return res.status(400).json({
+        success: false,
+        message: 'No proposed reschedule date or time found'
+      });
+    }
+
+    // 1. Mark original follow-up as rescheduled
+    followUp.status = 'rescheduled';
+    followUp.completedBy = user.id; // Admin ID
+    followUp.completedAt = new Date();
+    followUp.completionNotes = `Approved reschedule to ${proposedDate.toLocaleDateString()} at ${proposedTime}. Reason: ${rescheduleReason}`;
+    await followUp.save();
+
+    // 2. Create the NEW pending follow-up with the new date/time
+    const newFollowUp = await FollowUp.create({
+      userId: followUp.userId,
+      assignedTo: followUp.assignedTo,
+      type: followUp.type,
+      relatedId: followUp.relatedId,
+      relatedName: followUp.relatedName,
+      scheduledDate: proposedDate,
+      scheduledTime: proposedTime,
+      note: `[Rescheduled] ${rescheduleReason || ''} (Prev notes: ${followUp.note})`,
+      status: 'pending',
+      reminderSent: false
+    });
+
+    const adminId = await getAdminId(req);
+
+    // 3. Create schedule event for the new follow-up
+    try {
+      const staff = await Staff.findById(followUp.assignedTo);
+      const roleScope = staff?.position ? [staff.position as any] : ['sales', 'trainer'];
+
+      await Schedule.create({
+        title: `Follow-up: ${followUp.relatedName}`,
+        description: `[Rescheduled] ${rescheduleReason || ''}`,
+        scheduledDate: proposedDate,
+        scheduledTime: proposedTime,
+        startTime: proposedTime,
+        adminId: adminId,
+        createdBy: user.id,
+        assignedTo: [followUp.assignedTo],
+        type: 'followup',
+        roleScope,
+        isEditable: false,
+        relatedFollowUp: newFollowUp._id,
+        status: 'pending'
+      });
+    } catch (scheduleError) {
+      console.error('Failed to create calendar schedule on reschedule approval:', scheduleError);
+    }
+
+    // 4. Notify staff member
+    try {
+      const staffDoc = await Staff.findById(followUp.assignedTo);
+      if (staffDoc && staffDoc.userId) {
+        const formattedDate = proposedDate.toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        });
+        await createNotification({
+          recipientId: staffDoc.userId.toString(),
+          recipientRole: 'staff',
+          gymId: staffDoc.gym?.toString(),
+          type: 'follow_up_due',
+          title: '✅ Reschedule Request Approved',
+          message: `Admin approved your reschedule request for ${followUp.relatedName} to ${formattedDate} at ${proposedTime}.`,
+          link: '/staff/follow-ups',
+          metadata: {
+            followUpId: (newFollowUp as any)._id.toString()
+          }
+        });
+      }
+    } catch (notifError) {
+      console.error('Failed to dispatch approval notification to staff:', notifError);
+    }
+
+    const populatedOriginal = await FollowUp.findById(followUp._id)
+      .populate('assignedTo', 'fullName position email')
+      .populate('userId', 'fullname email')
+      .populate('completedBy', 'fullName');
+
+    return res.status(200).json({
+      success: true,
+      message: 'Reschedule request approved successfully',
+      data: {
+        originalFollowUp: populatedOriginal,
+        newFollowUp
+      }
+    });
+  } catch (error: any) {
+    console.error('Approve reschedule error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to approve reschedule request',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * @route   PUT /api/v1/follow-up/:id/reject-reschedule
+ * @desc    Reject a follow-up reschedule request (Admin only)
+ * @access  Private (Admin)
+ */
+export const rejectReschedule = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { comments } = req.body;
+    const user = (req as any).user;
+
+    // Restrict to Admin
+    if (user.role !== 'admin' && user.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Forbidden: Only admins can reject reschedules'
+      });
+    }
+
+    const followUp = await FollowUp.findById(id);
+    if (!followUp) {
+      return res.status(404).json({
+        success: false,
+        message: 'Follow-up not found'
+      });
+    }
+
+    if (followUp.status !== 'reschedule_pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'This follow-up is not awaiting reschedule approval'
+      });
+    }
+
+    // 1. Reset original follow-up to pending status
+    followUp.status = 'pending';
+    followUp.proposedDate = null;
+    followUp.proposedTime = null;
+    followUp.rescheduleReason = null;
+    await followUp.save();
+
+    // 2. Notify staff member of rejection with comments
+    try {
+      const staffDoc = await Staff.findById(followUp.assignedTo);
+      if (staffDoc && staffDoc.userId) {
+        await createNotification({
+          recipientId: staffDoc.userId.toString(),
+          recipientRole: 'staff',
+          gymId: staffDoc.gym?.toString(),
+          type: 'follow_up_due',
+          title: '❌ Reschedule Request Rejected',
+          message: `Admin rejected your reschedule request for ${followUp.relatedName}. Notes: ${comments || 'No explanation provided.'}`,
+          link: '/staff/follow-ups',
+          metadata: {
+            followUpId: (followUp as any)._id.toString()
+          }
+        });
+      }
+    } catch (notifError) {
+      console.error('Failed to dispatch rejection notification to staff:', notifError);
+    }
+
+    const populatedFollowUp = await FollowUp.findById(followUp._id)
+      .populate('assignedTo', 'fullName position email')
+      .populate('userId', 'fullname email');
+
+    return res.status(200).json({
+      success: true,
+      message: 'Reschedule request rejected successfully',
+      data: populatedFollowUp
+    });
+  } catch (error: any) {
+    console.error('Reject reschedule error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to reject reschedule request',
       error: error.message
     });
   }

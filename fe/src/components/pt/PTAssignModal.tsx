@@ -21,7 +21,7 @@ export const PTAssignModal: React.FC<PTAssignModalProps> = ({
     onSuccess,
     preSelectedMemberId
 }) => {
-    const { plans, fetchPlans, assignPT } = usePT();
+    const { plans, fetchPlans, assignPT, assignments, fetchAssignments } = usePT();
     const { clients, fetchClients } = useClient();
     const { staff, fetchAllStaff } = useStaff();
     const { addToast } = useToast();
@@ -38,8 +38,9 @@ export const PTAssignModal: React.FC<PTAssignModalProps> = ({
             fetchPlans();
             fetchClients(); // Optimize: maybe just search? But for now fetch all is safer for select
             fetchAllStaff();
+            fetchAssignments();
         }
-    }, [isOpen, fetchPlans, fetchClients, fetchAllStaff]);
+    }, [isOpen, fetchPlans, fetchClients, fetchAllStaff, fetchAssignments]);
 
     useEffect(() => {
         if (preSelectedMemberId) {
@@ -51,8 +52,22 @@ export const PTAssignModal: React.FC<PTAssignModalProps> = ({
     const activePlans = plans.filter(p => p.isActive);
     const trainers = staff.filter(s => s.position.toLowerCase() === 'trainer' && s.status === 'active');
 
-    // Create options
-    const clientOptions = clients.map(c => ({ value: c._id, label: c.fullName }));
+    const activePtMemberIds = new Set(
+        assignments
+            .filter(a => a.status === 'active')
+            .map(a => {
+                if (typeof a.memberId === 'object' && a.memberId !== null) {
+                    return a.memberId._id;
+                }
+                return a.memberId;
+            })
+            .filter(Boolean)
+    );
+
+    // Create options - exclude members who already have active PT
+    const clientOptions = clients
+        .filter(c => !c.hasPersonalTraining && !activePtMemberIds.has(c._id))
+        .map(c => ({ value: c._id, label: c.fullName }));
     const planOptions = activePlans.map(p => ({ value: p._id, label: `${p.name} - ${p.totalSessions} Sessions - ₹${p.price}` }));
     const trainerOptions = trainers.map(t => ({ value: t._id, label: t.fullName }));
 

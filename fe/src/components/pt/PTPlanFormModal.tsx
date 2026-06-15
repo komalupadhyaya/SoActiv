@@ -91,9 +91,22 @@ export const PTPlanFormModal: React.FC<PTPlanFormModalProps> = ({
                     type="number"
                     min="0"
                     value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) => {
+                        const val = e.target.value;
+                        setFormData({ ...formData, price: val === '' ? '' as any : parseFloat(val) || 0 });
+                    }}
+                    onFocus={() => {
+                        if (formData.price === 0 || (formData.price as any) === '0') {
+                            setFormData({ ...formData, price: '' as any });
+                        }
+                    }}
+                    onBlur={() => {
+                        if ((formData.price as any) === '' || formData.price === undefined || formData.price === null) {
+                            setFormData({ ...formData, price: 0 });
+                        }
+                    }}
                     required
-                    leftIcon={<span className="text-gray-500">$</span>} // Or rupee symbol depending on context
+                    leftIcon={<span className="text-gray-500">₹</span>}
                 />
 
                 <div className="flex flex-col gap-1">

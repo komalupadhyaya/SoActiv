@@ -4,6 +4,7 @@ import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { User, Phone, Mail, MapPin, UserCheck, Calendar, Dumbbell, IndianRupee } from 'lucide-react';
 import { useStaff } from '../../hooks/useStaff';
+import { usePT } from '../../hooks/usePT';
 
 interface ClientRegistrationFormProps {
   onClose: () => void;
@@ -12,7 +13,14 @@ interface ClientRegistrationFormProps {
 }
 
 export const ClientRegistrationForm: React.FC<ClientRegistrationFormProps> = ({ onClose, onSubmit, initialData }) => {
-  const { staff, loading: staffLoading } = useStaff();
+  const { staff, loading: staffLoading, fetchAllStaff } = useStaff();
+  const { plans: ptPlans, fetchPlans: fetchPTPlans, assignPT } = usePT();
+
+  // Load staff/trainers and PT plans on component mount
+  useEffect(() => {
+    fetchAllStaff();
+    fetchPTPlans();
+  }, [fetchAllStaff, fetchPTPlans]);
 
   const [formData, setFormData] = useState({
     // Personal Info
@@ -49,6 +57,8 @@ export const ClientRegistrationForm: React.FC<ClientRegistrationFormProps> = ({ 
     personalTrainer: '',
     personalTrainingDurationWeeks: '',
     personalTrainingPrice: '',
+    ptPlanId: '',
+    ptStartDate: new Date().toISOString().split('T')[0],
 
     // 🔥 New: Plan field
     plan: 'basic' as 'basic' | 'premium',
@@ -105,6 +115,8 @@ export const ClientRegistrationForm: React.FC<ClientRegistrationFormProps> = ({ 
         personalTrainer: initialData.personalTrainer || '',
         personalTrainingDurationWeeks: initialData.personalTrainingDurationWeeks?.toString() || '',
         personalTrainingPrice: initialData.personalTrainingPrice?.toString() || '',
+        ptPlanId: '',
+        ptStartDate: initialData.startDate ? new Date(initialData.startDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         plan: initialData.plan || 'basic',
         timing: initialData.timing || '',
         notifications: initialData.notifications || {
@@ -116,6 +128,23 @@ export const ClientRegistrationForm: React.FC<ClientRegistrationFormProps> = ({ 
       });
     }
   }, [initialData]);
+
+  // Match initial client PT fields with predefined PT Plans
+  useEffect(() => {
+    if (initialData && ptPlans.length > 0 && initialData.hasPersonalTraining) {
+      const matchedPlan = ptPlans.find(
+        (p) =>
+          p.price === initialData.personalTrainingPrice &&
+          Math.round(p.validityDays / 7) === initialData.personalTrainingDurationWeeks
+      );
+      if (matchedPlan) {
+        setFormData((prev) => ({
+          ...prev,
+          ptPlanId: matchedPlan._id,
+        }));
+      }
+    }
+  }, [initialData, ptPlans]);
 
   // Filter staff
   const salesReps = staff
@@ -129,6 +158,10 @@ export const ClientRegistrationForm: React.FC<ClientRegistrationFormProps> = ({ 
   const trainers = staff
     .filter(s => s.position?.toLowerCase().includes('trainer'))
     .map(s => ({ value: s._id, label: s.fullName }));
+
+  const ptPlanOptions = ptPlans
+    .filter(p => p.isActive)
+    .map(p => ({ value: p._id, label: `${p.name} - ${p.totalSessions} Sessions - ₹${p.price}` }));
 
   const allStaffOptions = staff.map(s => ({ value: s._id, label: `${s.fullName} (${s.position || 'Staff'})` }));
 
@@ -173,8 +206,34 @@ export const ClientRegistrationForm: React.FC<ClientRegistrationFormProps> = ({ 
 
     const result = await onSubmit(payload);
     if (result.success) {
+      if (formData.hasPersonalTraining && formData.ptPlanId && formData.personalTrainer) {
+        // Create PT Assignment on successful client creation
+        const memberId = result.data?._id || result.data?.id;
+        if (memberId) {
+          try {
+            await assignPT({
+              memberId,
+              planId: formData.ptPlanId,
+              trainerId: formData.personalTrainer,
+              startDate: formData.ptStartDate,
+            });
+          } catch (ptError) {
+            console.error('Failed to create PT Assignment:', ptError);
+          }
+        }
+      }
       onClose();
     }
+  };
+
+  const handlePTPlanChange = (planId: string) => {
+    const selectedPlan = ptPlans.find((p) => p._id === planId);
+    setFormData((prev) => ({
+      ...prev,
+      ptPlanId: planId,
+      personalTrainingDurationWeeks: selectedPlan ? Math.round(selectedPlan.validityDays / 7).toString() : '',
+      personalTrainingPrice: selectedPlan ? selectedPlan.price.toString() : '',
+    }));
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -442,22 +501,18 @@ export const ClientRegistrationForm: React.FC<ClientRegistrationFormProps> = ({ 
                   value={formData.personalTrainer}
                   onChange={(value) => handleInputChange('personalTrainer', value)}
                 />
-                <Input
-                  label="Duration (Weeks)"
-                  type="number"
-                  placeholder="e.g., 12"
-                  value={formData.personalTrainingDurationWeeks}
-                  onChange={(e) => handleInputChange('personalTrainingDurationWeeks', e.target.value)}
+                <Select
+                  label="Select Plan"
+                  options={[{ value: '', label: 'Select Plan' }, ...ptPlanOptions]}
+                  value={formData.ptPlanId}
+                  onChange={(value) => handlePTPlanChange(value)}
                   required
                 />
                 <Input
-                  label="PT Price (Rs.)"
-                  type="number"
-                  step="0.01"
-                  placeholder="Enter PT price"
-                  leftIcon={<IndianRupee size={16} />}
-                  value={formData.personalTrainingPrice}
-                  onChange={(e) => handleInputChange('personalTrainingPrice', e.target.value)}
+                  label="Start Date"
+                  type="date"
+                  value={formData.ptStartDate}
+                  onChange={(e) => handleInputChange('ptStartDate', e.target.value)}
                   required
                 />
               </div>

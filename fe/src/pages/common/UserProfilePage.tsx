@@ -337,7 +337,7 @@ export const UserProfilePage = () => {
                                                             message: 'Must be at least 6 characters'
                                                         }
                                                     })}
-                                                    placeholder="Min 6 chars"
+                                                    placeholder="Enter new password"
                                                 />
                                                 {errors.newPassword && (
                                                     <p className="text-xs text-red-500 mt-1">

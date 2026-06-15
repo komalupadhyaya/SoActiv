@@ -210,7 +210,9 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
                 type: formData.type,
                 assignedTo: formData.assignedTo,
                 isEditable: true,
-                holidayType: formData.type === 'holiday' ? formData.holidayType : undefined
+                holidayType: formData.type === 'holiday' ? formData.holidayType : undefined,
+                startDate: formData.type === 'holiday' ? formData.scheduledDate : undefined,
+                endDate: formData.type === 'holiday' ? formData.scheduledDate : undefined
             };
 
             let result;

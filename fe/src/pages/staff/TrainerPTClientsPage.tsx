@@ -51,8 +51,8 @@ export const TrainerPTClientsPage: React.FC = () => {
                         <CardContent className="p-6">
                             <div className="flex justify-between items-start mb-4">
                                 <div>
-                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">{assignment.memberId.fullName}</h3>
-                                    <p className="text-sm text-gray-500">{assignment.planId.name}</p>
+                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">{assignment.memberId?.fullName || 'Unknown Member'}</h3>
+                                    <p className="text-sm text-gray-500">{assignment.planId?.name || 'Unknown Plan'}</p>
                                 </div>
                                 <Badge className={assignment.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
                                     {assignment.status}
@@ -118,7 +118,7 @@ export const TrainerPTClientsPage: React.FC = () => {
                     isOpen={isLogModalOpen}
                     onClose={() => setIsLogModalOpen(false)}
                     onSubmit={handleLogSubmit}
-                    clientName={selectedAssignment.memberId.fullName}
+                    clientName={selectedAssignment.memberId?.fullName || 'Unknown Member'}
                     isSubmitting={isSubmitting}
                 />
             )}

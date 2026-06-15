@@ -38,33 +38,28 @@ export const checkPlanLimit = (resource: 'members' | 'staff') => {
         const planName = gym.plan || 'free';
         const plan = await Plan.findOne({ name: planName, isActive: true, deletedAt: null });
 
-        if (!plan) {
-            // Fallback to default limits if plan not found
-            throw new ApiError(
-                HttpStatusCode.INTERNAL_SERVER_ERROR,
-                "Plan configuration not found. Please contact support."
-            );
-        }
-
         // Check current count based on resource type
         let currentCount = 0;
-        let limit = 0;
+        let limit = 0; // 0 means Unlimited in our system
         let resourceName = '';
+        let displayName = '';
 
         if (resource === 'members') {
             // Count members for this gym (by gym owner)
             currentCount = await Client.countDocuments({ userId: gym.owner });
-            limit = plan.maxMembers;
+            limit = plan ? plan.maxMembers : 100; // safe default fallback if plan not in DB
             resourceName = 'members';
+            displayName = plan ? plan.displayName : `${planName.toUpperCase()} Plan`;
         } else if (resource === 'staff') {
             // Count staff for this gym
             currentCount = await Staff.countDocuments({ createdBy: gym.owner });
-            limit = plan.maxStaff;
+            limit = plan ? plan.maxStaff : 10; // safe default fallback if plan not in DB
             resourceName = 'staff';
+            displayName = plan ? plan.displayName : `${planName.toUpperCase()} Plan`;
         }
 
-        // Check if limit exceeded (Infinity means unlimited)
-        if (limit !== Infinity && currentCount >= limit) {
+        // Check if limit exceeded (0 or Infinity means unlimited)
+        if (limit !== 0 && limit !== Infinity && currentCount >= limit) {
             throw new ApiError(
                 HttpStatusCode.FORBIDDEN,
                 `You have reached your plan limit of ${limit} ${resourceName}. Please upgrade your plan to add more.`
@@ -75,9 +70,9 @@ export const checkPlanLimit = (resource: 'members' | 'staff') => {
         (req as any).planLimit = {
             resource,
             current: currentCount,
-            limit,
-            remaining: limit === Infinity ? Infinity : limit - currentCount,
-            planName: plan.displayName
+            limit: limit === 0 ? Infinity : limit,
+            remaining: limit === 0 ? Infinity : limit - currentCount,
+            planName: displayName
         };
 
         next();

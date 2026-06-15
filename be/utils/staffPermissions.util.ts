@@ -20,15 +20,13 @@ export const getVisibleStaffIds = async (
         // Admin sees all staff they created
         staffList = await Staff.find({
             createdBy: userId,
-            status: 'active',
         }).select('_id');
-    } else if (userRole === 'staff' && userPosition === 'manager') {
-        // Manager sees all staff created by the same admin
+    } else if (userRole === 'staff' && (userPosition === 'manager' || userPosition === 'receptionist')) {
+        // Manager and Receptionist see all staff created by the same admin
         const currentStaff = await Staff.findOne({ userId });
         if (currentStaff && currentStaff.createdBy) {
             staffList = await Staff.find({
                 createdBy: currentStaff.createdBy,
-                status: 'active',
             }).select('_id');
         } else {
             staffList = [];
@@ -56,14 +54,12 @@ export const getVisibleStaff = async (
     if (userRole === 'admin') {
         return await Staff.find({
             createdBy: userId,
-            status: 'active',
         }).select(selectFields);
-    } else if (userRole === 'staff' && userPosition === 'manager') {
+    } else if (userRole === 'staff' && (userPosition === 'manager' || userPosition === 'receptionist')) {
         const currentStaff = await Staff.findOne({ userId });
         if (currentStaff && currentStaff.createdBy) {
             return await Staff.find({
                 createdBy: currentStaff.createdBy,
-                status: 'active',
             }).select(selectFields);
         }
         return [];

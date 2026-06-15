@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
     Menu,
     Sun,
@@ -9,30 +9,26 @@ import {
     ChevronRight,
     LogOut,
     X,
+    CheckCheck,
+    Trash2,
 } from 'lucide-react';
 
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-
-interface Notification {
-    id: string;
-    message: string;
-    timestamp: string;
-}
+import { useNotifications } from '../../hooks/useNotifications';
 
 interface StaffTopbarProps {
     onMobileMenuToggle: () => void;
     isMobileMenuOpen: boolean;
-    activities?: Notification[];
+    // Legacy props kept for backwards compatibility
+    activities?: any[];
     markAsSeen?: () => void;
 }
 
 export const StaffTopbar: React.FC<StaffTopbarProps> = ({
     onMobileMenuToggle,
     isMobileMenuOpen,
-    activities = [],
-    markAsSeen = () => { },
 }) => {
     const { theme, toggleTheme } = useTheme();
     const { user, logout } = useAuth();
@@ -40,43 +36,16 @@ export const StaffTopbar: React.FC<StaffTopbarProps> = ({
 
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-
-    const [seenNotificationIds, setSeenNotificationIds] = useState<Set<string>>(new Set());
     const [currentPage, setCurrentPage] = useState(0);
     const ITEMS_PER_PAGE = 6;
-    const totalPages = Math.ceil(activities.length / ITEMS_PER_PAGE);
 
-    const hasNewNotifications =
-        activities.length > 0 && activities.some((a) => !seenNotificationIds.has(a.id));
-
-    useEffect(() => {
-        const saved = localStorage.getItem('notifications.seenIds');
-        if (saved) {
-            try {
-                const parsed = JSON.parse(saved);
-                if (Array.isArray(parsed)) {
-                    setSeenNotificationIds(new Set(parsed));
-                }
-            } catch (e) {
-                console.error('Failed to load seen notifications', e);
-            }
-        }
-    }, []);
-
-    useEffect(() => {
-        localStorage.setItem('notifications.seenIds', JSON.stringify(Array.from(seenNotificationIds)));
-    }, [seenNotificationIds]);
+    const { notifications, unreadCount, markRead, markAllAsRead, clearAll, deleteOne } = useNotifications();
+    const totalPages = Math.ceil(notifications.length / ITEMS_PER_PAGE);
+    const hasNewNotifications = unreadCount > 0;
 
     const toggleNotifications = () => {
         setIsNotificationOpen((prev) => !prev);
         setShowProfileMenu(false);
-
-        if (!isNotificationOpen && hasNewNotifications) {
-            const updatedSeen = new Set(seenNotificationIds);
-            activities.forEach((activity) => updatedSeen.add(activity.id));
-            setSeenNotificationIds(updatedSeen);
-            markAsSeen();
-        }
     };
 
     const closeAllMenus = () => {
@@ -84,25 +53,14 @@ export const StaffTopbar: React.FC<StaffTopbarProps> = ({
         setShowProfileMenu(false);
     };
 
-    useEffect(() => {
-        if (isNotificationOpen) {
-            setCurrentPage(0);
-        }
-    }, [isNotificationOpen]);
-
     const paginatedNotifications = useMemo(() => {
         const start = currentPage * ITEMS_PER_PAGE;
         const end = start + ITEMS_PER_PAGE;
-        return activities.slice(start, end);
-    }, [activities, currentPage]);
+        return notifications.slice(start, end);
+    }, [notifications, currentPage]);
 
-    const goToPreviousPage = () => {
-        if (currentPage > 0) setCurrentPage((prev) => prev - 1);
-    };
-
-    const goToNextPage = () => {
-        if (currentPage < totalPages - 1) setCurrentPage((prev) => prev + 1);
-    };
+    const goToPreviousPage = () => { if (currentPage > 0) setCurrentPage((prev) => prev - 1); };
+    const goToNextPage = () => { if (currentPage < totalPages - 1) setCurrentPage((prev) => prev + 1); };
 
     // NEW: helper to go to staff profile page
     const handleProfileClick = () => {
@@ -154,7 +112,9 @@ export const StaffTopbar: React.FC<StaffTopbarProps> = ({
                         >
                             <Bell size={18} />
                             {hasNewNotifications && (
-                                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
+                                <span className="absolute -top-1 -right-1 flex items-center justify-center w-4 h-4 text-[10px] font-bold bg-red-500 text-white rounded-full">
+                                    {unreadCount > 9 ? '9+' : unreadCount}
+                                </span>
                             )}
                         </button>
                         {isNotificationOpen && (
@@ -165,7 +125,24 @@ export const StaffTopbar: React.FC<StaffTopbarProps> = ({
                                 <div className="p-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
                                     <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
                                         Notifications
+                                        {unreadCount > 0 && (
+                                            <span className="ml-2 px-1.5 py-0.5 text-xs bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 rounded-full">
+                                                {unreadCount} new
+                                            </span>
+                                        )}
                                     </h3>
+                                    <div className="flex items-center gap-2">
+                                        {unreadCount > 0 && (
+                                            <button onClick={markAllAsRead} className="flex items-center gap-1 text-xs text-orange-600 dark:text-orange-400 hover:underline">
+                                                <CheckCheck size={13} /> Mark read
+                                            </button>
+                                        )}
+                                        {notifications.length > 0 && (
+                                            <button onClick={clearAll} className="flex items-center gap-1 text-xs text-red-600 dark:text-red-400 hover:underline">
+                                                <Trash2 size={13} /> Clear all
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
 
                                 <div className="flex-1 overflow-y-auto p-2 space-y-2">
@@ -174,25 +151,49 @@ export const StaffTopbar: React.FC<StaffTopbarProps> = ({
                                             No notifications
                                         </p>
                                     ) : (
-                                        paginatedNotifications.map((activity) => (
-                                            <div
-                                                key={activity.id}
-                                                className={`p-3 border border-gray-200  bg-white dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${seenNotificationIds.has(activity.id)
-                                                        ? 'bg-gray-800 dark:bg-gray-750'
-                                                        : 'ring-1 ring-orange-200 dark:ring-orange-800 bg-orange-50 dark:bg-orange-900/20'
+                                        paginatedNotifications.map((notif) => (
+                                            <div key={notif._id} className="relative group w-full">
+                                                <button
+                                                    onClick={() => {
+                                                        markRead(notif._id);
+                                                        if (notif.link) {
+                                                            const targetId = notif.metadata?.followUpId ||
+                                                                             notif.metadata?.staffId ||
+                                                                             notif.metadata?.clientId ||
+                                                                             notif.metadata?.enquiryId;
+                                                            const targetLink = targetId && !notif.link.includes('id=')
+                                                                ? `${notif.link}${notif.link.includes('?') ? '&' : '?'}id=${targetId}`
+                                                                : notif.link;
+                                                            navigate(targetLink);
+                                                        }
+                                                        setIsNotificationOpen(false);
+                                                    }}
+                                                    className={`w-full text-left p-3 pr-10 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                                                        notif.isRead
+                                                            ? 'bg-white dark:bg-gray-800'
+                                                            : 'ring-1 ring-orange-200 dark:ring-orange-800 bg-orange-50 dark:bg-orange-900/20'
                                                     }`}
-                                            >
-                                                <p className="text-sm text-gray-800 dark:text-gray-200">
-                                                    {activity.message}
-                                                </p>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                                    {new Date(activity.timestamp).toLocaleString('en-IN', {
-                                                        day: '2-digit',
-                                                        month: 'short',
-                                                        hour: '2-digit',
-                                                        minute: '2-digit',
-                                                    })}
-                                                </p>
+                                                >
+                                                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{notif.title}</p>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{notif.message}</p>
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                        {new Date(notif.createdAt).toLocaleString('en-IN', {
+                                                            day: '2-digit', month: 'short',
+                                                            hour: '2-digit', minute: '2-digit',
+                                                        })}
+                                                    </p>
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        deleteOne(notif._id);
+                                                    }}
+                                                    className="absolute right-2 top-2 p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+                                                    aria-label="Delete notification"
+                                                    title="Delete notification"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
                                             </div>
                                         ))
                                     )}

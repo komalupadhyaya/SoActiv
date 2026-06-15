@@ -6,7 +6,7 @@ import mongoose, { Schema, model, Document, Types, Model } from 'mongoose';
  * Follow-Up Type
  */
 export type FollowUpType = 'enquiry' | 'client' | 'pt' | 'call' | 'message' | 'visit' | 'other';
-export type FollowUpStatus = 'pending' | 'completed' | 'failed' | 'rescheduled' | 'cancelled';
+export type FollowUpStatus = 'pending' | 'completed' | 'failed' | 'rescheduled' | 'cancelled' | 'reschedule_pending';
 
 /**
  * Interface for the FollowUp document
@@ -21,6 +21,10 @@ export interface IFollowUp extends Document {
   scheduledTime: string; // Time in HH:MM format
   note: string; // Follow-up notes (e.g., "Call back in 3 days")
   status: FollowUpStatus; // Status of the follow-up
+  reminderSent: boolean; // Flag to indicate if reminder notification has been sent
+  proposedDate?: Date | null; // New proposed date awaiting admin approval
+  proposedTime?: string | null; // New proposed time awaiting admin approval
+  rescheduleReason?: string | null; // Reason staff wants to reschedule
   completedAt: Date | null; // When the follow-up was completed
   completedBy: Types.ObjectId | null; // Staff who completed the follow-up
   completionNotes: string | null; // Notes added upon completion/failure
@@ -88,11 +92,30 @@ const FollowUpSchema = new Schema<IFollowUp, IFollowUpModel>(
     status: {
       type: String,
       enum: {
-        values: ['pending', 'completed', 'failed', 'rescheduled', 'cancelled'],
-        message: 'Status must be one of: pending, completed, failed, rescheduled, cancelled',
+        values: ['pending', 'completed', 'failed', 'rescheduled', 'cancelled', 'reschedule_pending'],
+        message: 'Status must be one of: pending, completed, failed, rescheduled, cancelled, reschedule_pending',
       },
       default: 'pending',
       index: true,
+    },
+    reminderSent: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    proposedDate: {
+      type: Date,
+      default: null,
+    },
+    proposedTime: {
+      type: String,
+      default: null,
+    },
+    rescheduleReason: {
+      type: String,
+      trim: true,
+      maxlength: [500, 'Reschedule reason cannot exceed 500 characters'],
+      default: null,
     },
     completedAt: {
       type: Date,

@@ -9,7 +9,7 @@ import {
     checkHoliday
 } from '../controllers/schedule.controllers';
 import { authMiddleware } from '../middlewares/auth.middleware';
-import { requireAdminOrManager } from '../middlewares/permission.middleware';
+import { requireAdminOrManager, requirePosition } from '../middlewares/permission.middleware';
 import { asyncHandler } from '../lib/AsyncHandler';
 
 const scheduleRouter = Router();
@@ -32,9 +32,9 @@ scheduleRouter.get('/my-schedule', authMiddleware, asyncHandler(getMySchedule));
 /**
  * @route   POST /api/v1/schedule
  * @desc    Create a new schedule event
- * @access  Private (Admin, Manager only)
+ * @access  Private (Admin, Manager, Receptionist)
  */
-scheduleRouter.post('/', authMiddleware, requireAdminOrManager(), asyncHandler(createScheduleEvent));
+scheduleRouter.post('/', authMiddleware, requirePosition(['manager', 'receptionist']), asyncHandler(createScheduleEvent));
 
 /**
  * @route   GET /api/v1/schedule
@@ -55,7 +55,7 @@ scheduleRouter.put('/:id/complete', authMiddleware, asyncHandler(completeSchedul
  * @desc    Update a schedule event
  * @access  Private (Admin, Manager only)
  */
-scheduleRouter.put('/:id', authMiddleware, requireAdminOrManager(), asyncHandler(updateScheduleEvent));
+scheduleRouter.put('/:id', authMiddleware, requirePosition(['manager', 'receptionist']), asyncHandler(updateScheduleEvent));
 
 /**
  * @route   DELETE /api/v1/schedule/:id

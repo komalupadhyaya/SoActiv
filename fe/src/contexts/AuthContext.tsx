@@ -45,7 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let endpoint = '';
       if (savedRole === 'superadmin') {
         endpoint = '/api/v1/super-admin/me';
-      } else if (savedRole === 'admin') {
+      } else if (savedRole === 'admin' || savedRole === 'staff' || savedRole === 'trainer' || savedRole === 'member') {
         endpoint = '/api/v1/user/getCurrentUser';
       } else {
         // Unknown role - clear auth
@@ -57,6 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setRole(null);
         return;
       }
+
 
       const res = await fetch(`${API_URL}${endpoint}`, {
         method: 'GET',

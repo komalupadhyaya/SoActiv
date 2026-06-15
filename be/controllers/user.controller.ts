@@ -88,7 +88,13 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
     });
 
     const token = user.generateAccessToken();
-    const safeUser = user.toFrontendUser();
+    const safeUser = user.toFrontendUser() as any;
+    if (user.role !== 'superadmin' && user.gym) {
+      const gym = await Gym.findById(user.gym).select('features');
+      if (gym) {
+        safeUser.gymFeatures = gym.features;
+      }
+    }
 
     return res
       .status(HttpStatusCode.CREATED)
@@ -147,6 +153,13 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
   const token = user.generateAccessToken();
   // Fetch Staff Position if role is staff
   const safeUser = user.toFrontendUser() as any; // Cast to any to add extra prop
+
+  if (user.role !== 'superadmin' && user.gym) {
+    const gym = await Gym.findById(user.gym).select('features');
+    if (gym) {
+      safeUser.gymFeatures = gym.features;
+    }
+  }
 
   if (safeUser.role === 'staff') {
     // Import Staff model at top or here (dynamic import might be safer if not top-level)
@@ -213,7 +226,13 @@ const googleSignIn = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const token = user.generateAccessToken();
-  const safeUser = user.toFrontendUser();
+  const safeUser = user.toFrontendUser() as any;
+  if (user.role !== 'superadmin' && user.gym) {
+    const gym = await Gym.findById(user.gym).select('features');
+    if (gym) {
+      safeUser.gymFeatures = gym.features;
+    }
+  }
 
   return res
     .status(HttpStatusCode.OK)
@@ -292,12 +311,10 @@ const updateUserProfile = asyncHandler(async (req: Request, res: Response) => {
 
   // Handle avatar update
   if (req.file) {
-    // If a file is uploaded, use its path
-    // Remove "public" from path if it was saved relative to public root, but here we saved to "uploads" which is served at /uploads
-    // Our static serve is app.use('/uploads', express.static(...)) matching the folder structure.
-    // The middleware saves to ../../uploads
-    // So the URL should be /uploads/filename
-    user.avatar = `/uploads/${req.file.filename}`;
+    // Support hybrid Cloudinary path vs local static filename mapping
+    user.avatar = (req.file.path && (req.file.path.startsWith('http://') || req.file.path.startsWith('https://')))
+      ? req.file.path
+      : `/uploads/${req.file.filename}`;
   } else if (avatar) {
     // If no file but avatar string provided (e.g. url), use it
     user.avatar = avatar;
@@ -324,7 +341,13 @@ const updateUserProfile = asyncHandler(async (req: Request, res: Response) => {
 
   await user.save();
 
-  const safeUser = user.toFrontendUser();
+  const safeUser = user.toFrontendUser() as any;
+  if (user.role !== 'superadmin' && user.gym) {
+    const gym = await Gym.findById(user.gym).select('features');
+    if (gym) {
+      safeUser.gymFeatures = gym.features;
+    }
+  }
 
   return res
     .status(HttpStatusCode.OK)

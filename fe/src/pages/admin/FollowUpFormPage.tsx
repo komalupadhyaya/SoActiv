@@ -32,7 +32,7 @@ export const FollowUpFormPage: React.FC = () => {
 
   const [formData, setFormData] = useState({
     assignedTo: '',
-    type: prefilledData?.type || ('enquiry' as 'enquiry' | 'client' | 'pt'),
+    type: prefilledData?.type || ('enquiry' as 'enquiry' | 'client' | 'pt' | 'other'),
     relatedId: prefilledData?.relatedId || '',
     relatedName: prefilledData?.relatedName || '',
     scheduledDate: '',
@@ -71,7 +71,7 @@ export const FollowUpFormPage: React.FC = () => {
 
   // 3. handleTypeChange function
   const handleTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newType = e.target.value as 'enquiry' | 'client' | 'pt';
+    const newType = e.target.value as 'enquiry' | 'client' | 'pt' | 'other';
 
     setFormData((prev) => ({
       ...prev,
@@ -131,7 +131,7 @@ export const FollowUpFormPage: React.FC = () => {
 
     if (!formData.assignedTo) newErrors.assignedTo = 'Please select a staff member';
     if (!formData.type) newErrors.type = 'Please select a follow-up type';
-    if (!formData.relatedId) newErrors.relatedId = 'Related entity is required';
+    if (!formData.relatedId && formData.type !== 'other') newErrors.relatedId = 'Related entity is required';
     if (!formData.relatedName) newErrors.relatedName = 'Related name is required';
     if (!formData.scheduledDate) newErrors.scheduledDate = 'Scheduled date is required';
     if (!formData.scheduledTime) newErrors.scheduledTime = 'Scheduled time is required';
@@ -151,7 +151,12 @@ export const FollowUpFormPage: React.FC = () => {
       return;
     }
 
-    const result = await createFollowUp(formData);
+    const submissionData = {
+      ...formData,
+      relatedId: formData.type === 'other' ? formData.assignedTo : formData.relatedId
+    };
+
+    const result = await createFollowUp(submissionData as any);
     if (result.success) {
       navigate('/admin/follow-ups');
     }
@@ -190,33 +195,53 @@ export const FollowUpFormPage: React.FC = () => {
             <option value="enquiry">Enquiry</option>
             <option value="client">Client</option>
             <option value="pt">PT Package</option>
+            <option value="other">General / Cleaning Task</option>
           </select>
           {errors.type && <p className="text-red-500 text-sm mt-1">{errors.type}</p>}
         </div>
 
         {/* 4. Single "Related To" dropdown replacing 2 inputs */}
-        <div>
-          <label className=" dark:text-white block text-sm font-medium text-gray-700 mb-2">
-            Related {formData.type === 'pt' ? 'Package' : formData.type ? formData.type.charAt(0).toUpperCase() + formData.type.slice(1) : 'Entity'} <span className="text-red-500">*</span>
-          </label>
-          <select
-            name="relatedId"
-            value={formData.relatedId}
-            onChange={handleRelatedChange}
-            disabled={!formData.type}
-            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed ${errors.relatedId ? 'border-red-500' : 'border-gray-300'
-              }`}
-          >
-            <option value="">Select {formData.type === 'pt' ? 'Package' : formData.type}</option>
-            {getRelatedOptions().map((opt: any) => (
-              <option key={opt.id} value={opt.id}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          {errors.relatedId && <p className="text-red-500 text-sm mt-1">{errors.relatedId}</p>}
-          <p className="text-gray-500 text-xs mt-1">Select the person or package this follow-up is regarding</p>
-        </div>
+        {formData.type === 'other' ? (
+          <div>
+            <label className=" dark:text-white block text-sm font-medium text-gray-700 mb-2">
+              Task Location / Subject <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              name="relatedName"
+              value={formData.relatedName}
+              onChange={handleChange}
+              placeholder="e.g. Clean Locker Room B, Mopping Cardio Zone"
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.relatedName ? 'border-red-500' : 'border-gray-300'
+                }`}
+            />
+            {errors.relatedName && <p className="text-red-500 text-sm mt-1">{errors.relatedName}</p>}
+            <p className="text-gray-500 text-xs mt-1">Specify where or what general/cleaning task needs to be performed</p>
+          </div>
+        ) : (
+          <div>
+            <label className=" dark:text-white block text-sm font-medium text-gray-700 mb-2">
+              Related {formData.type === 'pt' ? 'Package' : formData.type ? formData.type.charAt(0).toUpperCase() + formData.type.slice(1) : 'Entity'} <span className="text-red-500">*</span>
+            </label>
+            <select
+              name="relatedId"
+              value={formData.relatedId}
+              onChange={handleRelatedChange}
+              disabled={!formData.type}
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed ${errors.relatedId ? 'border-red-500' : 'border-gray-300'
+                }`}
+            >
+              <option value="">Select {formData.type === 'pt' ? 'Package' : formData.type}</option>
+              {getRelatedOptions().map((opt: any) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            {errors.relatedId && <p className="text-red-500 text-sm mt-1">{errors.relatedId}</p>}
+            <p className="text-gray-500 text-xs mt-1">Select the person or package this follow-up is regarding</p>
+          </div>
+        )}
 
         {/* Assigned To */}
         <div>

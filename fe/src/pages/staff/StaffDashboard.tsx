@@ -7,7 +7,9 @@ import { useFollowUp } from '../../hooks/useFollowUp';
 import { useClient } from '../../hooks/useClient';
 import { useAttendance } from '../../hooks/useStaffAttendance';
 import { useAnnouncement } from '../../hooks/useAnnouncement';
+import { useEnquiry } from '../../hooks/useEnquiry';
 import { Card, CardHeader, CardContent } from '../../components/ui/Card';
+import { ReceptionistDashboard } from './ReceptionistDashboard';
 import {
     Users,
     Calendar,
@@ -15,7 +17,8 @@ import {
     TrendingUp,
     Bell,
     Clock,
-    ClipboardList
+    ClipboardList,
+    Lock
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -28,7 +31,10 @@ export const StaffDashboard: React.FC = () => {
         canViewTasks,
         canViewLeads,
         isTrainer,
-        isManager
+        isManager,
+        isCleaner,
+        isReceptionist,
+        isSales
     } = useStaffPermissions();
 
     // Hooks
@@ -36,6 +42,7 @@ export const StaffDashboard: React.FC = () => {
     const { clients, refresh: fetchClients } = useClient();
     const { getAttendanceByStaff } = useAttendance();
     const { announcements, fetchAnnouncements } = useAnnouncement();
+    const { myEnquiries, fetchMyEnquiries, refreshEnquiries } = useEnquiry();
 
     // Local State
     const [myAttendance, setMyAttendance] = useState<any>(null);
@@ -62,6 +69,11 @@ export const StaffDashboard: React.FC = () => {
                 // 2. Clients (if allowed)
                 if (canViewMembers) {
                     promises.push(fetchClients()); // This fetches all clients, we filter in render
+                }
+
+                // 3. Enquiries (if allowed)
+                if (canViewLeads) {
+                    promises.push(isSales ? fetchMyEnquiries() : refreshEnquiries());
                 }
 
                 if (user?.staffId) {
@@ -110,6 +122,10 @@ export const StaffDashboard: React.FC = () => {
         loadData();
     }, [fetchUpcomingFollowUps, fetchClients, getAttendanceByStaff, canViewMembers, user?.staffId, fetchAnnouncements]);
 
+    if (isReceptionist) {
+        return <ReceptionistDashboard />;
+    }
+
     if (loading) {
         return (
             <div className="flex justify-center items-center h-64">
@@ -127,8 +143,102 @@ export const StaffDashboard: React.FC = () => {
                     <p className="text-gray-600 dark:text-gray-400">Welcome back, {user?.name}</p>
                 </div>
 
+                {/* Disabled Feature Alerts for Staff */}
+                {user?.gymFeatures && (
+                    <div className="space-y-3 mb-6">
+                        {/* Manager: shows all disabled features */}
+                        {isManager && Object.values(user.gymFeatures).some(val => val === false) && (
+                            <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border-l-4 border-amber-500 rounded-r-xl shadow-sm flex items-start gap-3">
+                                <Lock className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                                <div>
+                                    <h4 className="text-sm font-bold text-amber-900 dark:text-amber-400">Gym Features Partially Disabled</h4>
+                                    <p className="text-xs text-amber-700 dark:text-amber-500 mt-1">
+                                        The platform administration has disabled the following features for this gym:
+                                    </p>
+                                    <ul className="list-disc list-inside mt-2 text-xs text-amber-800 dark:text-amber-500/80 font-medium space-y-1">
+                                        {user.gymFeatures.payments === false && <li>Billing, Payments, and Invoices</li>}
+                                        {user.gymFeatures.attendance === false && <li>Member Attendance Tracking & Check-ins</li>}
+                                        {user.gymFeatures.pt === false && <li>Personal Training & PT Assignments</li>}
+                                        {user.gymFeatures.classes === false && <li>Group Class Scheduling</li>}
+                                        {user.gymFeatures.memberPortal === false && <li>Member Portal Access (Workouts, Diet, Goals, Photos)</li>}
+                                    </ul>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Trainer: shows PT & Classes disabled features */}
+                        {isTrainer && !isManager && (
+                            <>
+                                {user.gymFeatures.pt === false && (
+                                    <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border-l-4 border-amber-500 rounded-r-xl flex items-start gap-3 shadow-sm">
+                                        <Lock className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                                        <div>
+                                            <h4 className="text-sm font-bold text-amber-900 dark:text-amber-400">Personal Training Disabled</h4>
+                                            <p className="text-xs text-amber-700 dark:text-amber-500 mt-1">
+                                                Personal Training features and trainer assignments have been disabled by platform administration.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                                {user.gymFeatures.classes === false && (
+                                    <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border-l-4 border-amber-500 rounded-r-xl flex items-start gap-3 shadow-sm">
+                                        <Lock className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                                        <div>
+                                            <h4 className="text-sm font-bold text-amber-900 dark:text-amber-400">Class Scheduling Disabled</h4>
+                                            <p className="text-xs text-amber-700 dark:text-amber-500 mt-1">
+                                                Class scheduling features have been disabled by platform administration.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        )}
+
+                        {/* Cleaner: shows Attendance disabled features */}
+                        {isCleaner && !isManager && user.gymFeatures.attendance === false && (
+                            <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border-l-4 border-amber-500 rounded-r-xl flex items-start gap-3 shadow-sm">
+                                <Lock className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                                <div>
+                                    <h4 className="text-sm font-bold text-amber-900 dark:text-amber-400">Attendance Tracking Disabled</h4>
+                                    <p className="text-xs text-amber-700 dark:text-amber-500 mt-1">
+                                        Attendance tracking features have been disabled for this gym by platform administration.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Other Staff (Receptionist, Sales): shows relevant disabled features */}
+                        {!isManager && !isTrainer && !isCleaner && (
+                            <>
+                                {user.gymFeatures.payments === false && (user.position === 'receptionist' || user.position === 'sales') && (
+                                    <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border-l-4 border-amber-500 rounded-r-xl flex items-start gap-3 shadow-sm">
+                                        <Lock className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                                        <div>
+                                            <h4 className="text-sm font-bold text-amber-900 dark:text-amber-400">Billing Features Disabled</h4>
+                                            <p className="text-xs text-amber-700 dark:text-amber-500 mt-1">
+                                                Billing, payment logging, and invoices are currently disabled by platform administration.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                                {user.gymFeatures.attendance === false && user.position === 'receptionist' && (
+                                    <div className="p-4 bg-amber-50 dark:bg-amber-950/20 border-l-4 border-amber-500 rounded-r-xl flex items-start gap-3 shadow-sm">
+                                        <Lock className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                                        <div>
+                                            <h4 className="text-sm font-bold text-amber-900 dark:text-amber-400">Member Check-in Disabled</h4>
+                                            <p className="text-xs text-amber-700 dark:text-amber-500 mt-1">
+                                                Member attendance tracking and check-in portals are currently disabled by platform administration.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
+                )}
+
                 {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div className={`grid grid-cols-1 md:grid-cols-2 ${isCleaner ? 'lg:grid-cols-2' : 'lg:grid-cols-4'} gap-6 mb-8`}>
                     {/* Attendance Status */}
                     <Card>
                         <CardContent className="p-6">
@@ -152,29 +262,39 @@ export const StaffDashboard: React.FC = () => {
                         </CardContent>
                     </Card>
 
-                    {/* Assigned Members */}
-                    <Card>
-                        <CardContent className="p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">My Members</p>
-                                    <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                                        {assignedMembers.length}
-                                    </p>
+                    {/* Assigned Members / Leads (Hidden for Cleaners) */}
+                    {!isCleaner && (
+                        <Card>
+                            <CardContent className="p-6">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                            {isSales ? 'My Leads' : 'My Members'}
+                                        </p>
+                                        <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                                            {isSales ? myEnquiries.length : assignedMembers.length}
+                                        </p>
+                                    </div>
+                                    <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                                        {isSales ? (
+                                            <TrendingUp className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                                        ) : (
+                                            <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                                        )}
+                                    </div>
                                 </div>
-                                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                                    <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                        </Card>
+                    )}
 
                     {/* Pending Tasks */}
                     <Card>
                         <CardContent className="p-6">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Pending Tasks</p>
+                                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                        {isCleaner ? 'Pending Cleaning Tasks' : 'Pending Tasks'}
+                                    </p>
                                     <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
                                         {upcomingFollowUps.length}
                                     </p>
@@ -186,22 +306,24 @@ export const StaffDashboard: React.FC = () => {
                         </CardContent>
                     </Card>
 
-                    {/* Performance / Placeholder */}
-                    <Card>
-                        <CardContent className="p-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">This Month</p>
-                                    <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">
-                                        --
-                                    </p>
+                    {/* Performance / Placeholder (Hidden for Cleaners) */}
+                    {!isCleaner && (
+                        <Card>
+                            <CardContent className="p-6">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">This Month</p>
+                                        <p className="text-xl font-bold text-gray-900 dark:text-white mt-1">
+                                            --
+                                        </p>
+                                    </div>
+                                    <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center">
+                                        <TrendingUp className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+                                    </div>
                                 </div>
-                                <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center">
-                                    <TrendingUp className="w-6 h-6 text-orange-600 dark:text-orange-400" />
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -212,7 +334,7 @@ export const StaffDashboard: React.FC = () => {
                             <CardHeader>
                                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
                                     <Clock className="w-5 h-5 mr-2 text-orange-500" />
-                                    Upcoming Tasks / Follow-ups
+                                    {isCleaner ? 'Upcoming Cleaning Tasks' : 'Upcoming Tasks / Follow-ups'}
                                 </h2>
                             </CardHeader>
                             <CardContent>
@@ -226,7 +348,9 @@ export const StaffDashboard: React.FC = () => {
                                             <div key={task._id} className="flex items-start justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700">
                                                 <div>
                                                     <p className="font-medium text-gray-900 dark:text-white">{task.relatedName}</p>
-                                                    <p className="text-sm text-gray-500 capitalize">{task.type} - {format(new Date(task.scheduledDate), 'MMM d, yyyy')}</p>
+                                                    <p className="text-sm text-gray-500 capitalize">
+                                                        {isCleaner ? 'Cleaning Task' : `${task.type} - ${format(new Date(task.scheduledDate), 'MMM d, yyyy')}`}
+                                                    </p>
                                                     {task.note && <p className="text-xs text-gray-400 mt-1 line-clamp-1">{task.note}</p>}
                                                 </div>
                                                 <span className={`px-2 py-1 text-xs rounded-full ${task.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'
@@ -262,7 +386,7 @@ export const StaffDashboard: React.FC = () => {
                                     {canViewTasks && (
                                         <Link to="/staff/follow-ups" className="flex flex-col items-center justify-center p-4 border border-dashed border-gray-300 rounded-lg dark:hover:bg-gray-600 hover:border-orange-500 hover:bg-orange-50 transition">
                                             <Clock className="w-6 h-6 text-purple-500 mb-2" />
-                                            <span className="text-sm font-medium">Log Task</span>
+                                            <span className="text-sm font-medium">{isCleaner ? 'Cleaning Tasks' : 'Log Task'}</span>
                                         </Link>
                                     )}
                                     {canViewSchedule && (
@@ -328,31 +452,55 @@ export const StaffDashboard: React.FC = () => {
                             </CardContent>
                         </Card>
 
-                        {/* My Assigned Members Preview */}
-                        <Card>
-                            <CardHeader>
-                                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Members</h2>
-                            </CardHeader>
-                            <CardContent>
-                                {assignedMembers.length > 0 ? (
-                                    <ul className="space-y-3">
-                                        {assignedMembers.slice(0, 4).map(member => (
-                                            <li key={member._id} className="flex items-center space-x-3">
-                                                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600">
-                                                    {member.fullName.charAt(0)}
-                                                </div>
-                                                <div>
-                                                    <p className="text-sm font-medium text-gray-900 dark:text-white">{member.fullName}</p>
-                                                    <p className="text-xs text-gray-500">{member.plan} plan</p>
-                                                </div>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                ) : (
-                                    <p className="text-sm text-gray-500">No members assigned.</p>
-                                )}
-                            </CardContent>
-                        </Card>
+                        {/* My Assigned Members Preview / Leads Preview (Hidden for Cleaners) */}
+                        {!isCleaner && (
+                            <Card>
+                                <CardHeader>
+                                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                                        {isSales ? 'Recent Leads' : 'Recent Members'}
+                                    </h2>
+                                </CardHeader>
+                                <CardContent>
+                                    {isSales ? (
+                                        myEnquiries.length > 0 ? (
+                                            <ul className="space-y-3">
+                                                {myEnquiries.slice(0, 4).map(lead => (
+                                                    <li key={lead._id} className="flex items-center space-x-3">
+                                                        <div className="w-8 h-8 rounded-full bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center text-xs font-bold text-pink-600 dark:text-pink-400">
+                                                            {lead.name.charAt(0)}
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-medium text-gray-900 dark:text-white">{lead.name}</p>
+                                                            <p className="text-xs text-gray-500 capitalize">{lead.status} • {lead.source}</p>
+                                                        </div>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : (
+                                            <p className="text-sm text-gray-500">No leads assigned.</p>
+                                        )
+                                    ) : (
+                                        assignedMembers.length > 0 ? (
+                                            <ul className="space-y-3">
+                                                {assignedMembers.slice(0, 4).map(member => (
+                                                    <li key={member._id} className="flex items-center space-x-3">
+                                                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600">
+                                                            {member.fullName.charAt(0)}
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-medium text-gray-900 dark:text-white">{member.fullName}</p>
+                                                            <p className="text-xs text-gray-500">{member.plan} plan</p>
+                                                        </div>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : (
+                                            <p className="text-sm text-gray-500">No members assigned.</p>
+                                        )
+                                    )}
+                                </CardContent>
+                            </Card>
+                        )}
                     </div>
                 </div>
             </div>

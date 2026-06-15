@@ -79,7 +79,16 @@ export const AdminAnnouncementsPage: React.FC = () => {
 
             <div className="grid gap-4">
                 {announcements.map((ann) => (
-                    <Card key={ann._id} className={`border-l-4 ${ann.priority === 'urgent' ? 'border-l-red-500' : 'border-l-blue-500'}`}>
+                    <Card 
+                        key={ann._id} 
+                        className={`border-l-4 ${
+                            ann.isPlatformWide
+                                ? 'border-l-purple-500 bg-purple-50/10'
+                                : ann.priority === 'urgent' 
+                                    ? 'border-l-red-500' 
+                                    : 'border-l-blue-500'
+                        }`}
+                    >
                         <CardContent className="p-4 flex flex-col md:flex-row justify-between gap-4">
                             <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-2">
@@ -89,7 +98,13 @@ export const AdminAnnouncementsPage: React.FC = () => {
                                             <AlertTriangle size={12} /> Urgent
                                         </Badge>
                                     )}
-                                    <Badge variant="outline">{ann.targetAudience.toUpperCase()}</Badge>
+                                    {ann.isPlatformWide ? (
+                                        <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200 dark:border-purple-850/30">
+                                            Platform Broadcast
+                                        </Badge>
+                                    ) : (
+                                        <Badge variant="outline">{ann.targetAudience.toUpperCase()}</Badge>
+                                    )}
                                 </div>
                                 <p className="text-gray-600 dark:text-gray-300 text-sm whitespace-pre-wrap">{ann.message}</p>
                                 <div className="mt-2 text-xs text-gray-400">
@@ -97,11 +112,13 @@ export const AdminAnnouncementsPage: React.FC = () => {
                                     {ann.visibleRoles.length > 0 && ` • Roles: ${ann.visibleRoles.join(', ')}`}
                                 </div>
                             </div>
-                            <div className="flex items-start">
-                                <Button size="sm" variant="ghost" className="text-red-500 hover:bg-red-50" onClick={() => handleDelete(ann._id)}>
-                                    <Trash2 size={16} />
-                                </Button>
-                            </div>
+                            {!ann.isPlatformWide && (
+                                <div className="flex items-start">
+                                    <Button size="sm" variant="ghost" className="text-red-500 hover:bg-red-50" onClick={() => handleDelete(ann._id)}>
+                                        <Trash2 size={16} />
+                                    </Button>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 ))}

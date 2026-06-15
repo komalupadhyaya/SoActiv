@@ -13,9 +13,10 @@ interface ProtectedRouteProps {
     children: React.ReactNode;
     allowedRoles?: string[]; // Keep for backward compatibility or broad checks
     allowedPositions?: string[]; // New: Granular position check
+    requiredFeature?: string; // New: Gym feature flag check
 }
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles, allowedPositions }) => {
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles, allowedPositions, requiredFeature }) => {
     const { user, isLoading } = useAuth();
     const { position } = useStaffPermissions(); // Use our hook to normalize position
 
@@ -54,6 +55,21 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
         if (!isAdmin && !allowedPositions.includes(position)) {
             // If denied by position, go to safe dashboard
             return <Navigate to="/staff/dashboard" replace />;
+        }
+    }
+
+    // 3. Check Gym Feature
+    if (requiredFeature && user.role !== 'superadmin') {
+        const hasFeature = user.gymFeatures ? user.gymFeatures[requiredFeature as keyof typeof user.gymFeatures] : true;
+        if (hasFeature === false) {
+            const roleRedirects: Record<string, string> = {
+                admin: '/admin/dashboard',
+                staff: '/staff/dashboard',
+                trainer: '/trainer/dashboard',
+                member: '/member/dashboard',
+            };
+            const redirectPath = roleRedirects[user.role] || '/login';
+            return <Navigate to={redirectPath} replace />;
         }
     }
 

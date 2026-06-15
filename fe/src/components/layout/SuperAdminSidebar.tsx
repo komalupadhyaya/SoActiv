@@ -7,6 +7,7 @@ import {
     CreditCard,
     LogOut,
     Inbox,
+    Megaphone,
     X
 } from 'lucide-react';
 
@@ -112,6 +113,18 @@ export function SuperAdminSidebar({ isOpen, onClose, onLogout, user }: SuperAdmi
                         >
                             <Inbox className="w-5 h-5" />
                             <span className="font-medium">Support Inbox</span>
+                        </NavLink>
+
+                        <NavLink
+                            to="/super-admin/announcements"
+                            onClick={onClose}
+                            className={({ isActive }) =>
+                                `flex items-center gap-3 px-3 py-2.5 text-white hover:bg-white/10 rounded-lg transition-colors ${isActive ? 'bg-white/20' : ''
+                                }`
+                            }
+                        >
+                            <Megaphone className="w-5 h-5" />
+                            <span className="font-medium">Announcements</span>
                         </NavLink>
                     </nav>
 

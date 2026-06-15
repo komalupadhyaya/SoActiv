@@ -7,7 +7,7 @@ import axios from 'axios';
 // Define Staff Types
 export interface Staff {
   _id: string;
-  userId: string;
+  userId?: string;
   fullName: string;
   position: string;
   email: string;
@@ -21,6 +21,10 @@ export interface Staff {
     push: boolean;
     whatsapp: boolean;
   };
+  approvalStatus: 'approved' | 'pending_create' | 'pending_update' | 'pending_delete';
+  pendingUpdates?: Record<string, any> | null;
+  requestedBy?: string | null;
+  requestedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -170,7 +174,7 @@ export const useStaff = () => {
         setStaff((prev) =>
           prev.map((s) => (s._id === id ? updatedStaff : s))
         );
-        addToast('Staff member updated successfully', 'success');
+        addToast(res.data.message || 'Staff member updated successfully', 'success');
         return updatedStaff;
       } else {
         const msg = res.data.message || 'Failed to update staff member';
@@ -195,8 +199,17 @@ export const useStaff = () => {
     try {
       const res = await API.delete(`/${id}`);
       if (res.data.success) {
-        setStaff((prev) => prev.filter((s) => s._id !== id));
-        addToast('Staff member deleted successfully', 'success');
+        if (res.data.requested) {
+          // If it was a request, replace staff member to show updated approvalStatus
+          const updatedStaff = res.data.data;
+          setStaff((prev) =>
+            prev.map((s) => (s._id === id ? updatedStaff : s))
+          );
+        } else {
+          // Direct deletion
+          setStaff((prev) => prev.filter((s) => s._id !== id));
+        }
+        addToast(res.data.message || 'Staff member deleted successfully', 'success');
         return true;
       } else {
         const msg = res.data.message || 'Failed to delete staff member';
@@ -206,6 +219,74 @@ export const useStaff = () => {
       }
     } catch (err: any) {
       const msg = err.response?.data?.message || err.message || 'Failed to delete staff member';
+      setError(msg);
+      addToast(msg, 'error');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Approve staff request
+  const approveStaff = async (id: string): Promise<boolean> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await API.patch(`/${id}/approve`);
+      if (res.data.success) {
+        const approvedStaff = res.data.data;
+        if (approvedStaff) {
+          setStaff((prev) =>
+            prev.map((s) => (s._id === id ? approvedStaff : s))
+          );
+        } else {
+          // If it was pending deletion approved, it is deleted from DB
+          setStaff((prev) => prev.filter((s) => s._id !== id));
+        }
+        addToast(res.data.message || 'Staff request approved successfully', 'success');
+        return true;
+      } else {
+        const msg = res.data.message || 'Failed to approve staff request';
+        setError(msg);
+        addToast(msg, 'error');
+        return false;
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to approve staff request';
+      setError(msg);
+      addToast(msg, 'error');
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Reject staff request
+  const rejectStaff = async (id: string): Promise<boolean> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await API.patch(`/${id}/reject`);
+      if (res.data.success) {
+        const rejectedStaff = res.data.data;
+        if (rejectedStaff) {
+          setStaff((prev) =>
+            prev.map((s) => (s._id === id ? rejectedStaff : s))
+          );
+        } else {
+          // If creation request is rejected, the document was deleted
+          setStaff((prev) => prev.filter((s) => s._id !== id));
+        }
+        addToast(res.data.message || 'Staff request rejected successfully', 'success');
+        return true;
+      } else {
+        const msg = res.data.message || 'Failed to reject staff request';
+        setError(msg);
+        addToast(msg, 'error');
+        return false;
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to reject staff request';
       setError(msg);
       addToast(msg, 'error');
       return false;
@@ -304,6 +385,8 @@ export const useStaff = () => {
     createStaff,
     updateStaff,
     deleteStaff,
+    approveStaff,
+    rejectStaff,
     updateProfile,
     bulkUpload,
     refetch: fetchAllStaff,

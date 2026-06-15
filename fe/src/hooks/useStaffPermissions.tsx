@@ -15,7 +15,7 @@ export const STAFF_PERMISSIONS = {
     // We'll handle data filtering in backend/hooks, here is mostly page access.
 
     // Can create/edit/delete members
-    CAN_MANAGE_MEMBERS: ['admin'], // Receptionist can check-in (attendance) but not CRUD members usually? Prompt says: "No CRUD members" for Rep due to "No CRUD members".
+    CAN_MANAGE_MEMBERS: ['admin', 'manager'], 
 
     // Can view Gym Schedule/Calendar
     CAN_VIEW_SCHEDULE: ['admin', 'manager', 'receptionist', 'trainer'],
@@ -23,13 +23,13 @@ export const STAFF_PERMISSIONS = {
     CAN_MANAGE_SCHEDULE: ['admin', 'manager'], // Manager help admin manage tasks, maybe schedule too? Prompt says Manager: "View gym schedules". Logic implies Admin primarily.
 
     // Can view Sales/Enquiries/Leads
-    CAN_VIEW_LEADS: ['admin', 'sales'],
+    CAN_VIEW_LEADS: ['admin', 'sales', 'receptionist'],
 
     // Can view Finance/Reports
     CAN_VIEW_FINANCE: ['admin'],
 
     // Can view Tasks
-    CAN_VIEW_TASKS: ['admin', 'manager', 'sales', 'cleaner'],
+    CAN_VIEW_TASKS: ['admin', 'manager', 'sales', 'cleaner', 'receptionist'],
 
     // Can Mark Attendance (General - for others)
     CAN_MARK_ATTENDANCE: ['admin', 'manager', 'receptionist'],

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Plus,
   Search,
@@ -13,7 +13,7 @@ import {
   Edit,
   User,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardHeader, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -36,9 +36,45 @@ const statusColors = {
 
 export const ClientListPage: React.FC = () => {
   const navigate = useNavigate();
-  const { clients, loading, bulkUpload, deleteClient } = useClient();
+  const [searchParams] = useSearchParams();
+  const targetId = searchParams.get('id');
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const { clients, loading, bulkUpload, deleteClient, rejectDelete } = useClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+
+  // Adjust status filter if a specific client ID is requested
+  useEffect(() => {
+    if (targetId && clients.length > 0) {
+      const targetClient = clients.find(c => c._id === targetId || c.id === targetId);
+      if (targetClient && statusFilter !== '' && targetClient.status !== statusFilter) {
+        setStatusFilter('');
+      }
+    }
+  }, [targetId, clients, statusFilter]);
+
+  // Handle scroll and highlight for target client
+  useEffect(() => {
+    if (!loading && targetId && clients.some(c => c._id === targetId || c.id === targetId)) {
+      setHighlightedId(targetId);
+
+      const timer = setTimeout(() => {
+        const element = document.getElementById(`client-${targetId}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 250);
+
+      const clearTimer = setTimeout(() => {
+        setHighlightedId(null);
+      }, 5000);
+
+      return () => {
+        clearTimeout(timer);
+        clearTimeout(clearTimer);
+      };
+    }
+  }, [loading, targetId, clients]);
   const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
   const [uploadResult, setUploadResult] = useState<BulkUploadResult | null>(null);
   const [isResultsModalOpen, setIsResultsModalOpen] = useState(false);
@@ -84,6 +120,10 @@ export const ClientListPage: React.FC = () => {
     await deleteClient(deleteConfirmation.clientId);
     addToast('Client deleted successfully', 'success');
     setDeleteConfirmation({ isOpen: false, clientId: '', clientName: '' });
+  };
+
+  const handleRejectDeleteRequest = async (id: string, name: string) => {
+    await rejectDelete(id);
   };
 
   const handleBulkUpload = async (file: File) => {
@@ -230,7 +270,22 @@ export const ClientListPage: React.FC = () => {
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {filteredClients.map((client) => (
-                <Card key={client._id} className="h-full">
+                <Card 
+                  key={client._id} 
+                  id={`client-${client._id}`}
+                  className={`h-full shadow-sm relative transition-all duration-500 ${
+                    highlightedId === client._id
+                      ? 'ring-2 ring-orange-500 dark:ring-orange-450 bg-orange-50/50 dark:bg-orange-950/20 border-orange-500'
+                      : 'border border-gray-100 dark:border-gray-800'
+                  }`}
+                >
+                  {client.deleteRequested && (
+                    <div className="absolute top-2 right-2 z-10">
+                      <Badge className="bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-400 flex items-center gap-1 animate-pulse">
+                        <AlertTriangle size={12} /> Deletion Requested
+                      </Badge>
+                    </div>
+                  )}
                   <CardContent className="p-4 flex flex-col h-full">
                     {/* Header: Logo/Avatar + Name + Status */}
                     <div className="flex items-start justify-between gap-3 mb-3">
@@ -334,23 +389,46 @@ export const ClientListPage: React.FC = () => {
                         )}
                       </div>
                       <div className="flex space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate(`/admin/client-form/${client._id}`)}
-                          className="h-8 px-3"
-                        >
-                          <Edit size={14} className="mr-1" />
-                          Edit
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDeleteClient(client._id, client.fullName)}
-                          className="h-8 px-3 text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 size={14} />
-                        </Button>
+                        {client.deleteRequested ? (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleRejectDeleteRequest(client._id, client.fullName)}
+                              className="h-8 px-2.5 text-xs font-semibold text-gray-600 border-gray-300 hover:bg-gray-50 dark:text-gray-350 dark:border-gray-700 dark:hover:bg-gray-800"
+                            >
+                              Reject Request
+                            </Button>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => handleDeleteClient(client._id, client.fullName)}
+                              className="h-8 px-2.5 text-xs font-semibold bg-red-600 hover:bg-red-700 text-white"
+                            >
+                              Approve Delete
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigate(`/admin/client-form/${client._id}`)}
+                              className="h-8 px-3"
+                            >
+                              <Edit size={14} className="mr-1" />
+                              Edit
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteClient(client._id, client.fullName)}
+                              className="h-8 px-3 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 size={14} />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </CardContent>

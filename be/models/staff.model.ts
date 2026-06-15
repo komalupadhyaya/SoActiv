@@ -8,7 +8,7 @@ import { Schema, model, Document } from 'mongoose';
  */
 export interface IStaff extends Document {
   _id: Types.ObjectId;
-  userId: Types.ObjectId;
+  userId?: Types.ObjectId; // Made optional
   createdBy: Types.ObjectId;
   gym: Types.ObjectId;
   fullName: string;
@@ -25,6 +25,10 @@ export interface IStaff extends Document {
     whatsapp: boolean;
   };
   avatar?: string;
+  approvalStatus: 'approved' | 'pending_create' | 'pending_update' | 'pending_delete';
+  pendingUpdates?: Record<string, any> | null;
+  requestedBy?: Types.ObjectId | null;
+  requestedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -37,7 +41,7 @@ const staffSchema = new Schema<IStaff>(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
+      required: false, // Relaxed requirement for pending creations
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -97,6 +101,24 @@ const staffSchema = new Schema<IStaff>(
         message: 'Status must be either "active" or "inactive"',
       },
       default: 'active',
+    },
+    approvalStatus: {
+      type: String,
+      enum: ['approved', 'pending_create', 'pending_update', 'pending_delete'],
+      default: 'approved',
+    },
+    pendingUpdates: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    requestedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    requestedAt: {
+      type: Date,
+      default: null,
     },
     notifications: {
       sms: {

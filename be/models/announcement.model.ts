@@ -10,6 +10,7 @@ export interface IAnnouncement extends Document {
     adminId: Types.ObjectId;
     expiresAt: Date;
     isActive: boolean;
+    isPlatformWide?: boolean;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -33,7 +34,8 @@ const announcementSchema = new Schema<IAnnouncement>(
         createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
         adminId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
         expiresAt: { type: Date, required: true, index: true }, // TTL index could suffice but manual filter is better for "show past"
-        isActive: { type: Boolean, default: true }
+        isActive: { type: Boolean, default: true },
+        isPlatformWide: { type: Boolean, default: false }
     },
     { timestamps: true }
 );

@@ -311,6 +311,115 @@ export const useFollowUp = () => {
     }
   };
 
+  // Reschedule a follow-up (staff)
+  const rescheduleFollowUp = async (
+    id: string,
+    rescheduleData: {
+      newScheduledDate: string;
+      newScheduledTime: string;
+      rescheduleNotes: string;
+    }
+  ) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_URL}/follow-up/${id}/reschedule`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(rescheduleData),
+        credentials: 'include',
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setFollowUps((prev) =>
+          prev.map((f) => (f._id === id ? data.data : f))
+        );
+        addToast('Reschedule request submitted to Admin for approval', 'success');
+        return { success: true, data: data.data };
+      } else {
+        const msg = data.message || 'Failed to reschedule follow-up';
+        setError(msg);
+        addToast(msg, 'error');
+        return { success: false, message: data.message };
+      }
+    } catch (err: any) {
+      const msg = err.message || 'Network error';
+      setError(msg);
+      addToast(msg, 'error');
+      return { success: false, message: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Approve reschedule request (admin)
+  const approveReschedule = async (id: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_URL}/follow-up/${id}/approve-reschedule`, {
+        method: 'PUT',
+        credentials: 'include',
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setFollowUps((prev) => [
+          data.data.newFollowUp,
+          ...prev.map((f) => (f._id === id ? data.data.originalFollowUp : f)),
+        ]);
+        addToast('Reschedule request approved', 'success');
+        return { success: true, data: data.data };
+      } else {
+        const msg = data.message || 'Failed to approve reschedule request';
+        setError(msg);
+        addToast(msg, 'error');
+        return { success: false, message: data.message };
+      }
+    } catch (err: any) {
+      const msg = err.message || 'Network error';
+      setError(msg);
+      addToast(msg, 'error');
+      return { success: false, message: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Reject reschedule request (admin)
+  const rejectReschedule = async (id: string, comments: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_URL}/follow-up/${id}/reject-reschedule`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ comments }),
+        credentials: 'include',
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setFollowUps((prev) => prev.map((f) => (f._id === id ? data.data : f)));
+        addToast('Reschedule request rejected', 'success');
+        return { success: true, data: data.data };
+      } else {
+        const msg = data.message || 'Failed to reject reschedule request';
+        setError(msg);
+        addToast(msg, 'error');
+        return { success: false, message: data.message };
+      }
+    } catch (err: any) {
+      const msg = err.message || 'Network error';
+      setError(msg);
+      addToast(msg, 'error');
+      return { success: false, message: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     followUps,
     upcomingFollowUps,
@@ -325,6 +434,9 @@ export const useFollowUp = () => {
     getMyFollowUps,
     completeFollowUpWithNotes,
     failFollowUp,
+    rescheduleFollowUp,
+    approveReschedule,
+    rejectReschedule,
   };
 };
 

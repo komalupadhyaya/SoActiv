@@ -5,6 +5,9 @@ import {
   getClientById,
   updateClientById,
   deleteClientById,
+  rejectDeleteClient,
+  notifyRenewal,
+  forwardRenewal,
 } from '../controllers/client.controllers';
 import { bulkUploadClients } from '../controllers/client.bulk.controllers';
 import {
@@ -89,5 +92,9 @@ clientRouter.put('/:id', updateClientById);
  * @access  Private
  */
 clientRouter.delete('/:id', deleteClientById);
+clientRouter.patch('/:id/reject-delete', rejectDeleteClient);
+
+clientRouter.post('/:id/notify-renewal', asyncHandler(notifyRenewal));
+clientRouter.post('/:id/forward-renewal', asyncHandler(forwardRenewal));
 
 export default clientRouter;

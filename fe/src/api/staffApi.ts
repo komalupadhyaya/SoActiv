@@ -151,4 +151,28 @@ export const deleteStaff = async (id: string) => {
     }
 };
 
+/**
+ * Approve staff CRUD request
+ */
+export const approveStaff = async (id: string) => {
+    try {
+        const response = await staffApi.patch(`/${id}/approve`);
+        return response.data;
+    } catch (error: any) {
+        throw new Error(error.response?.data?.message || 'Failed to approve staff request');
+    }
+};
+
+/**
+ * Reject staff CRUD request
+ */
+export const rejectStaff = async (id: string) => {
+    try {
+        const response = await staffApi.patch(`/${id}/reject`);
+        return response.data;
+    } catch (error: any) {
+        throw new Error(error.response?.data?.message || 'Failed to reject staff request');
+    }
+};
+
 export default staffApi;

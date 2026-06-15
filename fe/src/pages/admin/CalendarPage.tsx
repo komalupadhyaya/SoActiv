@@ -296,13 +296,15 @@ export const CalendarPage: React.FC = () => {
                     </div>
 
                     <div className="flex justify-end gap-2">
-                      {event.status !== 'completed' && (
+                      {event.type !== 'holiday' && (
                         <Button
                           size="sm"
                           variant="secondary"
                           onClick={() => handleEventAction(event, 'complete')}
+                          disabled={event.status === 'completed'}
+                          className={event.status === 'completed' ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200' : ''}
                         >
-                          Complete
+                          {event.status === 'completed' ? 'Completed' : 'Complete'}
                         </Button>
                       )}
                       {canCreate && (
@@ -310,6 +312,8 @@ export const CalendarPage: React.FC = () => {
                           size="sm"
                           variant="outline"
                           onClick={() => handleEditClick(event)}
+                          disabled={event.status === 'completed'}
+                          className={event.status === 'completed' ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200' : ''}
                         >
                           Edit
                         </Button>

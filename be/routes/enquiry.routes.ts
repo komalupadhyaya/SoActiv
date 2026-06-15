@@ -67,6 +67,14 @@ enquiryRouter.get('/expiring', authMiddleware, asyncHandler(getExpiringEnquiries
 enquiryRouter.get('/my', authMiddleware, getEnquiriesByUser);
 
 /**
+ * @route   GET /api/enquiries/my-enquiries
+ * @desc    Get all enquiries with correct position filtering (replaces 404)
+ * @access  Private
+ * @note    Must come before /:id routes to avoid matching "my-enquiries" as an ID
+ */
+enquiryRouter.get('/my-enquiries', authMiddleware, getEnquiries);
+
+/**
  * @route   POST /api/enquiries
  * @desc    Create a new enquiry (authenticated user)
  * @access  Private

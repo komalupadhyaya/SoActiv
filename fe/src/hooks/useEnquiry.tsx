@@ -124,7 +124,7 @@ export const useEnquiry = () => {
   }, [addToast]);
 
   // Create enquiry
-  const createEnquiry = async (data: CreateEnquiryData): Promise<IEnquiry | null> => {
+  const createEnquiry = useCallback(async (data: CreateEnquiryData): Promise<IEnquiry | null> => {
     setLoading(true);
     setError(null);
     try {
@@ -149,9 +149,9 @@ export const useEnquiry = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [addToast]);
 
-  const createPublicEnquiry = async (data: { name: string; phone: string; email?: string; interests?: string; comments?: string }): Promise<boolean> => {
+  const createPublicEnquiry = useCallback(async (data: { name: string; phone: string; email?: string; interests?: string; comments?: string }): Promise<boolean> => {
     setLoading(true);
     setError(null);
     try {
@@ -173,10 +173,10 @@ export const useEnquiry = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [addToast]);
 
   // Get enquiry by ID
-  const getEnquiryById = async (id: string): Promise<IEnquiry | null> => {
+  const getEnquiryById = useCallback(async (id: string): Promise<IEnquiry | null> => {
     setLoading(true);
     setError(null);
     try {
@@ -197,10 +197,10 @@ export const useEnquiry = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [addToast]);
 
   // Update enquiry
-  const updateEnquiry = async (id: string, data: Partial<IEnquiry>): Promise<IEnquiry | null> => {
+  const updateEnquiry = useCallback(async (id: string, data: Partial<IEnquiry>): Promise<IEnquiry | null> => {
     setLoading(true);
     setError(null);
     try {
@@ -229,10 +229,10 @@ export const useEnquiry = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [addToast]);
 
   // Delete enquiry
-  const deleteEnquiry = async (id: string): Promise<boolean> => {
+  const deleteEnquiry = useCallback(async (id: string): Promise<boolean> => {
     setLoading(true);
     setError(null);
     try {
@@ -256,10 +256,10 @@ export const useEnquiry = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [addToast]);
 
   // Assign staff to enquiry
-  const assignStaff = async (enquiryId: string, staffId: string): Promise<IEnquiry | null> => {
+  const assignStaff = useCallback(async (enquiryId: string, staffId: string): Promise<IEnquiry | null> => {
     setLoading(true);
     setError(null);
     try {
@@ -285,10 +285,10 @@ export const useEnquiry = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [addToast]);
 
   // Bulk upload
-  const bulkUpload = async (file: File): Promise<BulkUploadResult | null> => {
+  const bulkUpload = useCallback(async (file: File): Promise<BulkUploadResult | null> => {
     setLoading(true);
     setError(null);
     try {
@@ -317,7 +317,8 @@ export const useEnquiry = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [addToast, refreshEnquiries]);
+
 
   useEffect(() => {
     if (isAdmin) {

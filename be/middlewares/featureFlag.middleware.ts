@@ -54,11 +54,20 @@ export const checkGymFeature = (featureName: keyof typeof featureMap) => {
 
             // Check if feature is enabled
             const featureKey = featureMap[featureName];
+
+            // If checking memberPortal, only enforce it for members
+            if (featureName === 'memberPortal' && user.role !== 'member') {
+                return next();
+            }
+
             if (!gym.features[featureKey]) {
+                const message = featureName === 'attendance'
+                    ? `The "attendance" feature is not enabled for your gym. Please Contact your Admin.`
+                    : `The "${featureName}" feature is not enabled for your gym. Please upgrade your plan.`;
                 return next(
                     new ApiError(
                         HttpStatusCode.FORBIDDEN,
-                        `The "${featureName}" feature is not enabled for your gym. Please upgrade your plan.`
+                        message
                     )
                 );
             }

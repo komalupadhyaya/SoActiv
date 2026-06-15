@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
     Search,
     Phone,
@@ -6,7 +7,8 @@ import {
     Edit2,
     TrendingUp,
     User,
-    Clock
+    Clock,
+    Plus
 } from 'lucide-react';
 import { Card, CardHeader, CardContent } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -15,6 +17,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Modal } from '../../components/ui/Modal';
 import { useEnquiry, IEnquiry } from '../../hooks/useEnquiry';
 import { useToast } from '../../contexts/ToastContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Status colors
 const statusColors = {
@@ -31,11 +34,55 @@ export const SalesLeads: React.FC = () => {
     // Hooks
     const { myEnquiries, loading, updateEnquiry } = useEnquiry();
     const { addToast } = useToast();
+    const { user } = useAuth();
+    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const targetId = searchParams.get('id');
 
     // State
     const [searchQuery, setSearchQuery] = useState('');
+    const [highlightedId, setHighlightedId] = useState<string | null>(null);
     const [selectedLead, setSelectedLead] = useState<IEnquiry | null>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+    // Adjust search query if a specific lead ID is requested
+    useEffect(() => {
+        if (targetId && myEnquiries.length > 0) {
+            const targetLead = myEnquiries.find(l => l._id === targetId || l.id === targetId);
+            if (targetLead) {
+                const matchesSearch =
+                    targetLead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    targetLead.phone.includes(searchQuery) ||
+                    (targetLead.email && targetLead.email.toLowerCase().includes(searchQuery.toLowerCase()));
+                if (!matchesSearch) {
+                    setSearchQuery('');
+                }
+            }
+        }
+    }, [targetId, myEnquiries, searchQuery]);
+
+    // Handle scroll and highlight for target lead
+    useEffect(() => {
+        if (!loading && targetId && myEnquiries.some(l => l._id === targetId || l.id === targetId)) {
+            setHighlightedId(targetId);
+
+            const timer = setTimeout(() => {
+                const element = document.getElementById(`lead-${targetId}`);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 250);
+
+            const clearTimer = setTimeout(() => {
+                setHighlightedId(null);
+            }, 5000);
+
+            return () => {
+                clearTimeout(timer);
+                clearTimeout(clearTimer);
+            };
+        }
+    }, [loading, targetId, myEnquiries]);
 
     // Edit Form State
     const [editStatus, setEditStatus] = useState<string>('');
@@ -82,16 +129,30 @@ export const SalesLeads: React.FC = () => {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
                         <TrendingUp className="mr-2 text-orange-500" />
-                        My Sales Leads
+                        {user?.position === 'receptionist' || user?.position === 'manager'
+                            ? 'Sales Enquiries & Leads'
+                            : 'My Sales Leads'}
                     </h1>
                     <p className="text-gray-600 dark:text-gray-400 mt-1">
-                        Track and manage your assigned enquiries
+                        {user?.position === 'receptionist' || user?.position === 'manager'
+                            ? 'Track, manage, and register new customer enquiries'
+                            : 'Track and manage your assigned enquiries'}
                     </p>
                 </div>
+                {(user?.position === 'receptionist' || user?.position === 'manager') && (
+                    <Button
+                        variant="primary"
+                        onClick={() => navigate('/staff/enquiries/new')}
+                        className="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 border-none shadow-md"
+                    >
+                        <Plus size={16} />
+                        Add Walk-In Lead
+                    </Button>
+                )}
             </div>
 
             {/* Search */}
@@ -128,7 +189,15 @@ export const SalesLeads: React.FC = () => {
                     ) : (
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             {filteredLeads.map((lead) => (
-                                <Card key={lead._id} className="hover:shadow-md transition-shadow">
+                                <Card 
+                                    key={lead._id} 
+                                    id={`lead-${lead._id}`}
+                                    className={`hover:shadow-md transition-all duration-500 ${
+                                        highlightedId === lead._id
+                                            ? 'ring-2 ring-orange-500 dark:ring-orange-450 bg-orange-50/50 dark:bg-orange-950/20 border-orange-500'
+                                            : 'border border-gray-100 dark:border-gray-800'
+                                    }`}
+                                >
                                     <CardContent className="p-5 flex flex-col h-full">
                                         {/* Header */}
                                         <div className="flex justify-between items-start mb-4">
@@ -171,14 +240,35 @@ export const SalesLeads: React.FC = () => {
 
                                         {/* Actions */}
                                         <div className="mt-auto pt-4 border-t border-gray-100 dark:border-gray-800">
-                                            <Button
-                                                variant="outline"
-                                                className="w-full gap-2"
-                                                onClick={() => handleOpenEdit(lead)}
-                                            >
-                                                <Edit2 size={14} />
-                                                Update Status / Note
-                                            </Button>
+                                            {user?.position === 'receptionist' || user?.position === 'manager' ? (
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        variant="outline"
+                                                        className="flex-1 gap-2 text-xs py-2 px-3"
+                                                        onClick={() => handleOpenEdit(lead)}
+                                                    >
+                                                        <Clock size={12} />
+                                                        Status
+                                                    </Button>
+                                                    <Button
+                                                        variant="primary"
+                                                        className="flex-1 gap-2 text-xs py-2 px-3 bg-gradient-to-r from-orange-500 to-amber-500 border-none hover:from-orange-600 hover:to-amber-600 text-white font-semibold"
+                                                        onClick={() => navigate(`/staff/enquiries/edit/${lead._id}`)}
+                                                    >
+                                                        <Edit2 size={12} />
+                                                        Edit
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <Button
+                                                    variant="outline"
+                                                    className="w-full gap-2"
+                                                    onClick={() => handleOpenEdit(lead)}
+                                                >
+                                                    <Edit2 size={14} />
+                                                    Update Status / Note
+                                                </Button>
+                                            )}
                                         </div>
                                     </CardContent>
                                 </Card>

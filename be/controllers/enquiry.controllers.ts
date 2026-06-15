@@ -2,6 +2,9 @@ import type { Request, Response } from 'express';
 import Enquiry, { type IEnquiry } from '../models/enquiry.model';
 import { Staff } from '../models/staff.model';
 import { Types } from 'mongoose';
+import { createNotification } from '../utils/notification.helper';
+import { createOrUpdateEnquiryFollowUp } from './followUp.controllers';
+
 
 // POST: Create a new enquiry (user-based)
 export const createEnquiry = async (req: Request, res: Response): Promise<any> => {
@@ -63,6 +66,39 @@ export const createEnquiry = async (req: Request, res: Response): Promise<any> =
     // Create new enquiry
     const enquiry = new Enquiry(enquiryData);
     const savedEnquiry = await enquiry.save();
+
+    // Auto-create or schedule follow-up if assignedStaff and followUpDate are set
+    if (assignedStaff && followUpDate) {
+      let adminId = userId; // Default fallback
+      if (req.user?.role === 'staff') {
+        const creatorDoc = await Staff.findOne({ userId }).select('createdBy');
+        if (creatorDoc) {
+          adminId = creatorDoc.createdBy.toString();
+        }
+      }
+      await createOrUpdateEnquiryFollowUp(
+        savedEnquiry._id.toString(),
+        name,
+        assignedStaff,
+        followUpDate,
+        userId,
+        adminId,
+        comments || 'Follow-up scheduled'
+      );
+    }
+
+    // ── Notify admin ──────────────────────────────────────────────────────
+    if (userId) {
+      await createNotification({
+        recipientId: userId,
+        recipientRole: 'admin',
+        type: 'new_enquiry',
+        title: '📋 New Enquiry',
+        message: `New enquiry from ${name} (${phone})`,
+        link: '/admin/enquiries',
+        metadata: { enquiryId: savedEnquiry._id.toString(), name, phone },
+      });
+    }
 
     return res.status(201).json({
       success: true,
@@ -166,10 +202,9 @@ export const getEnquiries = async (req: Request, res: Response): Promise<any> =>
         return res.status(403).json({ success: false, message: 'Staff profile not found' });
       }
 
-      // If manager, they might see all? (Requirement says Staff: Can ONLY see enquiries assigned to them)
-      // Requirement: Admin / Manager: Full access. Staff: ONLY assigned.
-      if (staff.position === 'manager') {
-        // Managers see everything (assuming they help admin)
+      // If manager or receptionist, they might see all
+      if (staff.position === 'manager' || staff.position === 'receptionist') {
+        // Managers and Receptionists see everything
       } else {
         filter.assignedStaff = staff._id;
       }
@@ -302,8 +337,8 @@ export const updateEnquiry = async (req: Request, res: Response): Promise<any> =
     const isStaff = currentUser?.role === 'staff' || currentUser?.role === 'trainer';
     const staffProfile = isStaff ? await Staff.findOne({ userId: currentUser?.id }) : null;
 
-    // Staff restrictions: Can only update status and comments
-    if (isStaff && staffProfile?.position !== 'manager') {
+    // Staff restrictions: Can only update status and comments (except Manager and Receptionist)
+    if (isStaff && staffProfile?.position !== 'manager' && staffProfile?.position !== 'receptionist') {
       if (status) updateData.status = status;
       if (comments) updateData.comments = comments;
 
@@ -357,6 +392,24 @@ export const updateEnquiry = async (req: Request, res: Response): Promise<any> =
         message: 'Enquiry not found.',
       });
     }
+
+    // Sync follow-up task
+    let adminId = currentUser?.id || '';
+    if (currentUser?.role === 'staff') {
+      const creatorDoc = await Staff.findOne({ userId: currentUser.id }).select('createdBy');
+      if (creatorDoc) {
+        adminId = creatorDoc.createdBy.toString();
+      }
+    }
+    await createOrUpdateEnquiryFollowUp(
+      updatedEnquiry._id.toString(),
+      updatedEnquiry.name,
+      updatedEnquiry.assignedStaff ? updatedEnquiry.assignedStaff.toString() : null,
+      updatedEnquiry.followUpDate,
+      currentUser?.id || '',
+      adminId,
+      updatedEnquiry.comments || 'Follow-up scheduled'
+    );
 
     return res.status(200).json({
       success: true,

@@ -45,7 +45,9 @@ export const updateSuperAdminProfile = asyncHandler(async (req: Request, res: Re
 
     // Handle avatar
     if (req.file) {
-        user.avatar = `/uploads/${req.file.filename}`;
+        user.avatar = (req.file.path && (req.file.path.startsWith('http://') || req.file.path.startsWith('https://')))
+            ? req.file.path
+            : `/uploads/${req.file.filename}`;
     } else if (avatar) {
         user.avatar = avatar;
     }

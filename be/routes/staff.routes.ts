@@ -8,6 +8,8 @@ import {
   updateStaffById,
   deleteStaffById,
   updateStaffProfile,
+  approveStaffRequest,
+  rejectStaffRequest,
 } from '../controllers/staff.controllers';
 import { bulkUploadStaff } from '../controllers/staff.bulk.controllers';
 import { authMiddleware } from '../middlewares/auth.middleware';
@@ -32,16 +34,16 @@ staffRouter.post('/bulk-upload', requireAdmin(), bulkUpload.single('file'), bulk
 /**
  * @route   POST /api/staff
  * @desc    Create a new staff member (user-owned)
- * @access  Private (Admin Only)
+ * @access  Private (Admin + Manager)
  */
-staffRouter.post('/', requireAdmin(), checkPlanLimit('staff'), createStaff);
+staffRouter.post('/', requireAdminOrManager(), checkPlanLimit('staff'), createStaff);
 
 /**
  * @route   GET /api/staff
  * @desc    Get all staff members for logged-in user (with optional filters)
  * @access  Private (Admin + Manager)
  */
-staffRouter.get('/', requirePosition(['admin', 'manager']), getAllStaff);
+staffRouter.get('/', requirePosition(['admin', 'manager', 'receptionist']), getAllStaff);
 
 /**
  * @route   GET /api/staff/:id
@@ -55,16 +57,30 @@ staffRouter.get('/:id', requirePosition(['admin', 'manager']), getStaffById);
 /**
  * @route   PUT /api/staff/:id
  * @desc    Update a staff member (must belong to user)
- * @access  Private (Admin Only - Managers cannot edit)
+ * @access  Private (Admin + Manager)
  */
-staffRouter.put('/:id', requireAdmin(), updateStaffById);
+staffRouter.put('/:id', requireAdminOrManager(), updateStaffById);
 
 /**
  * @route   DELETE /api/staff/:id
  * @desc    Delete a staff member (must belong to user)
+ * @access  Private (Admin + Manager)
+ */
+staffRouter.delete('/:id', requireAdminOrManager(), deleteStaffById);
+
+/**
+ * @route   PATCH /api/staff/:id/approve
+ * @desc    Approve a staff CRUD request
  * @access  Private (Admin Only)
  */
-staffRouter.delete('/:id', requireAdmin(), deleteStaffById);
+staffRouter.patch('/:id/approve', requireAdmin(), approveStaffRequest);
+
+/**
+ * @route   PATCH /api/staff/:id/reject
+ * @desc    Reject a staff CRUD request
+ * @access  Private (Admin Only)
+ */
+staffRouter.patch('/:id/reject', requireAdmin(), rejectStaffRequest);
 
 import upload from '../middlewares/upload.middleware';
 

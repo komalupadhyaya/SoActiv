@@ -49,11 +49,11 @@ export const Modal: React.FC<ModalProps> = ({
       {/* Modal */}
       <div
         className={clsx(
-          'relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full transition-all transform',
+          'relative bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full transition-all transform flex flex-col max-h-[90vh]',
           sizeClasses[size]
         )}
       >
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 shrink-0">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             {title}
           </h3>
@@ -66,9 +66,9 @@ export const Modal: React.FC<ModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-hidden">
-  {children}
-</div>
+        <div className="p-6 overflow-y-auto flex-1 min-h-0">
+          {children}
+        </div>
       </div>
     </div>
   );

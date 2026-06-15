@@ -13,7 +13,8 @@ export interface ISupportMessage {
     category: 'sales' | 'support' | 'billing' | 'feature_request' | 'other';
     message: string;
     source: 'public' | 'admin';
-    status: 'new' | 'read' | 'closed';
+    status: 'new' | 'read' | 'escalated' | 'closed';
+    isEscalated?: boolean;
     createdAt: string;
 }
 
@@ -93,6 +94,67 @@ export const useSupport = () => {
         }
     }, []);
 
+    const fetchGymSupportMessages = useCallback(async (filters: { status?: string; category?: string; page?: number } = {}) => {
+        setLoading(true);
+        try {
+            const res = await axios.get(`${API_URL}/contact/gym/list`, {
+                params: filters,
+                withCredentials: true
+            });
+            if (res.data.success) {
+                setMessages(res.data.data);
+                return res.data;
+            }
+        } catch (error: any) {
+            addToast(error.response?.data?.message || 'Failed to fetch messages', 'error');
+        } finally {
+            setLoading(false);
+        }
+    }, [addToast]);
+
+    const updateGymSupportStatus = async (id: string, status: string) => {
+        setLoading(true);
+        try {
+            const res = await axios.patch(`${API_URL}/contact/gym/${id}/status`, { status }, { withCredentials: true });
+            if (res.data.success) {
+                addToast(`Message marked as ${status}`, 'success');
+                setMessages((prev: ISupportMessage[]) => prev.map(m => {
+                    if (m._id === id) {
+                        return {
+                            ...m,
+                            status,
+                            isEscalated: status === 'escalated' ? true : m.isEscalated
+                        } as ISupportMessage;
+                    }
+                    return m;
+                }));
+                return true;
+            }
+        } catch (error: any) {
+            addToast(error.response?.data?.message || 'Failed to update status', 'error');
+        } finally {
+            setLoading(false);
+        }
+        return false;
+    };
+
+    const fetchMySupportMessages = useCallback(async () => {
+        setLoading(true);
+        try {
+            const res = await axios.get(`${API_URL}/contact/my`, {
+                withCredentials: true
+            });
+            if (res.data.success) {
+                setMessages(res.data.data);
+                return res.data;
+            }
+        } catch (error: any) {
+            addToast(error.response?.data?.message || 'Failed to fetch messages', 'error');
+        } finally {
+            setLoading(false);
+        }
+    }, [addToast]);
+
     return {
         loading,
         messages,
@@ -100,6 +162,9 @@ export const useSupport = () => {
         sendSupportMessage,
         fetchSupportMessages,
         updateSupportStatus,
-        fetchSupportStats
+        fetchSupportStats,
+        fetchGymSupportMessages,
+        updateGymSupportStatus,
+        fetchMySupportMessages
     };
 };

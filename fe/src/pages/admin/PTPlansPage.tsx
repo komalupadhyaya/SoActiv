@@ -5,23 +5,35 @@ import { Card, CardContent } from '../../components/ui/Card';
 import { Plus, Edit, Archive, CheckCircle } from 'lucide-react';
 import { PTPlanFormModal } from '../../components/pt/PTPlanFormModal';
 import { Badge } from '../../components/ui/Badge';
+import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 
 export const PTPlansPage: React.FC = () => {
     const { plans, loading, fetchPlans, createPlan, updatePlan, togglePlanStatus } = usePT();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState<PTPlan | undefined>(undefined);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const { user } = useAuth();
+    const { addToast } = useToast();
 
     useEffect(() => {
         fetchPlans();
     }, [fetchPlans]);
 
     const handleCreateClick = () => {
+        if (user?.gymFeatures?.pt === false) {
+            addToast('Personal Training features have been disabled by platform administration.', 'error');
+            return;
+        }
         setSelectedPlan(undefined);
         setIsModalOpen(true);
     };
 
     const handleEditClick = (plan: PTPlan) => {
+        if (user?.gymFeatures?.pt === false) {
+            addToast('Personal Training features have been disabled by platform administration.', 'error');
+            return;
+        }
         setSelectedPlan(plan);
         setIsModalOpen(true);
     };
@@ -41,6 +53,10 @@ export const PTPlansPage: React.FC = () => {
     };
 
     const handleToggleStatus = async (id: string) => {
+        if (user?.gymFeatures?.pt === false) {
+            addToast('Personal Training features have been disabled by platform administration.', 'error');
+            return;
+        }
         await togglePlanStatus(id);
     };
 

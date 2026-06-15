@@ -34,11 +34,16 @@ export const EnquiryFormPage: React.FC = () => {
     budget: '',
   });
 
-  const { staff, loading: loadingStaff, error: staffError } = useStaff();
+  const { staff, loading: loadingStaff, error: staffError, fetchAllStaff } = useStaff();
   const { createEnquiry, updateEnquiry, getEnquiryById, error: enquiryError } = useEnquiry();
 
   const [submitting, setSubmitting] = useState(false);
   const [loadingForm, setLoadingForm] = useState(isEditing);
+
+  // Fetch staff list on component mount
+  useEffect(() => {
+    fetchAllStaff();
+  }, [fetchAllStaff]);
 
   // Type guard for staff object
   const isStaffObject = (obj: any): obj is { _id: string } => {

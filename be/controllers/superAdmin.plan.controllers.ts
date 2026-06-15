@@ -61,7 +61,7 @@ export const createPlan = asyncHandler(async (req: Request, res: Response) => {
     } = req.body;
 
     // Validation
-    if (!name || !displayName || price === undefined || !maxMembers || !maxStaff) {
+    if (!name || !displayName || price === undefined || maxMembers === undefined || maxStaff === undefined) {
         throw new ApiError(
             HttpStatusCode.BAD_REQUEST,
             "Name, display name, price, maxMembers, and maxStaff are required"
