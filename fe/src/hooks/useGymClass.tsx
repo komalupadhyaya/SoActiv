@@ -111,7 +111,7 @@ export const useGymClass = () => {
         const msg = err?.message || fallback;
         setError(msg);
         addToast(msg, 'error');
-        return { success: false, message: msg };
+        return { success: false as const, message: msg };
     };
 
     // ─── Classes ──────────────────────────────────────────────────────────────
@@ -458,7 +458,7 @@ export const useGymClass = () => {
             if (res.ok && data.success) {
                 setAttendance(data.data.attendance);
                 setSessionBookings(data.data.bookings);
-                return { success: true, data: data.data };
+                return { success: true as const, data: data.data };
             }
             return handleError({ message: data.message });
         } catch (err: any) {

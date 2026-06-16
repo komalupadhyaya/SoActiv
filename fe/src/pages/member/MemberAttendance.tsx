@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
-import { useClientAttendance, type ClientAttendanceRecord } from '../../hooks/useClientAttendance';
+import { useClientAttendance } from '../../hooks/useClientAttendance';
 import { useSchedule } from '../../hooks/useSchedule';
 import { Card, CardHeader, CardContent } from '../../components/ui/Card';
 import {
@@ -35,7 +34,6 @@ const formatDuration = (minutes?: number): string => {
 };
 
 export const MemberAttendance: React.FC = () => {
-  const { user } = useAuth();
   const {
     records,
     loading,

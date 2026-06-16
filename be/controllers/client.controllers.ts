@@ -630,7 +630,7 @@ export const forwardRenewal = asyncHandler(async (req: Request, res: Response) =
       title: '📋 Renewal Follow-up Assigned',
       message: `You have been assigned to follow up on ${client.fullName}'s renewal (expires ${new Date(client.endDate).toLocaleDateString()}).`,
       link: '/staff/follow-ups',
-      metadata: { followUpId: followUp._id.toString() },
+      metadata: { followUpId: (followUp._id as any).toString() },
     });
   }
 

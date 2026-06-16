@@ -15,7 +15,6 @@ import { Card, CardHeader, CardContent } from '../../../components/ui/Card';
 import { Input } from '../../../components/ui/Input';
 import { Select } from '../../../components/ui/Select';
 import { Button } from '../../../components/ui/Button';
-import { Badge } from '../../../components/ui/Badge';
 import { useSchedule, Schedule } from '../../../hooks/useSchedule';
 import { useClient } from '../../../hooks/useClient';
 import { useStaff } from '../../../hooks/useStaff';

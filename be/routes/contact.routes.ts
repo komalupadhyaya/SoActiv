@@ -21,7 +21,7 @@ const router = Router();
  * @desc    Get support messages sent by the logged-in member
  * @access  Private (Member)
  */
-router.get('/my', authMiddleware, asyncHandler(getMyContacts));
+router.get('/my', authMiddleware, getMyContacts);
 
 /**
  * @route   POST /api/v1/contact

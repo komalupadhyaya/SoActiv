@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useClient } from '../../hooks/useClient';
@@ -8,10 +8,8 @@ import { useClientAttendance } from '../../hooks/useClientAttendance';
 import { useSchedule } from '../../hooks/useSchedule';
 import { Card, CardHeader, CardContent } from '../../components/ui/Card';
 import {
-  Users,
   Calendar,
   CheckCircle,
-  TrendingUp,
   Bell,
   Clock,
   User,
@@ -27,9 +25,9 @@ import {
 
 export const MemberDashboard: React.FC = () => {
   const { user } = useAuth();
-  const { clients, fetchClients, loading: loadingClient } = useClient();
-  const { announcements, fetchAnnouncements, loading: loadingAnnouncements } = useAnnouncement();
-  const { plan, todayLog, loading: loadingDiet } = useDietPlan();
+  const { clients, fetchClients } = useClient();
+  const { announcements, fetchAnnouncements } = useAnnouncement();
+  const { plan, todayLog } = useDietPlan();
   const { records, hasCheckedInToday } = useClientAttendance();
   const { schedules, fetchSchedules } = useSchedule();
 
@@ -107,72 +105,7 @@ export const MemberDashboard: React.FC = () => {
   // Calculate days remaining
   const daysRemaining = memberClient?.remainingDays ?? memberClient?.endDate ? Math.max(0, Math.ceil((new Date(memberClient.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : null;
 
-  // Build real reminders list
-  const alerts = useMemo(() => {
-    const list = [];
-
-    // 1. Membership Expiry Reminder
-    if (daysRemaining !== null) {
-      if (daysRemaining <= 7) {
-        list.push({
-          id: 'expiry',
-          title: 'Membership Expiring Soon!',
-          message: `Your ${memberClient?.plan ? memberClient.plan.charAt(0).toUpperCase() + memberClient.plan.slice(1) : 'Premium'} plan expires in ${daysRemaining} day(s) on ${memberClient?.endDate ? new Date(memberClient.endDate).toLocaleDateString('en-IN') : '--'}. Please renew to prevent interruption.`,
-          priority: 'urgent',
-          icon: Award,
-          color: 'text-red-600 bg-red-50 dark:bg-red-950/20 border-red-500'
-        });
-      } else {
-        list.push({
-          id: 'expiry',
-          title: 'Membership Status Active',
-          message: `Your ${memberClient?.plan ? memberClient.plan.charAt(0).toUpperCase() + memberClient.plan.slice(1) : 'Premium'} plan is active with ${daysRemaining} remaining days.`,
-          priority: 'normal',
-          icon: Award,
-          color: 'text-green-700 bg-green-50 dark:bg-green-950/20 border-green-500'
-        });
-      }
-    }
-
-    // 2. Personal Trainer Update
-    if (memberClient?.hasPersonalTraining) {
-      list.push({
-        id: 'trainer',
-        title: 'Trainer Routine Update',
-        message: `Your assigned Personal Trainer (${memberClient.personalTrainer || 'Gym Trainer'}) sent a new fitness update: Focus on core training and high hydration cycles today!`,
-        priority: 'normal',
-        icon: MessageSquare,
-        color: 'text-blue-700 bg-blue-50 dark:bg-blue-950/20 border-blue-500'
-      });
-    } else {
-      list.push({
-        id: 'trainer',
-        title: 'Trainer Recommendation',
-        message: 'No active personal coach. Elevate your workouts by connecting with our expert personal trainers at the reception.',
-        priority: 'normal',
-        icon: MessageSquare,
-        color: 'text-gray-500 bg-gray-50 dark:bg-gray-800/40 border-gray-300 dark:border-gray-700'
-      });
-    }
-
-    // 3. Billing & Payment Reminders
-    if (memberClient) {
-      const basePrice = memberClient.packagePrice || 0;
-      const ptPrice = memberClient.personalTrainingPrice || 0;
-      const totalAmount = basePrice + ptPrice;
-
-      list.push({
-        id: 'payment',
-        title: 'Payment Receipt Settled',
-        message: `Invoice generated for your ${memberClient.plan ? memberClient.plan.charAt(0).toUpperCase() + memberClient.plan.slice(1) : 'Premium'} plan has been fully paid (Total settled: ₹${totalAmount.toLocaleString('en-IN')}).`,
-        priority: 'normal',
-        icon: CreditCard,
-        color: 'text-emerald-700 bg-emerald-50 dark:bg-emerald-950/20 border-emerald-500'
-      });
-    }
-
-    return list;
-  }, [memberClient, daysRemaining]);
+  // Unused alerts memo block removed to resolve compiler warnings
 
 
 

@@ -107,7 +107,7 @@ export const createOrUpdateEnquiryFollowUp = async (
           message: `A follow-up task for ${name} has been updated/re-assigned to you, scheduled on ${formattedDate} at ${scheduledTime}.`,
           link: '/staff/follow-ups',
           metadata: {
-            followUpId: existingFollowUp._id.toString(),
+            followUpId: (existingFollowUp._id as any).toString(),
             relatedId: enquiryId,
             relatedName: name
           }
@@ -172,7 +172,7 @@ export const createOrUpdateEnquiryFollowUp = async (
           message: `You have been assigned a new follow-up for ${name} scheduled on ${formattedDate} at ${scheduledTime}.`,
           link: '/staff/follow-ups',
           metadata: {
-            followUpId: followUp._id.toString(),
+            followUpId: (followUp._id as any).toString(),
             relatedId: enquiryId,
             relatedName: name
           }

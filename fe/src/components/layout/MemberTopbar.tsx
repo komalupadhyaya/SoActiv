@@ -193,17 +193,22 @@ export const MemberTopbar: React.FC<MemberTopbarProps> = ({
 
     const virtualAbsenceNotif = useMemo(() => {
         if (isAbsentForTwoDays && !absenceRead && isEnabled) {
+            const now = new Date().toISOString();
             return {
                 _id: 'virtual-absent-reminder',
+                recipientId: user?.id || user?._id || '',
+                recipientRole: 'member',
+                type: 'absent_reminder',
                 title: 'We Miss You!',
                 message: 'Your fitness journey is waiting for you 🔥 Get back on track today and continue your progress.',
                 isRead: false,
-                createdAt: new Date().toISOString(),
+                createdAt: now,
+                updatedAt: now,
                 link: '/member/dashboard',
             };
         }
         return null;
-    }, [isAbsentForTwoDays, absenceRead, isEnabled]);
+    }, [isAbsentForTwoDays, absenceRead, isEnabled, user]);
 
     // Inject dynamic/virtual notifications if plan is expiring in <= 7 days and notifications are enabled
     const displayNotifications = useMemo(() => {
@@ -219,10 +224,14 @@ export const MemberTopbar: React.FC<MemberTopbarProps> = ({
         ) {
             const virtualExpiryNotif = {
                 _id: 'virtual-plan-expiry',
+                recipientId: user?.id || user?._id || '',
+                recipientRole: 'member',
+                type: 'member_expiring',
                 title: 'Membership Expiring Soon!',
                 message: `Your ${memberClient.plan ? memberClient.plan.charAt(0).toUpperCase() + memberClient.plan.slice(1) : 'Premium'} plan expires in ${daysRemaining} day(s) on ${new Date(memberClient.endDate).toLocaleDateString('en-IN')}. Please renew to prevent interruption.`,
                 isRead: false,
                 createdAt: memberClient.endDate,
+                updatedAt: memberClient.endDate,
                 link: '/member/payments',
             };
             list.unshift(virtualExpiryNotif);
@@ -234,7 +243,7 @@ export const MemberTopbar: React.FC<MemberTopbarProps> = ({
         }
 
         return list;
-    }, [notifications, daysRemaining, memberClient, expiryRead, virtualAbsenceNotif, isEnabled]);
+    }, [notifications, daysRemaining, memberClient, expiryRead, virtualAbsenceNotif, isEnabled, user]);
 
     const displayUnreadCount = useMemo(() => {
         let count = unreadCount;

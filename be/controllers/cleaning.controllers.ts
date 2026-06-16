@@ -25,6 +25,9 @@ const verifyStaffAccess = async (req: Request, staffId: string): Promise<string>
  */
 export const getTemplate = asyncHandler(async (req: Request, res: Response) => {
   const { cleanerId } = req.params;
+  if (!cleanerId) {
+    throw new ApiError(HttpStatusCode.BAD_REQUEST, 'cleanerId parameter is required');
+  }
   await verifyStaffAccess(req, cleanerId);
 
   const template = await CleaningTemplate.findOne({ assignedTo: cleanerId });
@@ -96,8 +99,9 @@ export const getTodayChecklist = asyncHandler(async (req: Request, res: Response
   let checklist = await CleaningChecklist.findOne({ assignedTo: cleanerId, dateStr });
 
   if (checklist) {
+    const activeChecklist = checklist;
     // Sync checklist items with the template in case the template was updated today
-    const existingItemsMap = new Map(checklist.items.map(item => [item.taskName, item]));
+    const existingItemsMap = new Map(activeChecklist.items.map(item => [item.taskName, item]));
 
     // Build updated items list preserving completed ones
     const syncedItems = template.items.map(taskName => {
@@ -114,16 +118,19 @@ export const getTodayChecklist = asyncHandler(async (req: Request, res: Response
     });
 
     // Check if anything actually changed (length, taskNames, or order)
-    const itemsChanged = syncedItems.length !== checklist.items.length ||
-      syncedItems.some((item, idx) => item.taskName !== checklist.items[idx].taskName);
+    const itemsChanged = syncedItems.length !== activeChecklist.items.length ||
+      syncedItems.some((item, idx) => {
+        const existingItem = activeChecklist.items[idx];
+        return !existingItem || item.taskName !== existingItem.taskName;
+      });
 
     if (itemsChanged) {
-      checklist.items = syncedItems as any;
-      const allCompleted = checklist.items.length > 0 && checklist.items.every(item => item.completed);
-      checklist.status = allCompleted ? 'completed' : 'pending';
-      checklist.completedAt = allCompleted ? (checklist.completedAt || new Date()) : null;
+      activeChecklist.items = syncedItems as any;
+      const allCompleted = activeChecklist.items.length > 0 && activeChecklist.items.every(item => item.completed);
+      activeChecklist.status = allCompleted ? 'completed' : 'pending';
+      activeChecklist.completedAt = allCompleted ? (activeChecklist.completedAt || new Date()) : null;
 
-      await checklist.save();
+      await activeChecklist.save();
     }
   } else {
     // If no checklist exists for today, initialize it from template

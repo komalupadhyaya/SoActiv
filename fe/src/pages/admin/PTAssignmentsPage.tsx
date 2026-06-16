@@ -18,7 +18,7 @@ const statusColors = {
 };
 
 export const PTAssignmentsPage: React.FC = () => {
-    const { assignments, loading, fetchAssignments } = usePT();
+    const { assignments, fetchAssignments } = usePT();
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const { user } = useAuth();

@@ -21,7 +21,7 @@ export interface Staff {
     push: boolean;
     whatsapp: boolean;
   };
-  approvalStatus: 'approved' | 'pending_create' | 'pending_update' | 'pending_delete';
+  approvalStatus?: 'approved' | 'pending_create' | 'pending_update' | 'pending_delete';
   pendingUpdates?: Record<string, any> | null;
   requestedBy?: string | null;
   requestedAt?: string | null;

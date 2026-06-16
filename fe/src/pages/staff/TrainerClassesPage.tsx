@@ -1,9 +1,9 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Calendar, Clock, Users, CheckCircle, XCircle, FileText,
     X, ChevronRight, BookOpen, Save, AlertCircle
 } from 'lucide-react';
-import { useGymClass, ClassSession, ClassBooking } from '../../hooks/useGymClass';
+import { useGymClass, ClassSession } from '../../hooks/useGymClass';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -31,7 +31,7 @@ type AttendanceMap = Record<string, 'present' | 'absent'>;
 
 export const TrainerClassesPage: React.FC = () => {
     const {
-        classes, sessions, sessionBookings, attendance,
+        classes, sessions, sessionBookings,
         loading, fetchClasses, fetchSessionsByClass,
         cancelSession, updateSessionNotes,
         fetchSessionAttendance, markAttendance,

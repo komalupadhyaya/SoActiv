@@ -94,7 +94,7 @@ clientRouter.put('/:id', updateClientById);
 clientRouter.delete('/:id', deleteClientById);
 clientRouter.patch('/:id/reject-delete', rejectDeleteClient);
 
-clientRouter.post('/:id/notify-renewal', asyncHandler(notifyRenewal));
-clientRouter.post('/:id/forward-renewal', asyncHandler(forwardRenewal));
+clientRouter.post('/:id/notify-renewal', notifyRenewal);
+clientRouter.post('/:id/forward-renewal', forwardRenewal);
 
 export default clientRouter;

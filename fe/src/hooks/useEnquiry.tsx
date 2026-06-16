@@ -341,6 +341,7 @@ export const useEnquiry = () => {
     assignStaff,
     bulkUpload,
     refreshEnquiries,
+    fetchMyEnquiries,
     isAdmin,
   };
 };

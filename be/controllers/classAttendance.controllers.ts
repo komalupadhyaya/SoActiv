@@ -33,7 +33,9 @@ export const markClassAttendance = async (req: Request, res: Response, next: Nex
         }
 
         // Prevent marking attendance too early (only allowed starting 15 minutes before class)
-        const [h, m] = session.time.split(':').map(Number);
+        const timeParts = session.time.split(':').map(Number);
+        const h = timeParts[0] ?? 0;
+        const m = timeParts[1] ?? 0;
         const sessionStart = new Date(session.date);
         sessionStart.setHours(h, m, 0, 0);
         const diffInMinutes = (sessionStart.getTime() - Date.now()) / (1000 * 60);

@@ -77,7 +77,7 @@ export const createEnquiry = async (req: Request, res: Response): Promise<any> =
         }
       }
       await createOrUpdateEnquiryFollowUp(
-        savedEnquiry._id.toString(),
+        (savedEnquiry._id as any).toString(),
         name,
         assignedStaff,
         followUpDate,
@@ -96,7 +96,7 @@ export const createEnquiry = async (req: Request, res: Response): Promise<any> =
         title: '📋 New Enquiry',
         message: `New enquiry from ${name} (${phone})`,
         link: '/admin/enquiries',
-        metadata: { enquiryId: savedEnquiry._id.toString(), name, phone },
+        metadata: { enquiryId: (savedEnquiry._id as any).toString(), name, phone },
       });
     }
 
@@ -402,7 +402,7 @@ export const updateEnquiry = async (req: Request, res: Response): Promise<any> =
       }
     }
     await createOrUpdateEnquiryFollowUp(
-      updatedEnquiry._id.toString(),
+      (updatedEnquiry._id as any).toString(),
       updatedEnquiry.name,
       updatedEnquiry.assignedStaff ? updatedEnquiry.assignedStaff.toString() : null,
       updatedEnquiry.followUpDate,

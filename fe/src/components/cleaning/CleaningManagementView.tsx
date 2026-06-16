@@ -355,7 +355,6 @@ export const CleaningManagementView: React.FC = () => {
                         const totalTasks = log.items.length;
                         const completedTasks = log.items.filter(item => item.completed).length;
                         const progressPct = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-                        const statusColor = log.status === 'completed' ? 'text-emerald-500' : 'text-amber-500';
 
                         return (
                           <div

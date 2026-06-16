@@ -1,17 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Calendar,
-  User,
-  CheckCircle,
   ChevronRight,
   Users,
   Clock,
-  Tag,
-  Dumbbell,
-  AlertCircle
+  Dumbbell
 } from 'lucide-react';
-import { Card, CardContent } from '../../../components/ui/Card';
-import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { Modal } from '../../../components/ui/Modal';
 import { Select } from '../../../components/ui/Select';

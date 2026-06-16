@@ -8,12 +8,10 @@ import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { useConfirm } from '../../hooks/useConfirm';
 import { Plus, Trash2, AlertTriangle, Megaphone, Clock, Calendar, ShieldAlert } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
-import { useToast } from '../../contexts/ToastContext';
 
 export const SuperAdminAnnouncementsPage: React.FC = () => {
     const { announcements, loading, fetchAnnouncements, createAnnouncement, deleteAnnouncement } = useAnnouncement();
     const { confirm, confirmState, handleConfirm, handleCancel } = useConfirm();
-    const { addToast } = useToast();
     const [isModalOpen, setIsModalOpen] = useState(false);
     
     const [formData, setFormData] = useState({

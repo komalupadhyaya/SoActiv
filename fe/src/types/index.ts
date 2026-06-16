@@ -116,6 +116,9 @@ export interface FollowUp {
     fullName: string;
   } | null;
   completionNotes?: string | null;
+  proposedDate?: string | null;
+  proposedTime?: string | null;
+  rescheduleReason?: string | null;
   createdAt: string;
   updatedAt: string;
 }

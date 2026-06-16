@@ -21,14 +21,14 @@ async function run() {
     const receptionist = await Staff.findOne({ position: 'receptionist', status: 'active' });
     const sales = await Staff.findOne({ position: 'sales', status: 'active' });
 
-    if (!receptionist) {
-        console.error("No active receptionist found in DB to run test.");
+    if (!receptionist || !receptionist.userId) {
+        console.error("No active receptionist with a userId found in DB to run test.");
         await mongoose.disconnect();
         return;
     }
 
-    if (!sales) {
-        console.error("No active sales representative found in DB to run test.");
+    if (!sales || !sales.userId) {
+        console.error("No active sales representative with a userId found in DB to run test.");
         await mongoose.disconnect();
         return;
     }
