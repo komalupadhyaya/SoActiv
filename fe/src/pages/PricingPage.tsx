@@ -4,7 +4,7 @@ import axios from 'axios';
 import { Dumbbell, Shield, Zap, Star, Loader2, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { PublicNavbar } from '../components/layout/PublicNavbar';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 
 interface Plan {
     _id: string;

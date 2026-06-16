@@ -4,7 +4,7 @@ import { Building2, Plus, Search, Filter, Edit } from 'lucide-react';
 import axios from 'axios';
 import GymModal from '../../components/modals/GymModal';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 
 interface Gym {
     _id: string;

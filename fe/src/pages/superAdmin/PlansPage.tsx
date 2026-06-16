@@ -6,7 +6,7 @@ import CreatePlanModal from '../../components/modals/CreatePlanModal';
 import EditPlanModal from '../../components/modals/EditPlanModal';
 import { useToast } from '../../contexts/ToastContext';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 
 interface Plan {
     _id: string;
