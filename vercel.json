@@ -1,6 +1,4 @@
 {
-  "buildCommand": "cd fe && bun install && bun run build",
-  "outputDirectory": "fe/dist",
   "rewrites": [
     {
       "source": "/(.*)",
