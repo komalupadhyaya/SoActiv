@@ -23,7 +23,8 @@ export interface IEnquiry {
   updatedAt: string;
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+const baseApi = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+const API_URL = baseApi.endsWith('/api/v1') ? baseApi : `${baseApi}/api/v1`;
 
 const API = axios.create({
   baseURL: `${API_URL}/enquiry`,

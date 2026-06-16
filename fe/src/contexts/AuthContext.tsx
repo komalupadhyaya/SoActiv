@@ -24,7 +24,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+const baseApi = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+const API_URL = baseApi.endsWith('/api/v1') ? baseApi : `${baseApi}/api/v1`;
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -44,9 +45,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // ===== ROLE-AWARE ENDPOINT SELECTION =====
       let endpoint = '';
       if (savedRole === 'superadmin') {
-        endpoint = '/api/v1/super-admin/me';
+        endpoint = '/super-admin/me';
       } else if (savedRole === 'admin' || savedRole === 'staff' || savedRole === 'trainer' || savedRole === 'member') {
-        endpoint = '/api/v1/user/getCurrentUser';
+        endpoint = '/user/getCurrentUser';
       } else {
         // Unknown role - clear auth
         localStorage.removeItem('user');
@@ -170,7 +171,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Clear ALL auth data in THIS browser before new login
     clearSession();
 
-    const res = await fetch(`${API_URL}/api/v1/user/login`, {
+    const res = await fetch(`${API_URL}/user/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -229,7 +230,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       payload.gymId = userData.gymId;
     }
 
-    const res = await fetch(`${API_URL}/api/v1/user/register`, {
+    const res = await fetch(`${API_URL}/user/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -245,7 +246,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const googleSignIn = async (idToken: string, gymId?: string) => {
-    const res = await fetch(`${API_URL}/api/v1/user/google-signin`, {
+    const res = await fetch(`${API_URL}/user/google-signin`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idToken, gymId }),

@@ -7,7 +7,7 @@ import {
   Plus, Trash2, Save, StickyNote, UtensilsCrossed, Target
 } from 'lucide-react';
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '').replace(/\/api\/v1$/, '');
 
 interface MealItem {
   name: string;

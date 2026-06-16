@@ -46,7 +46,7 @@ interface PlanFormData {
     isActive: boolean;
 }
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '').replace(/\/api\/v1$/, '');
 
 export default function EditPlanModal({ isOpen, onClose, onSuccess, plan }: EditPlanModalProps) {
     const [formData, setFormData] = useState<PlanFormData>({

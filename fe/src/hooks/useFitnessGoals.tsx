@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+const baseApi = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+const API_URL = baseApi.endsWith('/api/v1') ? baseApi : `${baseApi}/api/v1`;
 
 export interface Milestone {
   _id?: string;

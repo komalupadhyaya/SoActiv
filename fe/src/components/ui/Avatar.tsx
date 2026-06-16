@@ -1,6 +1,9 @@
 import { useState, useMemo } from 'react';
 import { User } from 'lucide-react';
 
+const cleanBaseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '').replace(/\/api\/v1$/, '');
+
+
 interface AvatarProps {
     src?: string | null;
     alt?: string;
@@ -101,7 +104,7 @@ export function Avatar({
         return (
             <div className={baseClasses}>
                 <img
-                    src={src?.startsWith('/uploads') ? `${import.meta.env.VITE_API_URL}${src}` : src}
+                    src={src?.startsWith('/uploads') ? `${cleanBaseUrl}${src}` : src}
                     alt={alt || name || 'Avatar'}
                     className="w-full h-full object-cover"
                     onError={() => setImgError(true)}

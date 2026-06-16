@@ -4,7 +4,7 @@ import { Shield, Mail, Lock, AlertCircle, Loader2 } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '').replace(/\/api\/v1$/, '');
 
 export function SuperAdminLoginPage() {
     const navigate = useNavigate();

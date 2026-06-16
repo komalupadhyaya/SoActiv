@@ -26,7 +26,7 @@ interface Plan {
     currency: string;
 }
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '').replace(/\/api\/v1$/, '');
 
 export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalProps) {
     const { addToast } = useToast();

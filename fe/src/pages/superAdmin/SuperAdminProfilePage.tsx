@@ -10,7 +10,7 @@ import { Camera, Save, Loader2, Palette } from 'lucide-react';
 import { ColorPicker } from '../../components/ui/ColorPicker';
 import { Avatar } from '../../components/ui/Avatar';
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '').replace(/\/api\/v1$/, '');
 
 interface ProfileFormOutputs {
     fullname: string;

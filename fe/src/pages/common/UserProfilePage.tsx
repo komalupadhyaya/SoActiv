@@ -10,7 +10,8 @@ import { Camera, Save, Loader2, Palette } from 'lucide-react';
 import { ColorPicker } from '../../components/ui/ColorPicker';
 import { Avatar } from '../../components/ui/Avatar';
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+const baseApi = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+const API_URL = baseApi.endsWith('/api/v1') ? baseApi : `${baseApi}/api/v1`;
 
 interface ProfileFormOutputs {
     fullname: string;
@@ -93,14 +94,14 @@ export const UserProfilePage = () => {
             const token = localStorage.getItem('accessToken');
             const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-            await axios.patch(`${API_URL}/api/v1/user/profile`, formData, {
+            await axios.patch(`${API_URL}/user/profile`, formData, {
                 withCredentials: true,
                 headers
             });
 
             if (data.currentPassword && data.newPassword) {
                 await axios.post(
-                    `${API_URL}/api/v1/user/change-password`,
+                    `${API_URL}/user/change-password`,
                     {
                         oldPassword: data.currentPassword,
                         newPassword: data.newPassword
@@ -120,7 +121,7 @@ export const UserProfilePage = () => {
 
                 const token = localStorage.getItem('accessToken');
                 const userResponse = await axios.get(
-                    `${API_URL}/api/v1/user/getCurrentUser`,
+                    `${API_URL}/user/getCurrentUser`,
                     {
                         withCredentials: true,
                         headers: token ? { Authorization: `Bearer ${token}` } : {}
