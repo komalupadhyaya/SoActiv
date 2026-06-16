@@ -15,7 +15,11 @@
     "@yudiel/react-qr-scanner": "^2.4.1",
     "axios": "^1.11.0",
     "clsx": "^2.1.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
     "date-fns": "^4.1.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
     "js-cookie": "^3.0.5",
     "lucide-react": "^0.344.0",
     "moment-timezone": "^0.6.0",
@@ -25,6 +29,7 @@
     "react-hook-form": "^7.68.0",
     "react-router-dom": "^7.7.1",
     "recharts": "^3.6.0",
+    "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.1"
   },
   "devDependencies": {

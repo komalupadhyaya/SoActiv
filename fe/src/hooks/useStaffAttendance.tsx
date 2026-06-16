@@ -74,8 +74,10 @@ interface AttendanceByStaffResponse {
 }
 
 // === Axios Instance ===
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+
 const api = axios.create({
-  baseURL: 'http://localhost:8000/api/v1/staff-attendance',
+  baseURL: `${API_URL}/staff-attendance`,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 });

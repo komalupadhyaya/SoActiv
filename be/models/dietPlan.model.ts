@@ -67,7 +67,6 @@ const dietPlanSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Compound index for fast member queries
-dietPlanSchema.index({ member: 1 });
+
 
 export default mongoose.model("DietPlan", dietPlanSchema);

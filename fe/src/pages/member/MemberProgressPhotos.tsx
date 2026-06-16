@@ -4,14 +4,11 @@ import { Card, CardHeader, CardContent } from '../../components/ui/Card';
 import {
   Camera,
   Plus,
-  ArrowRight,
   TrendingDown,
   Sparkles,
   Maximize2,
   Calendar,
   Layers,
-  ChevronLeft,
-  ChevronRight,
   Info,
   Clock,
   Loader2,
@@ -24,7 +21,8 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 const formatPhotoUrl = (url?: string): string => {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  return `http://localhost:8000${url}`;
+  const baseUrl = API_URL.replace('/api/v1', '');
+  return `${baseUrl}${url}`;
 };
 
 export const MemberProgressPhotos: React.FC = () => {

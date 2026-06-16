@@ -1,4 +1,8 @@
 // server.ts
+import dns from "dns";
+// Bypass router DNS lookup failures for MongoDB Atlas SRV records
+dns.setServers(["8.8.8.8", "8.8.4.4"]);
+
 import express from "express";
 import path from "path";
 import dotenv from "dotenv";
