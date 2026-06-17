@@ -12,6 +12,14 @@ import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import dns from "dns";
+
+// Force Node to use reliable public DNS servers for Atlas SRV resolution
+try {
+    dns.setServers(["8.8.8.8", "1.1.1.1"]);
+} catch (e) {
+    console.warn("Could not set custom DNS servers:", e.message);
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -20,14 +28,18 @@ dotenv.config({ path: join(__dirname, '../.env') });
 
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/soActive";
 
-// Super Admin credentials
 const SUPER_ADMIN_DATA = {
-    email: "chiragsoftiatric@gmail.com",
-    password: "lettonghk",
-    fullname: "Chirag",
+    email: process.env.SUPER_ADMIN_EMAIL,
+    password: process.env.SUPER_ADMIN_PASSWORD,
+    fullname: "Super Admin",
     role: "superadmin",
     isActive: true
 };
+
+if (!SUPER_ADMIN_DATA.email || !SUPER_ADMIN_DATA.password) {
+    console.error("❌ Error: SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD environment variables must be set!");
+    process.exit(1);
+}
 
 // User Schema (simplified for this script)
 const userSchema = new mongoose.Schema({

@@ -68,11 +68,8 @@ The `createSuperAdmin.ts` script creates the initial Super Admin account. It mus
 **Do NOT manually pre-hash** with `bcrypt.hash()` before calling `User.create()` — this causes a double-hash that makes login fail with `401 Unauthorized`.
 
 **Default credentials:**
-```
-Email:    tongkhotinchon@gmail.com
-Password: lettonghk
+Set via `SUPER_ADMIN_EMAIL` and `SUPER_ADMIN_PASSWORD` environment variables.
 URL:      http://localhost:5173/super-admin/login
-```
 
 **Create super admin:**
 ```bash

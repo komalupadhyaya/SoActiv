@@ -6,9 +6,9 @@
 **File:** `be/utils/createSuperAdmin.ts`
 
 **Credentials:**
-- Email: `tongkhotinchon@gmail.com`
-- Password: `lettonghk`
-- Username: `Patong`
+- Email: Configured via `SUPER_ADMIN_EMAIL`
+- Password: Configured via `SUPER_ADMIN_PASSWORD`
+- Username: `Super Admin`
 - Role: `superadmin`
 
 **Features:**
@@ -28,9 +28,9 @@ bun run utils/createSuperAdmin.ts
 ✅ Super Admin Created Successfully
 
 📋 Details:
-   Email: tongkhotinchon@gmail.com
-   Password: lettonghk
-   Username: Patong
+   Email: <configured-email>
+   Password: <configured-password>
+   Username: Super Admin
 
 🔐 Login URL:
    http://localhost:5173/super-admin/login
@@ -46,8 +46,8 @@ bun run utils/createSuperAdmin.ts
 **Request:**
 ```json
 {
-  "email": "tongkhotinchon@gmail.com",
-  "password": "lettonghk"
+  "email": "<configured-email>",
+  "password": "<configured-password>"
 }
 ```
 
@@ -177,9 +177,7 @@ bun run dev
 
 ### Step 3: Login
 1. Navigate to: `http://localhost:5173/super-admin/login`
-2. Enter credentials:
-   - Email: `tongkhotinchon@gmail.com`
-   - Password: `lettonghk`
+2. Enter credentials configured in your environment variables (`SUPER_ADMIN_EMAIL` and `SUPER_ADMIN_PASSWORD`).
 3. Click "Sign In"
 4. Redirected to dashboard
 

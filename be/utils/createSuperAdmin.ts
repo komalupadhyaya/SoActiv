@@ -15,14 +15,18 @@ dotenv.config();
 
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/soActive";
 
-// Super Admin credentials
 const SUPER_ADMIN_DATA = {
-    email: "tongkhotinchon@gmail.com",
-    password: "lettonghk",
-    fullname: "Patong",
+    email: process.env.SUPER_ADMIN_EMAIL,
+    password: process.env.SUPER_ADMIN_PASSWORD,
+    fullname: "Super Admin",
     role: "superadmin",
     isActive: true
 };
+
+if (!SUPER_ADMIN_DATA.email || !SUPER_ADMIN_DATA.password) {
+    console.error("❌ Error: SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD environment variables must be set!");
+    process.exit(1);
+}
 
 async function createSuperAdmin() {
     try {

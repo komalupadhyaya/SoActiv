@@ -7,7 +7,7 @@ dotenv.config({ path: 'c:/Users/User/SoActiv/be/.env' });
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/soActive';
 const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || 'your-super-secret-jwt-key';
 
-// Super Admin tongkhotinchon@gmail.com
+// Super Admin superadmin@soactiv.com
 const superAdminToken = jwt.sign(
     {
         _id: '6a0c59610b8f98f7743d5b91',

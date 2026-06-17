@@ -40,7 +40,7 @@ const otherGymAdminToken = jwt.sign(
     { expiresIn: '1h' }
 );
 
-// Super Admin tongkhotinchon@gmail.com
+// Super Admin superadmin@soactiv.com
 const superAdminToken = jwt.sign(
     {
         _id: '6a0c59610b8f98f7743d5b91',
