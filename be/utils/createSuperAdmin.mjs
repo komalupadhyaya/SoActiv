@@ -10,6 +10,7 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import dns from "dns";
@@ -81,6 +82,21 @@ async function createSuperAdmin() {
             console.log(`   Email: ${SUPER_ADMIN_DATA.email}`);
             console.log("   (Use your existing password if you didn't change it, or default if new)");
 
+            const token = jwt.sign(
+                {
+                    _id: existingUser._id,
+                    email: existingUser.email,
+                    role: existingUser.role,
+                    gym: existingUser.gym,
+                    sessionId: null,
+                    tokenVersion: existingUser.tokenVersion || 0
+                },
+                process.env.ACCESS_TOKEN_SECRET || "your-super-secret-jwt-key",
+                { expiresIn: process.env.ACCESS_TOKEN_EXPIRY || "7d" }
+            );
+            console.log("\n🔑 Access Token:");
+            console.log(token);
+
             await mongoose.disconnect();
             console.log("✅ Disconnected from database");
             process.exit(0);
@@ -103,6 +119,22 @@ async function createSuperAdmin() {
         console.log(`   Email: ${SUPER_ADMIN_DATA.email}`);
         console.log(`   Password: ${SUPER_ADMIN_DATA.password}`);
         console.log(`   Username: ${SUPER_ADMIN_DATA.fullname}`);
+        
+        const token = jwt.sign(
+            {
+                _id: superAdmin._id,
+                email: superAdmin.email,
+                role: superAdmin.role,
+                gym: superAdmin.gym,
+                sessionId: null,
+                tokenVersion: superAdmin.tokenVersion || 0
+            },
+            process.env.ACCESS_TOKEN_SECRET || "your-super-secret-jwt-key",
+            { expiresIn: process.env.ACCESS_TOKEN_EXPIRY || "7d" }
+        );
+        console.log("\n🔑 Access Token:");
+        console.log(token);
+
         console.log("\n🔐 Login URL:");
         console.log("   http://localhost:5173/super-admin/login");
         console.log("\n⚠️  IMPORTANT: Keep these credentials secure!\n");

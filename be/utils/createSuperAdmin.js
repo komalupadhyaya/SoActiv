@@ -9,6 +9,15 @@
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const bcrypt = require("bcryptjs");
+const dns = require("dns");
+const jwt = require("jsonwebtoken");
+
+// Force Node to use reliable public DNS servers for Atlas SRV resolution
+try {
+    dns.setServers(["8.8.8.8", "1.1.1.1"]);
+} catch (e) {
+    console.warn("Could not set custom DNS servers:", e.message);
+}
 
 dotenv.config();
 
@@ -52,6 +61,23 @@ async function createSuperAdmin() {
             console.log("⚠️  Super Admin with this email already exists:");
             console.log(`   Email: ${existingSuperAdmin.email}`);
             console.log(`   Name: ${existingSuperAdmin.fullname}\n`);
+            
+            const token = jwt.sign(
+                {
+                    _id: existingSuperAdmin._id,
+                    email: existingSuperAdmin.email,
+                    role: existingSuperAdmin.role,
+                    gym: existingSuperAdmin.gym,
+                    sessionId: null,
+                    tokenVersion: existingSuperAdmin.tokenVersion || 0
+                },
+                process.env.ACCESS_TOKEN_SECRET || "your-super-secret-jwt-key",
+                { expiresIn: process.env.ACCESS_TOKEN_EXPIRY || "7d" }
+            );
+            console.log("\n🔑 Access Token:");
+            console.log(token);
+            console.log();
+
             console.log("❌ Exiting safely - no changes made");
             await mongoose.disconnect();
             return;
@@ -74,6 +100,22 @@ async function createSuperAdmin() {
         console.log(`   Email: ${SUPER_ADMIN_DATA.email}`);
         console.log(`   Password: ${SUPER_ADMIN_DATA.password}`);
         console.log(`   Username: ${SUPER_ADMIN_DATA.fullname}`);
+        
+        const token = jwt.sign(
+            {
+                _id: superAdmin._id,
+                email: superAdmin.email,
+                role: superAdmin.role,
+                gym: superAdmin.gym,
+                sessionId: null,
+                tokenVersion: superAdmin.tokenVersion || 0
+            },
+            process.env.ACCESS_TOKEN_SECRET || "your-super-secret-jwt-key",
+            { expiresIn: process.env.ACCESS_TOKEN_EXPIRY || "7d" }
+        );
+        console.log("\n🔑 Access Token:");
+        console.log(token);
+
         console.log("\n🔐 Login URL:");
         console.log("   http://localhost:5173/super-admin/login");
         console.log("\n⚠️  IMPORTANT: Keep these credentials secure!\n");

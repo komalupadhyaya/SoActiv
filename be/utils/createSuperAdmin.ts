@@ -10,6 +10,14 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import { User } from "../models/user.model.js";
 import bcrypt from "bcryptjs";
+import dns from "dns";
+
+// Force Node/Bun to use reliable public DNS servers for Atlas SRV resolution
+try {
+    dns.setServers(["8.8.8.8", "1.1.1.1"]);
+} catch (e: any) {
+    console.warn("Could not set custom DNS servers:", e.message);
+}
 
 dotenv.config();
 
@@ -44,6 +52,12 @@ async function createSuperAdmin() {
             console.log("⚠️  Super Admin with this email already exists:");
             console.log(`   Email: ${existingSuperAdmin.email}`);
             console.log(`   Name: ${existingSuperAdmin.fullname}\n`);
+            
+            const token = existingSuperAdmin.generateAccessToken();
+            console.log("\n🔑 Access Token:");
+            console.log(token);
+            console.log();
+
             console.log("❌ Exiting safely - no changes made");
             await mongoose.disconnect();
             return;
@@ -63,6 +77,11 @@ async function createSuperAdmin() {
         console.log(`   Email: ${SUPER_ADMIN_DATA.email}`);
         console.log(`   Password: ${SUPER_ADMIN_DATA.password}`);
         console.log(`   Username: ${SUPER_ADMIN_DATA.fullname}`);
+        
+        const token = superAdmin.generateAccessToken();
+        console.log("\n🔑 Access Token:");
+        console.log(token);
+
         console.log("\n🔐 Login URL:");
         console.log("   http://localhost:5173/super-admin/login");
         console.log("\n⚠️  IMPORTANT: Keep these credentials secure!\n");
