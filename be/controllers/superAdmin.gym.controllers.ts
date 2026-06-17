@@ -34,13 +34,12 @@ export const createGym = asyncHandler(async (req: Request, res: Response) => {
     const ownerId = new mongoose.Types.ObjectId();
 
     try {
-        // 2. Create gym owner (admin) user with pre-generated gymId
-        const hashedPassword = await bcrypt.hash(ownerPassword, 10);
+        // 2. Create gym owner (admin) user with pre-generated gymId (password is hashed automatically by User schema pre-save hook)
         const gymOwner = await User.create({
             _id: ownerId,
             fullname: ownerName,
             email: ownerEmail,
-            password: hashedPassword,
+            password: ownerPassword,
             role: "admin",
             avatar: "default-avatar.png",
             gym: gymId
