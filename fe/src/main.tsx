@@ -1,23 +1,9 @@
+import './utils/axiosConfig';
 // import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
-import axios from 'axios';
 
-// Configure global axios interceptor to automatically attach authorization headers
-// for raw axios requests (used extensively in pages like superAdmin dashboard, list, etc.)
-axios.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('accessToken');
-    if (token && !config.headers.Authorization) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
 
 // Configure global fetch patch to automatically attach authorization headers
 // for raw window.fetch requests (used extensively in hooks like useGymClass, useSchedule, modals, etc.)
