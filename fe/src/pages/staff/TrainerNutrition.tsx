@@ -1,6 +1,5 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useClient, type Client } from '../../hooks/useClient';
-import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import {
   Apple, Search, User, ChevronRight, ArrowLeft,
@@ -30,7 +29,6 @@ interface ClientPlan {
 }
 
 export const TrainerNutrition: React.FC = () => {
-  const { user } = useAuth();
   const { clients, loading: clientsLoading } = useClient();
   const { addToast } = useToast();
 
