@@ -48,7 +48,7 @@ export const SalesLeads: React.FC = () => {
     // Adjust search query if a specific lead ID is requested
     useEffect(() => {
         if (targetId && myEnquiries.length > 0) {
-            const targetLead = myEnquiries.find(l => l._id === targetId || l.id === targetId);
+            const targetLead = myEnquiries.find(l => l._id === targetId);
             if (targetLead) {
                 const matchesSearch =
                     targetLead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -63,7 +63,7 @@ export const SalesLeads: React.FC = () => {
 
     // Handle scroll and highlight for target lead
     useEffect(() => {
-        if (!loading && targetId && myEnquiries.some(l => l._id === targetId || l.id === targetId)) {
+        if (!loading && targetId && myEnquiries.some(l => l._id === targetId)) {
             setHighlightedId(targetId);
 
             const timer = setTimeout(() => {
@@ -240,7 +240,8 @@ export const SalesLeads: React.FC = () => {
 
                                         {/* Actions */}
                                         <div className="mt-auto pt-4 border-t border-gray-100 dark:border-gray-800">
-                                            {user?.position === 'receptionist' || user?.position === 'manager' ? (
+                                            {user?.position === 'manager' ? (
+                                                // Manager: can update status/notes AND edit full details
                                                 <div className="flex gap-2">
                                                     <Button
                                                         variant="outline"
@@ -259,7 +260,24 @@ export const SalesLeads: React.FC = () => {
                                                         Edit
                                                     </Button>
                                                 </div>
+                                            ) : user?.position === 'receptionist' ? (
+                                                // Receptionist: can only edit walk-in leads
+                                                lead.source === 'walk-in' ? (
+                                                    <Button
+                                                        variant="primary"
+                                                        className="w-full gap-2 text-xs py-2 px-3 bg-gradient-to-r from-orange-500 to-amber-500 border-none hover:from-orange-600 hover:to-amber-600 text-white font-semibold"
+                                                        onClick={() => navigate(`/staff/enquiries/edit/${lead._id}`)}
+                                                    >
+                                                        <Edit2 size={12} />
+                                                        Edit
+                                                    </Button>
+                                                ) : (
+                                                    <p className="text-xs text-center text-gray-400 dark:text-gray-500 italic py-1">
+                                                        View only — not a walk-in lead
+                                                    </p>
+                                                )
                                             ) : (
+                                                // Sales staff: can only update status / note
                                                 <Button
                                                     variant="outline"
                                                     className="w-full gap-2"
@@ -270,6 +288,8 @@ export const SalesLeads: React.FC = () => {
                                                 </Button>
                                             )}
                                         </div>
+
+
                                     </CardContent>
                                 </Card>
                             ))}

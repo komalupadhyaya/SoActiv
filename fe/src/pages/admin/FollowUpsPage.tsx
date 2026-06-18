@@ -271,15 +271,7 @@ export const FollowUpsPage: React.FC = () => {
                           </button>
                         </>
                       )}
-                      {followUp.status === 'pending' && (
-                        <button
-                          onClick={() => handleComplete(followUp._id)}
-                          className="flex items-center gap-2 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
-                        >
-                          <CheckCircle size={16} />
-                          Confirm
-                        </button>
-                      )}
+
                       <button
                         onClick={() => handleDelete(followUp._id)}
                         className="flex items-center gap-2 px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm"

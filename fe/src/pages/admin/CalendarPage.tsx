@@ -266,70 +266,76 @@ export const CalendarPage: React.FC = () => {
               {getEventsForDay(selectedDate).length === 0 ? (
                 <p className="text-center text-gray-500 py-8">No events on this day.</p>
               ) : (
-                getEventsForDay(selectedDate).map(event => (
-                  <div key={event._id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${TYPE_COLORS[event.type] || 'bg-gray-500'}`} />
-                        <span className="font-medium text-gray-900 dark:text-white">{event.title}</span>
-                      </div>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${event.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                        {event.status}
-                      </span>
-                    </div>
+                getEventsForDay(selectedDate).map(event => {
+                  const isAssignedStaff = event.assignedTo?.some(s => s.email === user?.email);
+                  const canComplete = event.type !== 'followup' || isAssignedStaff;
+                  const canEditEvent = event.type === 'followup' ? isAdmin : canCreate;
 
-                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-2 line-clamp-2">
-                      {event.description || 'No description'}
-                    </p>
-
-                    <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
-                      <div className="flex items-center gap-1">
-                        <Clock size={12} />
-                        {event.startTime ? `${event.startTime} - ${event.endTime}` : event.scheduledTime}
-                      </div>
-                      {event.assignedTo && event.assignedTo.length > 0 && (
-                        <div className="flex items-center gap-1">
-                          <Users size={12} />
-                          {event.assignedTo.length} Staff
+                  return (
+                    <div key={event._id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full ${TYPE_COLORS[event.type] || 'bg-gray-500'}`} />
+                          <span className="font-medium text-gray-900 dark:text-white">{event.title}</span>
                         </div>
-                      )}
-                    </div>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${event.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                          {event.status}
+                        </span>
+                      </div>
 
-                    <div className="flex justify-end gap-2">
-                      {event.type !== 'holiday' && (
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => handleEventAction(event, 'complete')}
-                          disabled={event.status === 'completed'}
-                          className={event.status === 'completed' ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200' : ''}
-                        >
-                          {event.status === 'completed' ? 'Completed' : 'Complete'}
-                        </Button>
-                      )}
-                      {canCreate && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEditClick(event)}
-                          disabled={event.status === 'completed'}
-                          className={event.status === 'completed' ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200' : ''}
-                        >
-                          Edit
-                        </Button>
-                      )}
-                      {isAdmin && (
-                        <Button
-                          size="sm"
-                          className="bg-red-3400 text-red-600 hover:bg-red-700 border-red-200"
-                          onClick={() => handleEventAction(event, 'delete')}
-                        >
-                          Delete
-                        </Button>
-                      )}
+                      <p className="text-sm text-gray-600 dark:text-gray-300 mb-2 line-clamp-2">
+                        {event.description || 'No description'}
+                      </p>
+
+                      <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
+                        <div className="flex items-center gap-1">
+                          <Clock size={12} />
+                          {event.startTime ? `${event.startTime} - ${event.endTime}` : event.scheduledTime}
+                        </div>
+                        {event.assignedTo && event.assignedTo.length > 0 && (
+                          <div className="flex items-center gap-1">
+                            <Users size={12} />
+                            {event.assignedTo.length} Staff
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex justify-end gap-2">
+                        {event.type !== 'holiday' && canComplete && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => handleEventAction(event, 'complete')}
+                            disabled={event.status === 'completed'}
+                            className={event.status === 'completed' ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200' : ''}
+                          >
+                            {event.status === 'completed' ? 'Completed' : 'Complete'}
+                          </Button>
+                        )}
+                        {canEditEvent && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditClick(event)}
+                            disabled={event.status === 'completed'}
+                            className={event.status === 'completed' ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200' : ''}
+                          >
+                            Edit
+                          </Button>
+                        )}
+                        {isAdmin && (
+                          <Button
+                            size="sm"
+                            className="bg-red-3400 text-red-600 hover:bg-red-700 border-red-200"
+                            onClick={() => handleEventAction(event, 'delete')}
+                          >
+                            Delete
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
             <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">

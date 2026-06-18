@@ -265,54 +265,62 @@ export const Schedule: React.FC = () => {
                             <button onClick={() => setIsDetailsOpen(false)}><X size={24} /></button>
                         </div>
                         <div className="p-4 flex-1 overflow-y-auto space-y-3">
-                            {getEventsForDay(selectedDate).map(event => (
-                                <div key={event._id} className="p-3 border rounded-lg hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700">
-                                    <div className="flex justify-between">
-                                        <span className="font-medium text-gray-900 dark:text-white">{event.title}</span>
-                                        <span className={`text-xs px-2 py-1 rounded-full ${TYPE_COLORS[event.type] || 'bg-gray-500'} text-white`}>
-                                            {event.type}
-                                        </span>
-                                    </div>
-                                    <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{event.description}</p>
-                                    {/* Assigned To - Hide for Holiday */}
-                                    {event.type !== 'holiday' && event.assignedTo && event.assignedTo.length > 0 && (
-                                        <div className="flex items-center gap-1 mt-2 text-xs text-gray-500">
-                                            <Users size={12} /> {event.assignedTo.map(s => s.fullName).join(', ')}
+                            {getEventsForDay(selectedDate).map(event => {
+                                const isAssignedStaff = event.assignedTo?.some(s => s.email === user?.email);
+                                const canComplete = event.type !== 'followup' || isAssignedStaff;
+                                const canEditEvent = event.type === 'followup' ? isAdmin : canCreate;
+
+                                return (
+                                    <div key={event._id} className="p-3 border rounded-lg hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700">
+                                        <div className="flex justify-between">
+                                            <span className="font-medium text-gray-900 dark:text-white">{event.title}</span>
+                                            <span className={`text-xs px-2 py-1 rounded-full ${TYPE_COLORS[event.type] || 'bg-gray-500'} text-white`}>
+                                                {event.type}
+                                            </span>
                                         </div>
-                                    )}
-                                    <div className="flex justify-end gap-2 mt-3">
-                                        {/* Only show Complete/Edit if allowed */}
-                                        {event.type !== 'holiday' && (
-                                            <>
-                                                <Button
-                                                    size="sm"
-                                                    variant="secondary"
-                                                    onClick={() => handleEventAction(event, 'complete')}
-                                                    disabled={event.status === 'completed'}
-                                                    className={event.status === 'completed' ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200' : ''}
-                                                >
-                                                    {event.status === 'completed' ? 'Completed' : 'Complete'}
-                                                </Button>
-                                                {canCreate && (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() => handleEditClick(event)}
-                                                        disabled={event.status === 'completed'}
-                                                        className={event.status === 'completed' ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200' : ''}
-                                                    >
-                                                        Edit
-                                                     </Button>
-                                                 )}
-                                            </>
+                                        <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{event.description}</p>
+                                        {/* Assigned To - Hide for Holiday */}
+                                        {event.type !== 'holiday' && event.assignedTo && event.assignedTo.length > 0 && (
+                                            <div className="flex items-center gap-1 mt-2 text-xs text-gray-500">
+                                                <Users size={12} /> {event.assignedTo.map(s => s.fullName).join(', ')}
+                                            </div>
                                         )}
-                                        {/* Admin Delete Holiday */}
-                                        {canCreate && event.type === 'holiday' && (
-                                            <Button size="sm" variant="outline" onClick={() => handleEditClick(event)}>Edit</Button>
-                                        )}
+                                        <div className="flex justify-end gap-2 mt-3">
+                                            {/* Only show Complete/Edit if allowed */}
+                                            {event.type !== 'holiday' && (
+                                                <>
+                                                    {canComplete && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="secondary"
+                                                            onClick={() => handleEventAction(event, 'complete')}
+                                                            disabled={event.status === 'completed'}
+                                                            className={event.status === 'completed' ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200' : ''}
+                                                        >
+                                                            {event.status === 'completed' ? 'Completed' : 'Complete'}
+                                                        </Button>
+                                                    )}
+                                                    {canEditEvent && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => handleEditClick(event)}
+                                                            disabled={event.status === 'completed'}
+                                                            className={event.status === 'completed' ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200' : ''}
+                                                        >
+                                                            Edit
+                                                        </Button>
+                                                    )}
+                                                </>
+                                            )}
+                                            {/* Admin Delete Holiday */}
+                                            {canCreate && event.type === 'holiday' && (
+                                                <Button size="sm" variant="outline" onClick={() => handleEditClick(event)}>Edit</Button>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                             {getEventsForDay(selectedDate).length === 0 && <p className="text-center text-gray-500">No events.</p>}
                         </div>
                         <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">

@@ -1,6 +1,8 @@
 import type { Request, Response } from 'express';
 import Schedule from '../models/schedule.model';
 import { Staff } from '../models/staff.model';
+import { FollowUp } from '../models/followUp.model';
+import mongoose, { Types } from 'mongoose';
 
 /**
  * Helper: Get Admin ID (owner of the gym account)
@@ -468,12 +470,25 @@ export const updateScheduleEvent = async (req: Request, res: Response) => {
             });
         }
 
-        // Check if event is editable
+        // Restrict follow-up event edits to Admins only
+        if (scheduleEvent.type === 'followup' || req.body.type === 'followup') {
+            if (user.role !== 'admin' && user.role !== 'superadmin') {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Access denied: Only Admins can edit follow-up events.'
+                });
+            }
+        }
+
+        // Check if event is editable (Admins/Superadmins can edit follow-up events even if isEditable is false)
         if (!scheduleEvent.isEditable) {
-            return res.status(403).json({
-                success: false,
-                message: 'This schedule event cannot be edited'
-            });
+            const isFollowUpEditByAdmin = scheduleEvent.type === 'followup' && (user.role === 'admin' || user.role === 'superadmin');
+            if (!isFollowUpEditByAdmin) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'This schedule event cannot be edited'
+                });
+            }
         }
 
         // Access Control for Edit
@@ -485,7 +500,7 @@ export const updateScheduleEvent = async (req: Request, res: Response) => {
                     message: 'Staff can only edit schedules they created.'
                 });
             }
-        } else if (user.role === 'admin' || user.role === 'superadmin') {
+        } else if (user.role === 'admin') {
             // Admin can edit any schedule in their org
             if (scheduleEvent.adminId.toString() !== user.id) {
                 return res.status(403).json({
@@ -573,6 +588,20 @@ export const updateScheduleEvent = async (req: Request, res: Response) => {
 
         await scheduleEvent.save();
 
+        // Sync follow-up task updates
+        if (scheduleEvent.type === 'followup' && scheduleEvent.relatedFollowUp) {
+            const followUpUpdates: any = {};
+            if (title) followUpUpdates.relatedName = title.replace(/^Follow-up:\s*/i, '');
+            if (description !== undefined) followUpUpdates.note = description;
+            if (scheduledDate) followUpUpdates.scheduledDate = new Date(scheduledDate);
+            if (newStart) followUpUpdates.scheduledTime = newStart;
+            if (assignedTo !== undefined) {
+                const newAssignee = Array.isArray(assignedTo) ? assignedTo[0] : assignedTo;
+                if (newAssignee) followUpUpdates.assignedTo = new Types.ObjectId(newAssignee);
+            }
+            await FollowUp.findByIdAndUpdate(scheduleEvent.relatedFollowUp, followUpUpdates);
+        }
+
         const populatedEvent = await Schedule.findById(scheduleEvent._id)
             .populate('assignedTo', 'fullName position email')
             .populate('createdBy', 'fullname email')
@@ -613,15 +642,27 @@ export const completeScheduleEvent = async (req: Request, res: Response) => {
         }
 
         // Check if user is assigned to this event (for staff)
-        if (user.role === 'staff') {
+        let staffDocForSync = null;
+        if (scheduleEvent.type === 'followup') {
             const staffDoc = await Staff.findOne({ userId: user.id });
-            if (!staffDoc || scheduleEvent.assignedTo?.toString() !== staffDoc._id.toString()) {
+            if (!staffDoc || !scheduleEvent.assignedTo?.some(id => id.toString() === staffDoc._id.toString())) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Access denied: Only the assigned staff member can mark this follow-up as completed.'
+                });
+            }
+            scheduleEvent.completedBy = staffDoc._id;
+            staffDocForSync = staffDoc;
+        } else if (user.role === 'staff') {
+            const staffDoc = await Staff.findOne({ userId: user.id });
+            if (!staffDoc || !scheduleEvent.assignedTo?.some(id => id.toString() === staffDoc._id.toString())) {
                 return res.status(403).json({
                     success: false,
                     message: 'You are not assigned to this schedule event'
                 });
             }
             scheduleEvent.completedBy = staffDoc._id;
+            staffDocForSync = staffDoc;
         }
 
         scheduleEvent.status = 'completed';
@@ -631,6 +672,16 @@ export const completeScheduleEvent = async (req: Request, res: Response) => {
         }
 
         await scheduleEvent.save();
+
+        // Sync follow-up task status back
+        if (scheduleEvent.type === 'followup' && scheduleEvent.relatedFollowUp) {
+            await FollowUp.findByIdAndUpdate(scheduleEvent.relatedFollowUp, {
+                status: 'completed',
+                completedAt: new Date(),
+                completedBy: staffDocForSync ? staffDocForSync._id : undefined,
+                completionNotes: completionNotes || 'Completed from Calendar'
+            });
+        }
 
         const populatedEvent = await Schedule.findById(scheduleEvent._id)
             .populate('assignedTo', 'fullName position email')

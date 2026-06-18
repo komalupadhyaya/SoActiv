@@ -41,8 +41,36 @@ export const createOrUpdateEnquiryFollowUp = async (
   followUpDate: Date | string | null | undefined,
   userId: string,
   adminId: string,
-  noteText: string = 'Follow-up on lead'
+  noteText: string = 'Follow-up on lead',
+  leadStatus?: string
 ) => {
+  // ── Auto-resolve follow-up when the lead is closed ──────────────────────
+  if (leadStatus === 'converted' || leadStatus === 'lost') {
+    const closedFollowUp = await FollowUp.findOne({
+      relatedId: new Types.ObjectId(enquiryId),
+      type: 'enquiry',
+      status: 'pending'
+    });
+
+    if (closedFollowUp) {
+      const newFollowUpStatus = leadStatus === 'converted' ? 'completed' : 'cancelled';
+      closedFollowUp.status = newFollowUpStatus as any;
+      closedFollowUp.note = noteText; // Keep the note updated with the final status
+      closedFollowUp.completedAt = new Date();
+      await closedFollowUp.save();
+
+      // Also sync the calendar schedule event
+      await Schedule.findOneAndUpdate(
+        { relatedFollowUp: closedFollowUp._id },
+        {
+          status: newFollowUpStatus,
+          description: noteText,
+        }
+      );
+    }
+    return;
+  }
+
   if (!assignedStaff || !followUpDate) {
     // If cleared, cancel/delete pending follow-ups for this enquiry
     await FollowUp.deleteMany({
@@ -455,6 +483,15 @@ export const updateFollowUp = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const updates = req.body;
+    const user = (req as any).user;
+
+    // Restrict edit to Admin/Superadmin
+    if (user.role !== 'admin' && user.role !== 'superadmin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: Only admins can edit follow-ups.'
+      });
+    }
 
     const followUp = await FollowUp.findByIdAndUpdate(
       id,
@@ -494,15 +531,9 @@ export const updateFollowUp = async (req: Request, res: Response) => {
 export const completeFollowUp = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const user = (req as any).user;
 
-    const followUp = await FollowUp.findByIdAndUpdate(
-      id,
-      { status: 'completed', completedAt: new Date() },
-      { new: true }
-    )
-      .populate('assignedTo', 'fullName position email')
-      .populate('userId', 'fullname email');
-
+    const followUp = await FollowUp.findById(id);
     if (!followUp) {
       return res.status(404).json({
         success: false,
@@ -510,10 +541,40 @@ export const completeFollowUp = async (req: Request, res: Response) => {
       });
     }
 
+    // Verify caller is the assigned staff
+    const staffDoc = await Staff.findOne({ userId: user.id });
+    if (!staffDoc || followUp.assignedTo.toString() !== staffDoc._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: Only the assigned staff member can mark this follow-up as completed.'
+      });
+    }
+
+    followUp.status = 'completed';
+    followUp.completedAt = new Date();
+    followUp.completedBy = staffDoc._id;
+    await followUp.save();
+
+    // Sync schedule event status
+    await Schedule.findOneAndUpdate(
+      { relatedFollowUp: followUp._id },
+      {
+        status: 'completed',
+        completedAt: new Date(),
+        completedBy: staffDoc._id,
+        completionNotes: 'Completed from Follow-up'
+      }
+    );
+
+    const populatedFollowUp = await FollowUp.findById(followUp._id)
+      .populate('assignedTo', 'fullName position email')
+      .populate('userId', 'fullname email')
+      .populate('completedBy', 'fullName');
+
     return res.status(200).json({
       success: true,
       message: 'Follow-up marked as completed',
-      data: followUp
+      data: populatedFollowUp
     });
   } catch (error: any) {
     console.error('Complete follow-up error:', error);
@@ -660,6 +721,19 @@ export const updateFollowUpStatus = async (req: Request, res: Response) => {
 
     await followUp.save();
 
+    // Sync schedule event status
+    if (status === 'completed' || status === 'failed' || status === 'cancelled') {
+      await Schedule.findOneAndUpdate(
+        { relatedFollowUp: followUp._id },
+        {
+          status: status === 'failed' ? 'cancelled' : (status === 'completed' ? 'completed' : 'cancelled'),
+          completedAt: (status === 'completed' || status === 'failed') ? new Date() : undefined,
+          completedBy: (status === 'completed' || status === 'failed') ? user.staffId : undefined,
+          completionNotes: completionNotes || `Follow-up updated to ${status}`
+        }
+      );
+    }
+
     const populatedFollowUp = await FollowUp.findById(followUp._id)
       .populate('assignedTo', 'fullName position email')
       .populate('userId', 'fullname email')
@@ -708,6 +782,17 @@ export const completeFollowUpWithNotes = async (req: Request, res: Response) => 
     }
 
     await followUp.save();
+
+    // Sync schedule event status
+    await Schedule.findOneAndUpdate(
+      { relatedFollowUp: followUp._id },
+      {
+        status: 'completed',
+        completedAt: new Date(),
+        completedBy: user.staffId,
+        completionNotes: completionNotes || 'Completed from Follow-up'
+      }
+    );
 
     const populatedFollowUp = await FollowUp.findById(followUp._id)
       .populate('assignedTo', 'fullName position email')
@@ -762,6 +847,17 @@ export const failFollowUp = async (req: Request, res: Response) => {
     followUp.completionNotes = reason;
 
     await followUp.save();
+
+    // Sync schedule event status
+    await Schedule.findOneAndUpdate(
+      { relatedFollowUp: followUp._id },
+      {
+        status: 'cancelled',
+        completedAt: new Date(),
+        completedBy: user.staffId,
+        completionNotes: reason || 'Failed'
+      }
+    );
 
     const populatedFollowUp = await FollowUp.findById(followUp._id)
       .populate('assignedTo', 'fullName position email')

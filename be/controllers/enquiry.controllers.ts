@@ -337,14 +337,37 @@ export const updateEnquiry = async (req: Request, res: Response): Promise<any> =
     const isStaff = currentUser?.role === 'staff' || currentUser?.role === 'trainer';
     const staffProfile = isStaff ? await Staff.findOne({ userId: currentUser?.id }) : null;
 
-    // Staff restrictions: Can only update status and comments (except Manager and Receptionist)
-    if (isStaff && staffProfile?.position !== 'manager' && staffProfile?.position !== 'receptionist') {
+    // Role-based field access:
+    //  - Sales/Trainer staff: can ONLY update status + comments
+    //  - Receptionist: can edit walk-in lead details ONLY (NOT status or comments)
+    //  - Manager/Admin: can update everything
+    const position = staffProfile?.position;
+    if (isStaff && position !== 'manager' && position !== 'receptionist') {
+      // Sales / Trainer staff
       if (status) updateData.status = status;
       if (comments) updateData.comments = comments;
-
-      // If they try to update other fields, we just ignore them or throw error.
-      // Requirement says: "Can update status only" (and comments usually go with it).
+    } else if (isStaff && position === 'receptionist') {
+      // Receptionist: can only edit walk-in leads — fetch current enquiry to check source
+      const existingEnquiry = await Enquiry.findById(id).select('source');
+      if (!existingEnquiry) {
+        return res.status(404).json({ success: false, message: 'Enquiry not found.' });
+      }
+      if (existingEnquiry.source !== 'walk-in') {
+        return res.status(403).json({
+          success: false,
+          message: 'Receptionist can only edit walk-in leads.',
+        });
+      }
+      // Walk-in lead edits: basic details only, NOT status or comments
+      if (name) updateData.name = name;
+      if (phone) updateData.phone = phone;
+      if (email !== undefined) updateData.email = email;
+      if (source) updateData.source = source;
+      if (interests) updateData.interests = interests;
+      if (budget) updateData.budget = budget;
+      // status and comments are intentionally excluded for receptionists
     } else {
+      // Manager or Admin: full access
       if (name) updateData.name = name;
       if (phone) updateData.phone = phone;
       if (email !== undefined) updateData.email = email;
@@ -354,6 +377,7 @@ export const updateEnquiry = async (req: Request, res: Response): Promise<any> =
       if (interests) updateData.interests = interests;
       if (budget) updateData.budget = budget;
     }
+
 
     if (assignedStaff !== undefined) {
       if (!assignedStaff) {
@@ -401,6 +425,14 @@ export const updateEnquiry = async (req: Request, res: Response): Promise<any> =
         adminId = creatorDoc.createdBy.toString();
       }
     }
+
+    // Format a rich note that includes the lead status so it's visible on follow-up views
+    const leadStatus = updatedEnquiry.status;
+    const leadComments = updatedEnquiry.comments || '';
+    const followUpNoteText = leadComments
+      ? `[Lead Status: ${leadStatus.toUpperCase()}] ${leadComments}`
+      : `[Lead Status: ${leadStatus.toUpperCase()}]`;
+
     await createOrUpdateEnquiryFollowUp(
       (updatedEnquiry._id as any).toString(),
       updatedEnquiry.name,
@@ -408,7 +440,8 @@ export const updateEnquiry = async (req: Request, res: Response): Promise<any> =
       updatedEnquiry.followUpDate,
       currentUser?.id || '',
       adminId,
-      updatedEnquiry.comments || 'Follow-up scheduled'
+      followUpNoteText,
+      leadStatus
     );
 
     return res.status(200).json({
