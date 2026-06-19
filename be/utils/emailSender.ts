@@ -1,28 +1,22 @@
 /**
- * Email Sender Utility using Nodemailer (SMTP)
- * Handles sending welcome emails to newly created staff members + admin copies
+ * Email Sender Utility using Resend API
+ * Handles sending welcome emails to newly created staff members, admin copies,
+ * and client welcome emails.
+ *
+ * Required env variable:
+ *   RESEND_API_KEY  — your Resend API key (starts with "re_")
+ *   EMAIL_FROM      — (optional) sender address, defaults to "SoActiv <onboarding@soactiv.com>"
  */
 
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
-// Initialize SMTP transporter
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "smtp.gmail.com",
-  port: parseInt(process.env.SMTP_PORT || "587"),
-  secure: process.env.SMTP_PORT === "465", // true for 465, false for other ports
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+const DEFAULT_FROM =
+  process.env.EMAIL_FROM || "SoActiv <onboarding@soactiv.com>";
 
 /**
  * Sends a welcome email to a newly created staff member
- * @param to - Staff member's email address
- * @param fullName - Staff member's full name
- * @param password - Generated password for the account
- * @param gymName - Name of the gym for context
- * @returns Promise with email send result
  */
 export async function sendStaffWelcomeEmail(
   to: string,
@@ -44,7 +38,7 @@ export async function sendStaffWelcomeEmail(
         </head>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: linear-gradient(135deg, #ea580c 0%, #dc2626 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">Welcome to ${gymName || 'SoActiv'}!</h1>
+            <h1 style="color: white; margin: 0; font-size: 28px;">Welcome to ${gymName || "SoActiv"}!</h1>
           </div>
           
           <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px;">
@@ -62,7 +56,7 @@ export async function sendStaffWelcomeEmail(
               <p style="margin: 10px 0;">
                 <strong>Password:</strong> <span style="background: #f3f4f6; padding: 5px 10px; border-radius: 4px; font-size: 14px;">${password}</span>
               </p>
-              ${gymName ? `<p style="margin: 10px 0;"><strong>Gym:</strong> <span style="color: #ea580c;">${gymName}</span></p>` : ''}
+              ${gymName ? `<p style="margin: 10px 0;"><strong>Gym:</strong> <span style="color: #ea580c;">${gymName}</span></p>` : ""}
             </div>
             
             <div style="text-align: center; margin: 30px 0;">
@@ -100,29 +94,31 @@ export async function sendStaffWelcomeEmail(
       </html>
     `;
 
-    const info = await transporter.sendMail({
-      from: process.env.EMAIL_FROM || process.env.SMTP_USER || "SoActiv <onboarding@soactiv.com>",
-      to: to,
-      subject: `Welcome to ${gymName || 'SoActiv'}!`,
+    const { data, error } = await resend.emails.send({
+      from: DEFAULT_FROM,
+      to,
+      subject: `Welcome to ${gymName || "SoActiv"}!`,
       html: htmlContent,
     });
 
-    console.log("✅ Staff welcome email sent successfully via SMTP:", info.messageId);
-    return {
-      success: true,
-      messageId: info.messageId,
-    };
+    if (error) {
+      console.error("❌ Resend error sending staff welcome email:", error);
+      return { success: false, error: error.message };
+    }
+
+    console.log("✅ Staff welcome email sent via Resend:", data?.id);
+    return { success: true, messageId: data?.id };
   } catch (error: any) {
     console.error("❌ Exception sending staff welcome email:", error);
     return {
       success: false,
-      error: error.message || "Unknown error occurred during SMTP send",
+      error: error.message || "Unknown error occurred",
     };
   }
 }
 
 /**
- * Sends admin copy email with staff details
+ * Sends admin copy email with new staff details
  */
 export async function sendAdminStaffCopyEmail(
   adminEmail: string,
@@ -153,7 +149,7 @@ export async function sendAdminStaffCopyEmail(
               <p style="margin: 10px 0;"><strong>Name:</strong> <span style="color: #059669; font-weight: bold;">${staffName}</span></p>
               <p style="margin: 10px 0;"><strong>Staff Email:</strong> <span style="background: #f0fdf4; padding: 5px 10px; border-radius: 4px; font-size: 14px; color: #1f2937;">${staffEmail}</span></p>
               <p style="margin: 10px 0;"><strong>Temporary Password:</strong> <span style="background: #1f2937; color: #fff; padding: 8px 12px; border-radius: 4px; font-size: 14px; font-family: monospace;">${password}</span></p>
-              ${gymName ? `<p style="margin: 10px 0;"><strong>Gym:</strong> <span style="color: #059669;">${gymName}</span></p>` : ''}
+              ${gymName ? `<p style="margin: 10px 0;"><strong>Gym:</strong> <span style="color: #059669;">${gymName}</span></p>` : ""}
             </div>
             
             <div style="background: #ecfdf5; border-left: 4px solid #34d399; padding: 15px; margin: 25px 0; border-radius: 5px;">
@@ -176,36 +172,31 @@ export async function sendAdminStaffCopyEmail(
       </html>
     `;
 
-    const info = await transporter.sendMail({
-      from: process.env.EMAIL_FROM || process.env.SMTP_USER || "SoActiv <onboarding@soactiv.com>",
+    const { data, error } = await resend.emails.send({
+      from: DEFAULT_FROM,
       to: adminEmail,
       subject: `Admin Copy: New Staff Created (${staffName})`,
       html: htmlContent,
     });
 
-    console.log("✅ Admin copy email sent successfully via SMTP:", info.messageId);
-    return {
-      success: true,
-      messageId: info.messageId,
-    };
+    if (error) {
+      console.error("❌ Resend error sending admin copy email:", error);
+      return { success: false, error: error.message };
+    }
+
+    console.log("✅ Admin copy email sent via Resend:", data?.id);
+    return { success: true, messageId: data?.id };
   } catch (error: any) {
     console.error("❌ Exception sending admin copy email:", error);
     return {
       success: false,
-      error: error.message || "Unknown error occurred during SMTP send",
+      error: error.message || "Unknown error occurred",
     };
   }
 }
 
 /**
  * Sends a welcome email to a newly created gym client/member
- * @param to - Client's email address
- * @param fullName - Client's full name
- * @param password - Generated login password
- * @param gymName - Name of the gym
- * @param plan - Membership plan (basic/premium)
- * @param endDate - Membership end date
- * @returns Promise with email send result
  */
 export async function sendClientWelcomeEmail(
   to: string,
@@ -218,7 +209,13 @@ export async function sendClientWelcomeEmail(
   try {
     const appUrl = process.env.APP_URL || "http://localhost:5173";
     const loginUrl = `${appUrl}/login`;
-    const formattedEndDate = endDate ? new Date(endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
+    const formattedEndDate = endDate
+      ? new Date(endDate).toLocaleDateString("en-IN", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        })
+      : "N/A";
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -226,12 +223,12 @@ export async function sendClientWelcomeEmail(
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Welcome to ${gymName || 'SoActiv'}</title>
+          <title>Welcome to ${gymName || "SoActiv"}</title>
         </head>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
             <h1 style="color: white; margin: 0; font-size: 28px;">🏋️ Welcome, ${fullName}!</h1>
-            <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0 0; font-size: 16px;">Your membership is now active at ${gymName || 'SoActiv'}</p>
+            <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0 0; font-size: 16px;">Your membership is now active at ${gymName || "SoActiv"}</p>
           </div>
 
           <div style="background: #f0f9ff; padding: 30px; border-radius: 0 0 10px 10px;">
@@ -243,9 +240,9 @@ export async function sendClientWelcomeEmail(
               <h3 style="margin-top: 0; color: #1f2937;">Your Login Credentials</h3>
               <p style="margin: 10px 0;"><strong>Email:</strong> <span style="color: #0891b2;">${to}</span></p>
               <p style="margin: 10px 0;"><strong>Password:</strong> <span style="background: #f3f4f6; padding: 5px 10px; border-radius: 4px; font-size: 14px; font-family: monospace;">${password}</span></p>
-              ${gymName ? `<p style="margin: 10px 0;"><strong>Gym:</strong> <span style="color: #0891b2;">${gymName}</span></p>` : ''}
-              ${plan ? `<p style="margin: 10px 0;"><strong>Plan:</strong> <span style="text-transform: capitalize; color: #0891b2;">${plan}</span></p>` : ''}
-              ${endDate ? `<p style="margin: 10px 0;"><strong>Membership Valid Until:</strong> <span style="color: #374151;">${formattedEndDate}</span></p>` : ''}
+              ${gymName ? `<p style="margin: 10px 0;"><strong>Gym:</strong> <span style="color: #0891b2;">${gymName}</span></p>` : ""}
+              ${plan ? `<p style="margin: 10px 0;"><strong>Plan:</strong> <span style="text-transform: capitalize; color: #0891b2;">${plan}</span></p>` : ""}
+              ${endDate ? `<p style="margin: 10px 0;"><strong>Membership Valid Until:</strong> <span style="color: #374151;">${formattedEndDate}</span></p>` : ""}
             </div>
 
             <div style="text-align: center; margin: 30px 0;">
@@ -283,23 +280,25 @@ export async function sendClientWelcomeEmail(
       </html>
     `;
 
-    const info = await transporter.sendMail({
-      from: process.env.EMAIL_FROM || process.env.SMTP_USER || "SoActiv <onboarding@soactiv.com>",
-      to: to,
-      subject: `Welcome to ${gymName || 'SoActiv'} — Your Membership is Active! 🏋️`,
+    const { data, error } = await resend.emails.send({
+      from: DEFAULT_FROM,
+      to,
+      subject: `Welcome to ${gymName || "SoActiv"} — Your Membership is Active! 🏋️`,
       html: htmlContent,
     });
 
-    console.log("✅ Client welcome email sent successfully via SMTP:", info.messageId);
-    return {
-      success: true,
-      messageId: info.messageId,
-    };
+    if (error) {
+      console.error("❌ Resend error sending client welcome email:", error);
+      return { success: false, error: error.message };
+    }
+
+    console.log("✅ Client welcome email sent via Resend:", data?.id);
+    return { success: true, messageId: data?.id };
   } catch (error: any) {
     console.error("❌ Exception sending client welcome email:", error);
     return {
       success: false,
-      error: error.message || "Unknown error occurred during SMTP send",
+      error: error.message || "Unknown error occurred",
     };
   }
 }

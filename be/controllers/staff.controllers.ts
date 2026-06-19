@@ -516,7 +516,7 @@ export const updateStaffById = async (req: Request, res: Response): Promise<void
 
       // Sanitise updates: allow only editable fields in pendingUpdates that actually changed
       const allowedKeys = ['fullName', 'email', 'position', 'contactNumber', 'joiningDate', 'salary', 'status', 'notifications'];
-      
+
       const areValuesEqual = (a: any, b: any, key: string) => {
         if (a === b) return true;
         if (key === 'joiningDate' && a && b) {
@@ -954,7 +954,7 @@ export const approveStaffRequest = async (req: Request, res: Response): Promise<
       const updates = staffDoc.pendingUpdates;
       if (updates) {
         Object.assign(staffDoc, updates);
-        
+
         if (staffDoc.userId) {
           const userUpdates: any = {};
           if (updates.fullName) {

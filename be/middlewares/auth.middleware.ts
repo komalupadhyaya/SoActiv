@@ -49,6 +49,7 @@ export const authMiddleware = asyncHandler(
 
       const user = await User.findById(decoded._id).select("-password");
       if (!user) {
+        console.warn(`⚠️ Auth: User not found in DB for token ID: ${decoded._id}`);
         throw new ApiError(HttpStatusCode.UNAUTHORIZED, "User not found");
       }
 

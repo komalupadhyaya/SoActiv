@@ -31,7 +31,7 @@ export function getFollowUpISTDate(scheduledDate: Date, scheduledTime: string): 
 export async function checkAndSendFollowUpReminders(): Promise<void> {
   try {
     const now = getISTTime();
-    
+
     // Find all pending follow-ups that haven't received a reminder yet
     const pendingFollowUps = await FollowUp.find({
       status: 'pending',
@@ -40,7 +40,8 @@ export async function checkAndSendFollowUpReminders(): Promise<void> {
 
     if (pendingFollowUps.length === 0) return;
 
-    console.log(`[FollowUpReminder] Checking ${pendingFollowUps.length} pending follow-up(s) at ${now.toLocaleTimeString()}`);
+    // Quietly inspect pending follow-ups without spamming the console every 60 seconds
+
 
     for (const followUp of pendingFollowUps) {
       const targetTime = getFollowUpISTDate(followUp.scheduledDate, followUp.scheduledTime);
@@ -86,7 +87,7 @@ export async function checkAndSendFollowUpReminders(): Promise<void> {
  */
 export function startFollowUpReminderScheduler(): void {
   console.log('[FollowUpReminder] Background follow-up reminder scheduler successfully initialized.');
-  
+
   // Run check every 60 seconds
   setInterval(() => {
     checkAndSendFollowUpReminders();
