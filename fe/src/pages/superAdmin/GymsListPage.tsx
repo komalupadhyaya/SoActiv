@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Plus, Search, Edit } from 'lucide-react';
+import { Building2, Plus, Search, Edit, Trash2 } from 'lucide-react';
 import axios from 'axios';
 import GymModal from '../../components/modals/GymModal';
 
@@ -71,6 +71,21 @@ export function GymsListPage() {
 
     const handleSuccess = () => {
         fetchGyms();
+    };
+
+    const handleDeleteGym = async (id: string, name: string) => {
+        if (window.confirm(`Are you sure you want to delete gym "${name}"? This action will archive/delete all associated records.`)) {
+            try {
+                await axios.delete(
+                    `${API_URL}/api/v1/super-admin/gyms/${id}`,
+                    { withCredentials: true }
+                );
+                fetchGyms();
+            } catch (error) {
+                console.error('Failed to delete gym:', error);
+                alert('Failed to delete gym. Please try again.');
+            }
+        }
     };
 
     const getStatusBadge = (status: string) => {
@@ -180,13 +195,17 @@ export function GymsListPage() {
                             ) : (
                                 gyms.map((gym) => (
                                     <tr key={gym._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                                        <td className="px-6 py-4">
+                                        <td 
+                                            className="px-6 py-4 cursor-pointer"
+                                            onClick={() => navigate(`/super-admin/gyms/${gym._id}`)}
+                                            title="Click to view details"
+                                        >
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900 rounded-lg flex items-center justify-center">
                                                     <Building2 className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                                                 </div>
                                                 <div>
-                                                    <p className="font-medium text-gray-900 dark:text-white">{gym.name}</p>
+                                                    <p className="font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 hover:underline">{gym.name}</p>
                                                     <p className="text-sm text-gray-500 dark:text-gray-400">
                                                         {new Date(gym.createdAt).toLocaleDateString()}
                                                     </p>
@@ -220,10 +239,11 @@ export function GymsListPage() {
                                                     <Edit className="w-4 h-4" />
                                                 </button>
                                                 <button
-                                                    onClick={() => navigate(`/super-admin/gyms/${gym._id}`)}
-                                                    className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium text-sm"
+                                                    onClick={() => handleDeleteGym(gym._id, gym.name)}
+                                                    className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                    title="Delete Gym"
                                                 >
-                                                    View Details
+                                                    <Trash2 className="w-4 h-4" />
                                                 </button>
                                             </div>
                                         </td>

@@ -20,6 +20,7 @@ export const EnquiryFormPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const isEditing = !!id;
   const { addToast } = useToast();
+  const [countryCode, setCountryCode] = useState('+91');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -66,9 +67,21 @@ export const EnquiryFormPage: React.FC = () => {
           setLoadingForm(true);
           const enquiry = await getEnquiryById(id);
           if (enquiry) {
+            let phoneVal = enquiry.phone || '';
+            let codeVal = '+91';
+            if (phoneVal.startsWith('+')) {
+              const codes = ['+971', '+33', '+49', '+61', '+65', '+81', '+86', '+91', '+44', '+1'];
+              const matchedCode = codes.find(c => phoneVal.startsWith(c));
+              if (matchedCode) {
+                codeVal = matchedCode;
+                phoneVal = phoneVal.substring(matchedCode.length);
+              }
+            }
+            setCountryCode(codeVal);
+
             setFormData({
               name: enquiry.name || '',
-              phone: enquiry.phone || '',
+              phone: phoneVal,
               email: enquiry.email || '',
               source: enquiry.source || '',
               status: enquiry.status || 'new',
@@ -91,20 +104,64 @@ export const EnquiryFormPage: React.FC = () => {
 
   // Handle input changes
   const handleInputChange = (field: string, value: string | EnquiryStatus) => {
+    let finalValue = value;
+    if (field === 'phone' && typeof value === 'string') {
+      finalValue = value.replace(/\D/g, '').slice(0, 10);
+    }
     setFormData(prev => ({
       ...prev,
-      [field]: value,
+      [field]: finalValue,
     }));
   };
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!/^[a-zA-Z\s]+$/.test(formData.name)) {
+      addToast('Name must contain only alphabetical characters and spaces', 'error');
+      return;
+    }
+
+    if (formData.phone.length !== 10) {
+      addToast('Phone number must be exactly 10 digits', 'error');
+      return;
+    }
+
+    if (!formData.email.trim() || !formData.source || !formData.assignedStaff || !formData.followUpDate || !formData.interests.trim() || !formData.budget.trim()) {
+      addToast('Please fill in all details, including email, source, assigned staff, follow-up date, interests, and budget.', 'error');
+      return;
+    }
+
+    if (!/^[a-zA-Z\s.,\-()]*$/.test(formData.interests)) {
+      addToast('Areas of Interest can only contain letters, spaces, and basic punctuation (no numbers or special characters)', 'error');
+      return;
+    }
+
+    const budgetNum = Number(formData.budget);
+    if (isNaN(budgetNum) || budgetNum < 100 || budgetNum > 100000) {
+      addToast('Budget must be a valid number between 100 and 100,000', 'error');
+      return;
+    }
+
+    if (formData.comments) {
+      const commentWords = formData.comments.trim().split(/\s+/).filter(Boolean).length;
+      if (commentWords > 50) {
+        addToast('Comments cannot exceed 50 words', 'error');
+        return;
+      }
+      if (!/^[a-zA-Z\s.,\-()]*$/.test(formData.comments)) {
+        addToast('Comments can only contain alphabetical characters, spaces, and basic punctuation (no numbers or special characters)', 'error');
+        return;
+      }
+    }
+
     setSubmitting(true);
 
     try {
       const enquiryData = {
         ...formData,
+        phone: `${countryCode}${formData.phone}`,
         followUpDate: formData.followUpDate ? new Date(formData.followUpDate).toISOString() : undefined,
       };
 
@@ -177,22 +234,47 @@ export const EnquiryFormPage: React.FC = () => {
                   onChange={(e) => handleInputChange('name', e.target.value)}
                   required
                 />
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Phone Number <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      value={countryCode}
+                      onChange={(e) => setCountryCode(e.target.value)}
+                      className="w-24 px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    >
+                      <option value="+91">+91 (IN)</option>
+                      <option value="+1">+1 (US)</option>
+                      <option value="+44">+44 (UK)</option>
+                      <option value="+61">+61 (AU)</option>
+                      <option value="+971">+971 (AE)</option>
+                      <option value="+65">+65 (SG)</option>
+                      <option value="+49">+49 (DE)</option>
+                      <option value="+33">+33 (FR)</option>
+                      <option value="+81">+81 (JP)</option>
+                      <option value="+86">+86 (CN)</option>
+                    </select>
+                    <div className="flex-1">
+                      <Input
+                        placeholder="Enter phone number"
+                        value={formData.phone}
+                        onChange={(e) => handleInputChange('phone', e.target.value)}
+                        required
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+                </div>
                 <Input
-                  label="Phone Number"
-                  placeholder="Enter phone number"
-                  value={formData.phone}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
-                  required
-                />
-                <Input
-                  label="Email Address"
+                  label="Email Address *"
                   type="email"
                   placeholder="Enter email address"
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
                 />
                 <Select
-                  label="Source"
+                  label="Source *"
                   options={[
                     { value: '', label: 'Select Source' },
                     { value: 'website', label: 'Website' },
@@ -227,14 +309,14 @@ export const EnquiryFormPage: React.FC = () => {
                 />
 
                 <Select
-                  label="Assigned Staff"
+                  label="Assigned Staff *"
                   options={staffOptions}
                   value={formData.assignedStaff}
                   onChange={(value) => handleInputChange('assignedStaff', value)}
                 />
 
                 <Input
-                  label="Follow-up Date"
+                  label="Follow-up Date *"
                   type="date"
                   value={formData.followUpDate}
                   onChange={(e) => handleInputChange('followUpDate', e.target.value)}
@@ -257,13 +339,13 @@ export const EnquiryFormPage: React.FC = () => {
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
-                  label="Areas of Interest"
+                  label="Areas of Interest *"
                   placeholder="e.g., Weight training, Cardio, Yoga"
                   value={formData.interests}
                   onChange={(e) => handleInputChange('interests', e.target.value)}
                 />
                 <Input
-                  label="Budget Range"
+                  label="Budget Range *"
                   placeholder="e.g., $50-100/month"
                   value={formData.budget}
                   onChange={(e) => handleInputChange('budget', e.target.value)}

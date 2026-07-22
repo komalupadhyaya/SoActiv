@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Search, Filter, Phone, Mail, Calendar, Trash2, Upload } from 'lucide-react';
+import { Plus, Search, Filter, Phone, Mail, Calendar, Trash2, Upload, Edit } from 'lucide-react';
 import { Card, CardHeader, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -318,15 +318,18 @@ export const EnquiriesPage: React.FC = () => {
                           <div className="flex space-x-2">
                             <Button
                               size="sm"
-                              variant="outline"
+                              variant="ghost"
+                              className="text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/20"
                               onClick={() => navigate(`/admin/enquiries/edit/${enquiry._id}`)}
+                              aria-label="Edit enquiry"
+                              title="Edit Enquiry"
                             >
-                              Edit
+                              <Edit size={16} />
                             </Button>
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="text-red-400 hover:text-red-50 dark:hover:text-orange-600"
+                              className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20"
                               onClick={async () => {
                                 if (await confirm('Are you sure you want to delete this enquiry?', { title: 'Delete Enquiry' })) {
                                   await deleteEnquiry(enquiry._id);
@@ -387,15 +390,18 @@ export const EnquiriesPage: React.FC = () => {
                       <div className="mt-3 flex space-x-2">
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant="ghost"
+                          className="text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/20"
                           onClick={() => navigate(`/admin/enquiries/edit/${enquiry._id}`)}
+                          aria-label="Edit enquiry"
+                          title="Edit Enquiry"
                         >
-                          Edit
+                          <Edit size={16} />
                         </Button>
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="text-red-400 hover:text-red-50 dark:hover:text-orange-600"
+                          className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20"
                           onClick={async () => {
                             if (await confirm('Are you sure you want to delete this enquiry?', { title: 'Delete Enquiry' })) {
                               await deleteEnquiry(enquiry._id);

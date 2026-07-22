@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Plus, Calendar, Users, Clock, Edit2, Trash2, ChevronRight, PlayCircle,
-    RefreshCw, X, CheckCircle, AlertCircle, Dumbbell, BookOpen, Settings
+    RefreshCw, X, AlertCircle, Dumbbell
 } from 'lucide-react';
 import { useGymClass, GymClass, ClassSession } from '../../hooks/useGymClass';
 import { useStaff } from '../../hooks/useStaff';
@@ -22,6 +22,26 @@ function formatTime(time: string) {
 function formatDate(dateStr: string) {
     return new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 }
+
+const getLocalDateString = (date = new Date()) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const getMaxDateString = (days: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    return getLocalDateString(d);
+};
+
+const getMaxEndDateString = (startDateStr: string, days: number) => {
+    if (!startDateStr) return getMaxDateString(days);
+    const [year, month, day] = startDateStr.split('-').map(Number);
+    const d = new Date(year, month - 1, day + days);
+    return getLocalDateString(d);
+};
 
 const emptyForm = {
     name: '', description: '', notes: '', trainerId: '', capacity: 20,
@@ -219,6 +239,14 @@ export const ClassManagementPage: React.FC = () => {
     const [generateForm, setGenerateForm] = useState({ ...emptyGenerate });
     const [formError, setFormError] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [sessionsFromDate, setSessionsFromDate] = useState(getLocalDateString());
+
+    const handleSessionsFromDateChange = async (date: string) => {
+        setSessionsFromDate(date);
+        if (selectedClass) {
+            await fetchSessionsByClass(selectedClass._id, { from: date });
+        }
+    };
 
     // Trainers only
     const trainers = staff.filter(s => s.position === 'trainer' && s.status === 'active');
@@ -247,16 +275,19 @@ export const ClassManagementPage: React.FC = () => {
 
     const openGenerateModal = (cls: GymClass) => {
         setSelectedClass(cls);
-        const today = new Date().toISOString().slice(0, 10);
-        const plus30 = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-        setGenerateForm({ startDate: today, endDate: plus30 });
+        const today = getLocalDateString();
+        const plus30Date = new Date();
+        plus30Date.setDate(plus30Date.getDate() + 30);
+        const plus30 = getLocalDateString(plus30Date);
+        setGenerateForm({ startDate: today, endDate: cls.recurrence.type === 'none' ? today : plus30 });
         setIsGenerateOpen(true);
     };
 
     const openSessions = async (cls: GymClass) => {
         setSelectedClass(cls);
         setActiveView('sessions');
-        const today = new Date().toISOString().slice(0, 10);
+        const today = getLocalDateString();
+        setSessionsFromDate(today);
         await fetchSessionsByClass(cls._id, { from: today });
     };
 
@@ -264,6 +295,37 @@ export const ClassManagementPage: React.FC = () => {
 
     const validateForm = () => {
         if (!form.name.trim()) return 'Class name is required';
+        if (!/^[a-zA-Z\s]+$/.test(form.name.trim())) {
+            return 'Class name must contain only alphabetical characters and spaces';
+        }
+        const nameLower = form.name.trim().toLowerCase();
+        const isDuplicate = classes.some(c => 
+            c.name.toLowerCase() === nameLower && 
+            c.status === 'active' && 
+            (!isEditOpen || (selectedClass && c._id !== selectedClass._id))
+        );
+        if (isDuplicate) {
+            return 'A class with this name already exists';
+        }
+        if (form.description.trim()) {
+            const wordCount = form.description.trim().split(/\s+/).filter(Boolean).length;
+            if (wordCount > 50) {
+                return 'Description cannot exceed 50 words';
+            }
+            if (!/^[a-zA-Z\s.,!?'"\-()]*$/.test(form.description.trim())) {
+                return 'Description must contain only alphabetical characters and spaces (no numbers or special characters)';
+            }
+        }
+        if (form.notes.trim()) {
+            const wordCount = form.notes.trim().split(/\s+/).filter(Boolean).length;
+            if (wordCount > 50) {
+                return 'Class notes cannot exceed 50 words';
+            }
+            if (!/^[a-zA-Z\s.,!?'"\-()]*$/.test(form.notes.trim())) {
+                return 'Class notes must contain only alphabetical characters and spaces (no numbers or special characters)';
+            }
+        }
+        if (!form.trainerId) return 'Trainer is required';
         if (form.capacity < 1) return 'Capacity must be at least 1';
         if (form.durationMinutes < 15) return 'Duration must be at least 15 minutes';
         if (form.recurrenceType === 'weekly' && form.recurrenceDays.length === 0) return 'Select at least one day for weekly recurrence';
@@ -306,21 +368,47 @@ export const ClassManagementPage: React.FC = () => {
     };
 
     const handleDelete = async (cls: GymClass) => {
-        const ok = await confirm(`Cancel class "${cls.name}"? All future sessions will also be cancelled.`, 'Cancel Class', 'danger');
+        const ok = await confirm(`Cancel class "${cls.name}"? All future sessions will also be cancelled.`, { title: 'Cancel Class', type: 'danger' });
         if (ok) await deleteClass(cls._id);
     };
 
     const handleGenerate = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedClass) return;
-        if (!generateForm.startDate || !generateForm.endDate) { setFormError('Both dates are required'); return; }
+
+        const isSingle = selectedClass.recurrence.type === 'none';
+        const startD = generateForm.startDate;
+        const endD = isSingle ? startD : generateForm.endDate;
+
+        if (!startD || !endD) { setFormError('Date is required'); return; }
+        
+        const todayStr = getLocalDateString();
+        if (startD < todayStr) {
+            setFormError('Start date cannot be in the past');
+            return;
+        }
+        if (endD < todayStr) {
+            setFormError('End date cannot be in the past');
+            return;
+        }
+        if (endD < startD) {
+            setFormError('End date must be after or equal to start date');
+            return;
+        }
+
+        const maxEndD = getMaxEndDateString(startD, 90);
+        if (endD > maxEndD) {
+            setFormError('Date range cannot exceed 90 days');
+            return;
+        }
+
         setSubmitting(true);
-        await generateSessions(selectedClass._id, generateForm.startDate, generateForm.endDate);
+        await generateSessions(selectedClass._id, startD, endD);
         setSubmitting(false);
         setIsGenerateOpen(false);
         // Refresh sessions if viewing
         if (activeView === 'sessions') {
-            await fetchSessionsByClass(selectedClass._id, { from: new Date().toISOString().slice(0, 10) });
+            await fetchSessionsByClass(selectedClass._id, { from: getLocalDateString() });
         }
     };
 
@@ -332,7 +420,7 @@ export const ClassManagementPage: React.FC = () => {
         setIsCancelSessionOpen(false);
         setCancelReason('');
         if (selectedClass) {
-            await fetchSessionsByClass(selectedClass._id, { from: new Date().toISOString().slice(0, 10) });
+            await fetchSessionsByClass(selectedClass._id, { from: sessionsFromDate });
         }
     };
 
@@ -574,6 +662,18 @@ export const ClassManagementPage: React.FC = () => {
                 {/* Sessions List */}
                 {activeView === 'sessions' && selectedClass && (
                     <div>
+                        <div className="flex flex-wrap items-center justify-between gap-4 mb-4 bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                            <div className="flex items-center gap-2">
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Show sessions from:</label>
+                                <input
+                                    type="date"
+                                    value={sessionsFromDate}
+                                    onChange={e => handleSessionsFromDateChange(e.target.value)}
+                                    min={getLocalDateString()}
+                                    className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                />
+                            </div>
+                        </div>
                         {selectedClass.notes && (
                             <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
                                 <p className="text-sm text-amber-800 dark:text-amber-300">
@@ -685,21 +785,29 @@ export const ClassManagementPage: React.FC = () => {
                                 <p className="text-sm text-red-600 dark:text-red-400">{formError}</p>
                             )}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    {selectedClass.recurrence.type === 'none' ? 'Session Date' : 'Start Date'}
+                                </label>
                                 <input
                                     type="date" value={generateForm.startDate}
+                                    min={getLocalDateString()}
+                                    max={getMaxDateString(90)}
                                     onChange={e => setGenerateForm(p => ({ ...p, startDate: e.target.value }))}
                                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
                                 />
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Date</label>
-                                <input
-                                    type="date" value={generateForm.endDate}
-                                    onChange={e => setGenerateForm(p => ({ ...p, endDate: e.target.value }))}
-                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-                                />
-                            </div>
+                            {selectedClass.recurrence.type !== 'none' && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Date</label>
+                                    <input
+                                        type="date" value={generateForm.endDate}
+                                        min={generateForm.startDate || getLocalDateString()}
+                                        max={getMaxEndDateString(generateForm.startDate, 90)}
+                                        onChange={e => setGenerateForm(p => ({ ...p, endDate: e.target.value }))}
+                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                    />
+                                </div>
+                            )}
                             <div className="flex gap-3 justify-end">
                                 <button type="button" onClick={() => setIsGenerateOpen(false)}
                                     className="px-4 py-2 text-sm text-gray-600 bg-gray-100 dark:bg-gray-700 dark:text-gray-400 rounded-lg hover:bg-gray-200 transition-colors">
@@ -760,9 +868,9 @@ export const ClassManagementPage: React.FC = () => {
                 isOpen={confirmState.isOpen}
                 message={confirmState.message}
                 title={confirmState.title}
-                variant={confirmState.variant}
+                type={confirmState.type}
                 onConfirm={handleConfirm}
-                onCancel={handleCancel}
+                onClose={handleCancel}
             />
         </div>
     );

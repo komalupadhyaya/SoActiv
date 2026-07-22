@@ -210,14 +210,17 @@ export const StaffAttendance: React.FC = () => {
         }
     };
 
-    const handleNotesChange = async (row: AttendanceRow, notes: string) => {
+    const handleNotesChange = (row: AttendanceRow, notes: string) => {
+        setLocalData((prev) =>
+            prev.map((r) => (r.staffId === row.staffId ? { ...r, notes } : r))
+        );
+    };
+
+    const handleNotesBlur = async (row: AttendanceRow) => {
         try {
             if (row.attendanceId) {
-                await updateAttendance(row.attendanceId, { notes });
+                await updateAttendance(row.attendanceId, { notes: row.notes });
             }
-            setLocalData((prev) =>
-                prev.map((r) => (r.staffId === row.staffId ? { ...r, notes } : r))
-            );
         } catch (err) {
             // Toast handled in hook
         }
@@ -340,6 +343,7 @@ export const StaffAttendance: React.FC = () => {
                                                 <textarea
                                                     value={row.notes}
                                                     onChange={(e) => handleNotesChange(row, e.target.value)}
+                                                    onBlur={() => handleNotesBlur(row)}
                                                     placeholder="Add notes..."
                                                     className="w-full rounded-md border border-gray-300 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300 p-2 min-h-[40px] resize-y focus:ring-2 focus:ring-orange-400 bg-white dark:bg-gray-900"
                                                 />

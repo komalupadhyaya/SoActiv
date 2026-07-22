@@ -6,14 +6,23 @@ import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { useConfirm } from '../../hooks/useConfirm';
-import { Plus, Trash2, AlertTriangle, Megaphone } from 'lucide-react';
+import { Plus, Trash2, AlertTriangle, Megaphone, Edit } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 // import { Select } from '../../components/ui/Select';
 
+const getLocalDateString = (date = new Date()) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 export const AdminAnnouncementsPage: React.FC = () => {
-    const { announcements, loading, fetchAnnouncements, createAnnouncement, deleteAnnouncement } = useAnnouncement();
+    const { announcements, loading, fetchAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement } = useAnnouncement();
     const { confirm, confirmState, handleConfirm, handleCancel } = useConfirm();
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingAnnouncement, setEditingAnnouncement] = useState<any>(null);
+    const [errors, setErrors] = useState<Record<string, string>>({});
     const [formData, setFormData] = useState({
         title: '',
         message: '',
@@ -27,8 +36,72 @@ export const AdminAnnouncementsPage: React.FC = () => {
         fetchAnnouncements();
     }, [fetchAnnouncements]);
 
+    const handleNewClick = () => {
+        setEditingAnnouncement(null);
+        setFormData({
+            title: '',
+            message: '',
+            targetAudience: 'all',
+            priority: 'normal',
+            expiresAt: '',
+            visibleRoles: ''
+        });
+        setErrors({});
+        setIsModalOpen(true);
+    };
+
+    const handleEditClick = (ann: any) => {
+        setEditingAnnouncement(ann);
+        setFormData({
+            title: ann.title,
+            message: ann.message,
+            targetAudience: ann.targetAudience,
+            priority: ann.priority,
+            expiresAt: ann.expiresAt ? new Date(ann.expiresAt).toISOString().slice(0, 10) : '',
+            visibleRoles: ann.visibleRoles ? ann.visibleRoles.join(', ') : ''
+        });
+        setErrors({});
+        setIsModalOpen(true);
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        const formErrors: Record<string, string> = {};
+
+        const titleTrimmed = formData.title.trim();
+        if (!titleTrimmed) {
+            formErrors.title = 'Title is required';
+        } else {
+            const wordCount = titleTrimmed.split(/\s+/).filter(Boolean).length;
+            if (wordCount > 15) {
+                formErrors.title = 'Title cannot exceed 15 words';
+            } else if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(titleTrimmed)) {
+                formErrors.title = 'Title can only contain letters, numbers, spaces, and basic punctuation';
+            }
+        }
+
+        const messageTrimmed = formData.message.trim();
+        if (!messageTrimmed) {
+            formErrors.message = 'Message is required';
+        } else {
+            const wordCount = messageTrimmed.split(/\s+/).filter(Boolean).length;
+            if (wordCount > 50) {
+                formErrors.message = 'Message cannot exceed 50 words';
+            } else if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(messageTrimmed)) {
+                formErrors.message = 'Message can only contain letters, numbers, spaces, and basic punctuation';
+            }
+        }
+
+        const todayStr = getLocalDateString();
+        if (formData.expiresAt && formData.expiresAt < todayStr) {
+            formErrors.expiresAt = 'Expiry date cannot be in the past';
+        }
+
+        if (Object.keys(formErrors).length > 0) {
+            setErrors(formErrors);
+            return;
+        }
 
         // Parse roles
         const roles = formData.visibleRoles
@@ -38,22 +111,33 @@ export const AdminAnnouncementsPage: React.FC = () => {
         // Validate future date
         const expiry = formData.expiresAt ? new Date(formData.expiresAt) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // Default 7 days
 
-        await createAnnouncement({
+        const payload = {
             ...formData,
             visibleRoles: roles,
             expiresAt: expiry.toISOString()
-        } as any);
+        };
 
-        setIsModalOpen(false);
-        // Reset form
-        setFormData({
-            title: '',
-            message: '',
-            targetAudience: 'all',
-            priority: 'normal',
-            expiresAt: '',
-            visibleRoles: ''
-        });
+        let success = false;
+        if (editingAnnouncement) {
+            success = await updateAnnouncement(editingAnnouncement._id, payload as any);
+        } else {
+            success = await createAnnouncement(payload as any);
+        }
+
+        if (success) {
+            setIsModalOpen(false);
+            setEditingAnnouncement(null);
+            setErrors({});
+            // Reset form
+            setFormData({
+                title: '',
+                message: '',
+                targetAudience: 'all',
+                priority: 'normal',
+                expiresAt: '',
+                visibleRoles: ''
+            });
+        }
     };
 
     const handleDelete = async (id: string) => {
@@ -71,7 +155,7 @@ export const AdminAnnouncementsPage: React.FC = () => {
                     </h1>
                     <p className="text-gray-500 dark:text-gray-400">Broadcast updates to staff and members</p>
                 </div>
-                <Button onClick={() => setIsModalOpen(true)}>
+                <Button onClick={handleNewClick}>
                     <Plus size={16} className="mr-2" />
                     New Announcement
                 </Button>
@@ -113,8 +197,11 @@ export const AdminAnnouncementsPage: React.FC = () => {
                                 </div>
                             </div>
                             {!ann.isPlatformWide && (
-                                <div className="flex items-start">
-                                    <Button size="sm" variant="ghost" className="text-red-500 hover:bg-red-50" onClick={() => handleDelete(ann._id)}>
+                                <div className="flex items-start gap-1">
+                                    <Button size="sm" variant="ghost" className="text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800" onClick={() => handleEditClick(ann)}>
+                                        <Edit size={16} />
+                                    </Button>
+                                    <Button size="sm" variant="ghost" className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20" onClick={() => handleDelete(ann._id)}>
                                         <Trash2 size={16} />
                                     </Button>
                                 </div>
@@ -137,20 +224,46 @@ export const AdminAnnouncementsPage: React.FC = () => {
                     <Input
                         label="Title"
                         value={formData.title}
-                        onChange={e => setFormData({ ...formData, title: e.target.value })}
+                        onChange={e => {
+                            setFormData({ ...formData, title: e.target.value });
+                            if (errors.title) {
+                                setErrors(prev => {
+                                    const newErrors = { ...prev };
+                                    delete newErrors.title;
+                                    return newErrors;
+                                });
+                            }
+                        }}
                         required
                         placeholder="e.g. System Maintenance"
+                        error={errors.title}
                     />
 
                     <div className="flex flex-col gap-1">
                         <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Message</label>
                         <textarea
-                            className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:text-white"
+                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
+                                errors.message
+                                    ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                                    : 'border-gray-300 dark:border-gray-600 focus:ring-orange-500 focus:border-orange-500'
+                            }`}
                             rows={4}
                             value={formData.message}
-                            onChange={e => setFormData({ ...formData, message: e.target.value })}
+                            onChange={e => {
+                                setFormData({ ...formData, message: e.target.value });
+                                if (errors.message) {
+                                    setErrors(prev => {
+                                        const newErrors = { ...prev };
+                                        delete newErrors.message;
+                                        return newErrors;
+                                    });
+                                }
+                            }}
                             required
                         />
+                        {errors.message && (
+                            <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.message}</p>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -192,13 +305,24 @@ export const AdminAnnouncementsPage: React.FC = () => {
                         label="Expiry Date"
                         type="date"
                         value={formData.expiresAt}
-                        onChange={e => setFormData({ ...formData, expiresAt: e.target.value })}
+                        min={getLocalDateString()}
+                        onChange={e => {
+                            setFormData({ ...formData, expiresAt: e.target.value });
+                            if (errors.expiresAt) {
+                                setErrors(prev => {
+                                    const newErrors = { ...prev };
+                                    delete newErrors.expiresAt;
+                                    return newErrors;
+                                });
+                            }
+                        }}
                         required
+                        error={errors.expiresAt}
                     />
 
-                    <div className="flex justify-end gap-3 pt-4">
+                     <div className="flex justify-end gap-3 pt-4">
                         <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-                        <Button type="submit">Post Announcement</Button>
+                        <Button type="submit">{editingAnnouncement ? 'Save Changes' : 'Post Announcement'}</Button>
                     </div>
                 </form>
             </Modal>

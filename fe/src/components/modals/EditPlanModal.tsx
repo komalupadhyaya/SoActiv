@@ -299,50 +299,46 @@ export default function EditPlanModal({ isOpen, onClose, onSuccess, plan }: Edit
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                             Max Members
                                         </label>
-                                        <div className="flex gap-2">
+                                        <input
+                                            type="number"
+                                            value={formData.maxMembers}
+                                            onChange={(e) => setFormData({ ...formData, maxMembers: e.target.value })}
+                                            disabled={formData.isUnlimitedMembers}
+                                            min="1"
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                                        />
+                                        <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mt-2 cursor-pointer select-none">
                                             <input
-                                                type="number"
-                                                value={formData.maxMembers}
-                                                onChange={(e) => setFormData({ ...formData, maxMembers: e.target.value })}
-                                                disabled={formData.isUnlimitedMembers}
-                                                min="1"
-                                                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                                                type="checkbox"
+                                                checked={formData.isUnlimitedMembers}
+                                                onChange={(e) => setFormData({ ...formData, isUnlimitedMembers: e.target.checked })}
+                                                className="rounded"
                                             />
-                                            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={formData.isUnlimitedMembers}
-                                                    onChange={(e) => setFormData({ ...formData, isUnlimitedMembers: e.target.checked })}
-                                                    className="rounded"
-                                                />
-                                                Unlimited
-                                            </label>
-                                        </div>
+                                            Unlimited
+                                        </label>
                                     </div>
 
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                             Max Staff
                                         </label>
-                                        <div className="flex gap-2">
+                                        <input
+                                            type="number"
+                                            value={formData.maxStaff}
+                                            onChange={(e) => setFormData({ ...formData, maxStaff: e.target.value })}
+                                            disabled={formData.isUnlimitedStaff}
+                                            min="1"
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                                        />
+                                        <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mt-2 cursor-pointer select-none">
                                             <input
-                                                type="number"
-                                                value={formData.maxStaff}
-                                                onChange={(e) => setFormData({ ...formData, maxStaff: e.target.value })}
-                                                disabled={formData.isUnlimitedStaff}
-                                                min="1"
-                                                className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                                                type="checkbox"
+                                                checked={formData.isUnlimitedStaff}
+                                                onChange={(e) => setFormData({ ...formData, isUnlimitedStaff: e.target.checked })}
+                                                className="rounded"
                                             />
-                                            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={formData.isUnlimitedStaff}
-                                                    onChange={(e) => setFormData({ ...formData, isUnlimitedStaff: e.target.checked })}
-                                                    className="rounded"
-                                                />
-                                                Unlimited
-                                            </label>
-                                        </div>
+                                            Unlimited
+                                        </label>
                                     </div>
                                 </div>
                             </div>

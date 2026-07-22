@@ -12,6 +12,38 @@ import { notifyGymStaff, notifyGymMembers } from '../utils/notification.helper';
 export const createAnnouncement = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { title, message, targetAudience, visibleRoles, priority, expiresAt } = req.body;
+        
+        // Validate inputs
+        if (!title || !title.trim()) {
+            throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Title is required');
+        }
+        const titleWordCount = title.trim().split(/\s+/).filter(Boolean).length;
+        if (titleWordCount > 15) {
+            throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Title cannot exceed 15 words');
+        }
+        if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(title.trim())) {
+            throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Title can only contain letters, numbers, spaces, and basic punctuation');
+        }
+
+        if (!message || !message.trim()) {
+            throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Message is required');
+        }
+        const messageWordCount = message.trim().split(/\s+/).filter(Boolean).length;
+        if (messageWordCount > 50) {
+            throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Message cannot exceed 50 words');
+        }
+        if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(message.trim())) {
+            throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Message can only contain letters, numbers, spaces, and basic punctuation');
+        }
+
+        if (expiresAt) {
+            const expiry = new Date(expiresAt);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (expiry < today) {
+                throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Expiry date cannot be in the past');
+            }
+        }
         const user = (req as any).user;
         const adminId = user.adminId || user.id || user._id;
         const isSuperAdmin = user.role === 'superadmin';
@@ -154,6 +186,42 @@ export const updateAnnouncement = async (req: Request, res: Response, next: Next
         const { id } = req.params;
         const updates = req.body;
         const user = (req as any).user;
+
+        // Validate inputs
+        if (updates.title !== undefined) {
+            if (!updates.title || !updates.title.trim()) {
+                throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Title is required');
+            }
+            const titleWordCount = updates.title.trim().split(/\s+/).filter(Boolean).length;
+            if (titleWordCount > 15) {
+                throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Title cannot exceed 15 words');
+            }
+            if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(updates.title.trim())) {
+                throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Title can only contain letters, numbers, spaces, and basic punctuation');
+            }
+        }
+
+        if (updates.message !== undefined) {
+            if (!updates.message || !updates.message.trim()) {
+                throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Message is required');
+            }
+            const messageWordCount = updates.message.trim().split(/\s+/).filter(Boolean).length;
+            if (messageWordCount > 50) {
+                throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Message cannot exceed 50 words');
+            }
+            if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(updates.message.trim())) {
+                throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Message can only contain letters, numbers, spaces, and basic punctuation');
+            }
+        }
+
+        if (updates.expiresAt !== undefined) {
+            const expiry = new Date(updates.expiresAt);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (expiry < today) {
+                throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Expiry date cannot be in the past');
+            }
+        }
 
         const announcement = await Announcement.findById(id);
         if (!announcement) {

@@ -9,7 +9,9 @@ import {
   Calendar,
   Tag,
   AlertCircle,
-  Edit
+  Edit,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { Card, CardHeader, CardContent } from '../../../components/ui/Card';
 import { Input } from '../../../components/ui/Input';
@@ -43,10 +45,21 @@ const BookAppointmentPage: React.FC = () => {
   const { staff, fetchAllStaff } = useStaff();
   const { addToast } = useToast();
 
+  const getLocalDateString = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const ITEMS_PER_PAGE = 4;
+
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
   const [editingAppointment, setEditingAppointment] = useState<Schedule | null>(null);
 
   const [form, setForm] = useState({
@@ -90,6 +103,12 @@ const BookAppointmentPage: React.FC = () => {
       .sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime());
   }, [schedules, filterStatus]);
 
+  const totalPages = Math.max(1, Math.ceil(appointments.length / ITEMS_PER_PAGE));
+  const paginatedAppointments = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return appointments.slice(start, start + ITEMS_PER_PAGE);
+  }, [appointments, currentPage]);
+
   const handleEditClick = (appt: Schedule) => {
     setEditingAppointment(appt);
     
@@ -118,6 +137,29 @@ const BookAppointmentPage: React.FC = () => {
     if (!form.title || !form.scheduledDate || !form.scheduledTime) {
       addToast('Please fill in all required fields.', 'warning');
       return;
+    }
+
+    if (form.scheduledDate < getLocalDateString()) {
+      addToast('Scheduled date cannot be in the past', 'warning');
+      return;
+    }
+
+    const titleWordCount = form.title.trim().split(/\s+/).filter(Boolean).length;
+    if (titleWordCount > 15) {
+      addToast('Title cannot exceed 15 words', 'warning');
+      return;
+    }
+    if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(form.title)) {
+      addToast('Title can only contain letters, numbers, spaces, and basic punctuation', 'warning');
+      return;
+    }
+
+    if (form.description) {
+      const notesWordCount = form.description.trim().split(/\s+/).filter(Boolean).length;
+      if (notesWordCount > 15) {
+        addToast('no more than 15 words to be entered in Notes', 'warning');
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -150,6 +192,8 @@ const BookAppointmentPage: React.FC = () => {
         // Refresh appointments list
         fetchSchedules({ filter: 'upcoming' });
         setTimeout(() => setSubmitted(false), 3000);
+      } else {
+        addToast(res.message || 'Failed to update appointment', 'error');
       }
     } else {
       const res = await createScheduleEvent(payload);
@@ -168,6 +212,8 @@ const BookAppointmentPage: React.FC = () => {
         // Refresh appointments list
         fetchSchedules({ filter: 'upcoming' });
         setTimeout(() => setSubmitted(false), 3000);
+      } else {
+        addToast(res.message || 'Failed to book appointment', 'error');
       }
     }
   };
@@ -328,6 +374,7 @@ const BookAppointmentPage: React.FC = () => {
                       <Input
                         type="date"
                         required
+                        min={getLocalDateString()}
                         value={form.scheduledDate}
                         onChange={e => setForm({ ...form, scheduledDate: e.target.value })}
                       />
@@ -419,7 +466,7 @@ const BookAppointmentPage: React.FC = () => {
                   {['all', 'pending', 'completed', 'cancelled'].map(s => (
                     <button
                       key={s}
-                      onClick={() => setFilterStatus(s)}
+                      onClick={() => { setFilterStatus(s); setCurrentPage(1); }}
                       className={`px-3 py-1 rounded-full text-xs font-semibold capitalize transition ${
                         filterStatus === s
                           ? 'bg-orange-500 text-white shadow-sm'
@@ -444,80 +491,125 @@ const BookAppointmentPage: React.FC = () => {
                   <p className="text-xs">Book one using the form on the left.</p>
                 </div>
               ) : (
-                <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {appointments.map((appt: Schedule) => (
-                    <div key={appt._id} className="p-4 hover:bg-gray-50/60 dark:hover:bg-gray-800/30 transition">
-                      <div className="flex items-start justify-between gap-3">
-                        {/* Left info */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-semibold text-sm text-gray-900 dark:text-white truncate">
-                              {appt.title}
-                            </h3>
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold capitalize ${STATUS_STYLES[appt.status] || ''}`}>
-                              {appt.status}
-                            </span>
-                          </div>
-
-                          {/* Date & Time */}
-                          <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
-                            <span className="flex items-center gap-1">
-                              <Calendar size={11} />
-                              {formatDate(appt.scheduledDate)}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Clock size={11} />
-                              {formatTime(appt.scheduledTime || appt.startTime || '')}
-                            </span>
-                          </div>
-
-                          {/* Type badge */}
-                          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                            <span className="flex items-center gap-1 text-[10px] font-medium text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/30 px-2 py-0.5 rounded-full">
-                              <Tag size={9} />
-                              {TYPE_LABELS[appt.type] || appt.type}
-                            </span>
-
-                            {/* Related member */}
-                            {appt.relatedMember && typeof appt.relatedMember === 'object' && (
-                              <span className="flex items-center gap-1 text-[10px] text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">
-                                <User size={9} />
-                                {(appt.relatedMember as any).fullName}
+                <>
+                  <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {paginatedAppointments.map((appt: Schedule) => (
+                      <div key={appt._id} className="p-4 hover:bg-gray-50/60 dark:hover:bg-gray-800/30 transition">
+                        <div className="flex items-start justify-between gap-3">
+                          {/* Left info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-semibold text-sm text-gray-900 dark:text-white truncate">
+                                {appt.title}
+                              </h3>
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold capitalize ${STATUS_STYLES[appt.status] || ''}`}>
+                                {appt.status}
                               </span>
+                            </div>
+
+                            {/* Date & Time */}
+                            <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
+                              <span className="flex items-center gap-1">
+                                <Calendar size={11} />
+                                {formatDate(appt.scheduledDate)}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Clock size={11} />
+                                {formatTime(appt.scheduledTime || appt.startTime || '')}
+                              </span>
+                            </div>
+
+                            {/* Type badge */}
+                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                              <span className="flex items-center gap-1 text-[10px] font-medium text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/30 px-2 py-0.5 rounded-full">
+                                <Tag size={9} />
+                                {TYPE_LABELS[appt.type] || appt.type}
+                              </span>
+
+                              {/* Related member */}
+                              {appt.relatedMember && typeof appt.relatedMember === 'object' && (
+                                <span className="flex items-center gap-1 text-[10px] text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">
+                                  <User size={9} />
+                                  {(appt.relatedMember as any).fullName}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Assigned staff */}
+                            {appt.assignedTo && appt.assignedTo.length > 0 && (
+                              <div className="flex items-center gap-1 mt-1 text-[10px] text-gray-400">
+                                <User size={9} className="shrink-0" />
+                                Assigned to: {appt.assignedTo.map(s => s.fullName).join(', ')}
+                              </div>
+                            )}
+
+                            {/* Description */}
+                            {appt.description && (
+                              <p className="mt-1.5 text-[10px] text-gray-500 dark:text-gray-400 line-clamp-1 italic">
+                                📝 {appt.description}
+                              </p>
                             )}
                           </div>
 
-                          {/* Assigned staff */}
-                          {appt.assignedTo && appt.assignedTo.length > 0 && (
-                            <div className="flex items-center gap-1 mt-1 text-[10px] text-gray-400">
-                              <User size={9} className="shrink-0" />
-                              Assigned to: {appt.assignedTo.map(s => s.fullName).join(', ')}
-                            </div>
-                          )}
-
-                          {/* Description */}
-                          {appt.description && (
-                            <p className="mt-1.5 text-[10px] text-gray-500 dark:text-gray-400 line-clamp-1 italic">
-                              📝 {appt.description}
-                            </p>
+                          {/* Edit Button */}
+                          {appt.status === 'pending' && (
+                            <button
+                              onClick={() => handleEditClick(appt)}
+                              className="p-2 text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950/20 rounded-xl transition shrink-0 self-center"
+                              title="Edit Appointment"
+                            >
+                              <Edit size={16} />
+                            </button>
                           )}
                         </div>
+                      </div>
+                    ))}
+                  </div>
 
-                        {/* Edit Button */}
-                        {appt.status === 'pending' && (
+                  {/* Pagination Controls */}
+                  {appointments.length > ITEMS_PER_PAGE && (
+                    <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-gray-800">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Showing {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, appointments.length)}–{Math.min(currentPage * ITEMS_PER_PAGE, appointments.length)} of {appointments.length}
+                      </p>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          disabled={currentPage === 1}
+                          className="p-1.5 rounded-lg text-gray-500 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950/20 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          title="Previous page"
+                        >
+                          <ChevronLeft size={16} />
+                        </button>
+
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                           <button
-                            onClick={() => handleEditClick(appt)}
-                            className="p-2 text-gray-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950/20 rounded-xl transition shrink-0 self-center"
-                            title="Edit Appointment"
+                            key={page}
+                            onClick={() => setCurrentPage(page)}
+                            className={`w-7 h-7 rounded-lg text-xs font-semibold transition ${
+                              currentPage === page
+                                ? 'bg-orange-500 text-white shadow-sm'
+                                : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                            }`}
                           >
-                            <Edit size={16} />
+                            {page}
                           </button>
-                        )}
+                        ))}
+
+                        <button
+                          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                          disabled={currentPage === totalPages}
+                          className="p-1.5 rounded-lg text-gray-500 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950/20 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                          title="Next page"
+                        >
+                          <ChevronRight size={16} />
+                        </button>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               )}
+
             </CardContent>
           </Card>
         </div>

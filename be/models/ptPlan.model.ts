@@ -17,9 +17,9 @@ const ptPlanSchema = new Schema<IPTPlan>(
     {
         name: { type: String, required: true, trim: true },
         description: { type: String, trim: true },
-        totalSessions: { type: Number, required: true, min: 1 },
-        validityDays: { type: Number, required: true, min: 1 }, // e.g. 30 days
-        price: { type: Number, required: true, min: 0 },
+        totalSessions: { type: Number, required: true, min: 1, max: 500 },
+        validityDays: { type: Number, required: true, min: 1, max: 365 }, // e.g. 30 days
+        price: { type: Number, required: true, min: 1, max: 100000 },
         adminId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
         createdBy: { type: Schema.Types.ObjectId, ref: 'User' }, // Admin or Manager
         isActive: { type: Boolean, default: true }

@@ -43,6 +43,7 @@ export const AttendanceSheet: React.FC = () => {
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [timezone] = useState<string>(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [localData, setLocalData] = useState<AttendanceRow[]>([]);
+  const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
 
   const {
     getDailyAttendanceSheet,
@@ -215,14 +216,32 @@ export const AttendanceSheet: React.FC = () => {
   };
 
   // Handle Notes Change
-  const handleNotesChange = async (row: AttendanceRow, notes: string) => {
+  const handleNotesChange = (row: AttendanceRow, notes: string) => {
+    const wordCount = notes.trim().split(/\s+/).filter(Boolean).length;
+    if (wordCount > 10) {
+      setRowErrors(prev => ({
+        ...prev,
+        [row.staffId]: 'No more than 10 words to be entered'
+      }));
+    } else {
+      setRowErrors(prev => {
+        const copy = { ...prev };
+        delete copy[row.staffId];
+        return copy;
+      });
+    }
+
+    setLocalData((prev) =>
+      prev.map((r) => (r.staffId === row.staffId ? { ...r, notes } : r))
+    );
+  };
+
+  const handleNotesBlur = async (row: AttendanceRow) => {
+    if (rowErrors[row.staffId]) return;
     try {
       if (row.attendanceId) {
-        await updateAttendance(row.attendanceId, { notes });
+        await updateAttendance(row.attendanceId, { notes: row.notes });
       }
-      setLocalData((prev) =>
-        prev.map((r) => (r.staffId === row.staffId ? { ...r, notes } : r))
-      );
     } catch (err) {
       // Toast handled in hook
     }
@@ -346,9 +365,19 @@ export const AttendanceSheet: React.FC = () => {
                         <textarea
                           value={row.notes}
                           onChange={(e) => handleNotesChange(row, e.target.value)}
+                          onBlur={() => handleNotesBlur(row)}
                           placeholder="Add notes..."
-                          className="w-full rounded-md border border-gray-300 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300 p-2 min-h-[40px] resize-y focus:ring-2 focus:ring-orange-400 bg-white dark:bg-gray-900"
+                          className={`w-full rounded-md border text-sm p-2 min-h-[40px] resize-y focus:ring-2 focus:ring-orange-400 bg-white dark:bg-gray-900 ${
+                            rowErrors[row.staffId]
+                              ? 'border-red-500 focus:ring-red-500'
+                              : 'border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300'
+                          }`}
                         />
+                        {rowErrors[row.staffId] && (
+                          <p className="mt-1 text-xs text-red-600 dark:text-red-400 font-medium whitespace-normal max-w-[200px]">
+                            {rowErrors[row.staffId]}
+                          </p>
+                        )}
                       </td>
                     </tr>
                   );

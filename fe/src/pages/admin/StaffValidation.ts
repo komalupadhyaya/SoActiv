@@ -17,16 +17,19 @@ export interface StaffFormData {
 export const validateStaffForm = (data: StaffFormData): string | null => {
     // Required fields check
     if (!data.fullName?.trim()) return 'Full Name is required';
+    if (!/^[a-zA-Z\s]+$/.test(data.fullName.trim())) {
+        return 'Full Name must contain only alphabetical characters and spaces';
+    }
     if (!data.position) return 'Position is required';
     if (!data.email?.trim()) return 'Email is required';
     if (!data.contactNumber?.trim()) return 'Contact number is required';
     if (!data.joiningDate) return 'Joining date is required';
     if (!data.salary) return 'Salary is required';
 
-    // Phone validation (10 digits, optional country code)
-    const phoneRegex = /^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/;
+    // Phone validation (exactly 10 digits)
+    const phoneRegex = /^[0-9]{10}$/;
     if (!phoneRegex.test(data.contactNumber)) {
-        return 'Please enter a valid phone number';
+        return 'Contact number must be exactly 10 digits';
     }
 
     // Email validation

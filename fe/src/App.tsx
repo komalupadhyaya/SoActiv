@@ -128,6 +128,7 @@ function App() {
                   <Route path="staff-page" element={<StaffManagerPage />} />
                   <Route path="follow-ups" element={<FollowUpsPage />} />
                   <Route path="follow-ups/new" element={<FollowUpFormPage />} />
+                  <Route path="follow-ups/edit/:id" element={<FollowUpFormPage />} />
                   <Route path="calendar" element={<CalendarPage />} />
                   <Route path="schedule" element={<Schedule />} />
                   <Route path="reports" element={<ReportsPage />} />
@@ -141,7 +142,14 @@ function App() {
                   <Route path="exercises" element={<AdminExerciseLibrary />} />
                   <Route path="contact-support" element={<ContactSupportPage />} />
                   <Route path="member-support" element={<AdminSupportInboxPage />} />
-                  <Route path="classes" element={<ClassManagementPage />} />
+                  <Route
+                    path="classes"
+                    element={
+                      <ProtectedRoute requiredFeature="classes">
+                        <ClassManagementPage />
+                      </ProtectedRoute>
+                    }
+                  />
                   {/* <Route path="check-in" element={<QRCheckInPage />} /> */}
                 </Route>
 
@@ -307,7 +315,7 @@ function App() {
                   <Route
                     path="classes"
                     element={
-                      <ProtectedRoute allowedPositions={['manager']}>
+                      <ProtectedRoute allowedPositions={['manager']} requiredFeature="classes">
                         <ClassManagementPage />
                       </ProtectedRoute>
                     }
@@ -315,7 +323,7 @@ function App() {
                   <Route
                     path="my-classes"
                     element={
-                      <ProtectedRoute allowedPositions={['trainer']}>
+                      <ProtectedRoute allowedPositions={['trainer']} requiredFeature="classes">
                         <TrainerClassesPage />
                       </ProtectedRoute>
                     }
@@ -333,7 +341,7 @@ function App() {
                   <Route
                     path="book-class"
                     element={
-                      <ProtectedRoute allowedPositions={['receptionist']}>
+                      <ProtectedRoute allowedPositions={['receptionist']} requiredFeature="classes">
                         <BookClassPage />
                       </ProtectedRoute>
                     }
@@ -371,12 +379,19 @@ function App() {
                   <Route
                     path="payments"
                     element={
-                      <ProtectedRoute requiredFeature="memberPortal">
+                      <ProtectedRoute requiredFeature="payments">
                         <MemberPayments />
                       </ProtectedRoute>
                     }
                   />
-                  <Route path="attendance" element={<MemberAttendance />} />
+                  <Route
+                    path="attendance"
+                    element={
+                      <ProtectedRoute requiredFeature="attendance">
+                        <MemberAttendance />
+                      </ProtectedRoute>
+                    }
+                  />
                   <Route
                     path="progress-photos"
                     element={
@@ -411,7 +426,14 @@ function App() {
                   />
                   <Route path="profile" element={<UserProfilePage />} />
                   <Route path="contact-support" element={<MemberSupportPage />} />
-                  <Route path="classes" element={<MemberClassesPage />} />
+                  <Route
+                    path="classes"
+                    element={
+                      <ProtectedRoute requiredFeature="classes">
+                        <MemberClassesPage />
+                      </ProtectedRoute>
+                    }
+                  />
                 </Route>
 
                 {/* Super Admin Routes */}

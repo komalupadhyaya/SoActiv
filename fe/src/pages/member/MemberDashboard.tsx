@@ -161,16 +161,28 @@ export const MemberDashboard: React.FC = () => {
       href: '/member/attendance',
       icon: Calendar,
       color: 'text-purple-500',
-      borderColor: 'hover:border-purple-500 hover:bg-purple-50'
+      borderColor: 'hover:border-purple-500 hover:bg-purple-50',
+      feature: 'attendance'
     },
     {
       name: 'Billing & Invoices',
       href: '/member/payments',
       icon: CreditCard,
       color: 'text-orange-500',
-      borderColor: 'hover:border-orange-500 hover:bg-orange-50'
+      borderColor: 'hover:border-orange-500 hover:bg-orange-50',
+      feature: 'payments'
     }
   ];
+
+  const filteredQuickActions = useMemo(() => {
+    return quickActions.filter(action => {
+      if (action.feature) {
+        const hasFeature = user?.gymFeatures ? user.gymFeatures[action.feature as keyof typeof user.gymFeatures] : true;
+        return hasFeature !== false;
+      }
+      return true;
+    });
+  }, [user?.gymFeatures]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-12">
@@ -479,7 +491,7 @@ export const MemberDashboard: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {quickActions.map((action, i) => (
+                  {filteredQuickActions.map((action, i) => (
                     <Link
                       key={i}
                       to={action.href}

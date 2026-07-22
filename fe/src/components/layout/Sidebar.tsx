@@ -45,7 +45,17 @@ interface SidebarProps {
   onClose?: () => void;
 }
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
+
+  const filteredItems = navigationItems.filter((item) => {
+    if (item.name === 'Classes') {
+      return user?.gymFeatures?.classes !== false;
+    }
+    if (item.name === 'PT Plans' || item.name === 'PT Assignments') {
+      return user?.gymFeatures?.pt !== false;
+    }
+    return true;
+  });
 
   return (
     <div
@@ -80,7 +90,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
       {/* Navigation */}
       <div className="flex flex-col flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-        {navigationItems.map((item) => (
+        {filteredItems.map((item) => (
           <NavLink
             key={item.name}
             to={item.href}

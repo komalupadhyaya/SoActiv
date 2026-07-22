@@ -6,14 +6,9 @@ import {
   Trash2, 
   Edit2, 
   Video, 
-  Layers, 
-  Flame, 
-  HelpCircle, 
   X, 
   AlertTriangle,
   Play,
-  ArrowRight,
-  TrendingUp,
   Dumbbell
 } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';

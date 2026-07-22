@@ -6,6 +6,20 @@ import { User, Phone, Mail, MapPin, UserCheck, Calendar, Dumbbell, IndianRupee }
 import { useStaff } from '../../hooks/useStaff';
 import { usePT } from '../../hooks/usePT';
 
+const getLocalDateString = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getNextDateString = (dateStr: string) => {
+  if (!dateStr) return '';
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(year, month - 1, day + 1);
+  return getLocalDateString(date);
+};
+
 interface ClientRegistrationFormProps {
   onClose: () => void;
   onSubmit: (data: any) => Promise<{ success: boolean; message?: string }>;
@@ -15,6 +29,7 @@ interface ClientRegistrationFormProps {
 export const ClientRegistrationForm: React.FC<ClientRegistrationFormProps> = ({ onClose, onSubmit, initialData }) => {
   const { staff, loading: staffLoading, fetchAllStaff } = useStaff();
   const { plans: ptPlans, fetchPlans: fetchPTPlans, assignPT } = usePT();
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Load staff/trainers and PT plans on component mount
   useEffect(() => {
@@ -168,6 +183,73 @@ export const ClientRegistrationForm: React.FC<ClientRegistrationFormProps> = ({ 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const formErrors: Record<string, string> = {};
+    if (!formData.fullName || !formData.fullName.trim()) {
+      formErrors.fullName = 'Full name is required';
+    } else if (!/^[a-zA-Z\s]+$/.test(formData.fullName.trim())) {
+      formErrors.fullName = 'Full name must contain only alphabetical characters and spaces';
+    }
+    if (formData.contactNumber.length !== 10) {
+      formErrors.contactNumber = 'Contact number must be exactly 10 digits';
+    }
+    if (formData.emergencyContactNumber.length !== 10) {
+      formErrors.emergencyContactNumber = 'Emergency contact number must be exactly 10 digits';
+    }
+    if (formData.emergencyContactName && !/^[a-zA-Z\s]+$/.test(formData.emergencyContactName.trim())) {
+      formErrors.emergencyContactName = 'Emergency contact name must contain only alphabetical characters and spaces';
+    }
+
+    const todayStr = getLocalDateString();
+    const initialStartDateStr = initialData?.startDate ? getLocalDateString(new Date(initialData.startDate)) : '';
+    const initialEndDateStr = initialData?.endDate ? getLocalDateString(new Date(initialData.endDate)) : '';
+
+    if (formData.dateOfBirth) {
+      if (formData.dateOfBirth > todayStr) {
+        formErrors.dateOfBirth = 'Date of birth cannot be in the future';
+      }
+    }
+
+    if (formData.startDate) {
+      if (formData.startDate < todayStr) {
+        if (!initialData || formData.startDate !== initialStartDateStr) {
+          formErrors.startDate = 'Start date cannot be in the past';
+        }
+      }
+    }
+    if (formData.endDate) {
+      if (formData.endDate < todayStr) {
+        if (!initialData || formData.endDate !== initialEndDateStr) {
+          formErrors.endDate = 'End date cannot be in the past';
+        }
+      }
+    }
+    if (formData.startDate && formData.endDate) {
+      if (formData.startDate === formData.endDate) {
+        formErrors.endDate = 'End date cannot be the same as start date';
+      } else if (formData.endDate < formData.startDate) {
+        formErrors.endDate = 'End date must be after start date';
+      }
+    }
+    if (formData.hasPersonalTraining && formData.ptStartDate) {
+      if (formData.ptStartDate < todayStr) {
+        const initialPtStartDateStr = initialData?.ptStartDate ? getLocalDateString(new Date(initialData.ptStartDate)) : '';
+        if (!initialData || formData.ptStartDate !== initialPtStartDateStr) {
+          formErrors.ptStartDate = 'PT start date cannot be in the past';
+        }
+      }
+    }
+
+    const packagePriceVal = parseFloat(formData.packagePrice);
+    if (isNaN(packagePriceVal) || packagePriceVal < 1 || packagePriceVal > 100000) {
+      formErrors.packagePrice = 'Package price must be between 1 and 100,000';
+    }
+
+    if (Object.keys(formErrors).length > 0) {
+      setErrors(formErrors);
+      return;
+    }
+    setErrors({});
+
     const fullContactNumber = formData.countryCode + formData.contactNumber;
 
     const payload = {
@@ -237,9 +319,38 @@ export const ClientRegistrationForm: React.FC<ClientRegistrationFormProps> = ({ 
   };
 
   const handleInputChange = (field: string, value: string) => {
+    let finalValue = value;
+    if (field === 'contactNumber' || field === 'emergencyContactNumber') {
+      finalValue = value.replace(/\D/g, '').slice(0, 10);
+      if (errors[field]) {
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors[field];
+          return newErrors;
+        });
+      }
+    } else if (field === 'fullName' || field === 'emergencyContactName') {
+      finalValue = value.replace(/[^a-zA-Z\s]/g, '');
+      if (errors[field]) {
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors[field];
+          return newErrors;
+        });
+      }
+    } else if (field === 'startDate' || field === 'endDate' || field === 'ptStartDate' || field === 'packagePrice' || field === 'dateOfBirth') {
+      if (errors[field]) {
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors[field];
+          return newErrors;
+        });
+      }
+    }
+
     setFormData(prev => ({
       ...prev,
-      [field]: value,
+      [field]: finalValue,
     }));
   };
 
@@ -292,6 +403,7 @@ export const ClientRegistrationForm: React.FC<ClientRegistrationFormProps> = ({ 
               value={formData.fullName}
               onChange={(e) => handleInputChange('fullName', e.target.value)}
               required
+              error={errors.fullName}
             />
             <div className="flex space-x-2">
               <Select
@@ -312,6 +424,7 @@ export const ClientRegistrationForm: React.FC<ClientRegistrationFormProps> = ({ 
                 onChange={(e) => handleInputChange('contactNumber', e.target.value)}
                 required
                 className="flex-1"
+                error={errors.contactNumber}
               />
             </div>
             <Input
@@ -341,6 +454,8 @@ export const ClientRegistrationForm: React.FC<ClientRegistrationFormProps> = ({ 
               value={formData.dateOfBirth}
               onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
               required
+              max={getLocalDateString()}
+              error={errors.dateOfBirth}
             />
             <Input
               label="Address"
@@ -366,6 +481,7 @@ export const ClientRegistrationForm: React.FC<ClientRegistrationFormProps> = ({ 
               value={formData.emergencyContactName}
               onChange={(e) => handleInputChange('emergencyContactName', e.target.value)}
               required
+              error={errors.emergencyContactName}
             />
             <Input
               label="Contact Number"
@@ -374,6 +490,7 @@ export const ClientRegistrationForm: React.FC<ClientRegistrationFormProps> = ({ 
               value={formData.emergencyContactNumber}
               onChange={(e) => handleInputChange('emergencyContactNumber', e.target.value)}
               required
+              error={errors.emergencyContactNumber}
             />
             <Select
               label="Relationship"
@@ -416,7 +533,7 @@ export const ClientRegistrationForm: React.FC<ClientRegistrationFormProps> = ({ 
           </div>
         </div>
 
-        {/* Club Information */}
+        {/* Club Information
         <div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Club Information</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -441,7 +558,7 @@ export const ClientRegistrationForm: React.FC<ClientRegistrationFormProps> = ({ 
               onChange={(e) => handleInputChange('gstNo', e.target.value)}
             />
           </div>
-        </div>
+        </div> */}
 
         {/* Membership & Pricing */}
         <div>
@@ -453,11 +570,14 @@ export const ClientRegistrationForm: React.FC<ClientRegistrationFormProps> = ({ 
               label="Package Price (Rs.)"
               type="number"
               step="0.01"
+              min="1"
+              max="100000"
               placeholder="Enter package price"
               leftIcon={<IndianRupee size={16} />}
               value={formData.packagePrice}
               onChange={(e) => handleInputChange('packagePrice', e.target.value)}
               required
+              error={errors.packagePrice}
             />
 
             {/* 🔥 Add Personal Training Toggle */}
@@ -514,6 +634,8 @@ export const ClientRegistrationForm: React.FC<ClientRegistrationFormProps> = ({ 
                   value={formData.ptStartDate}
                   onChange={(e) => handleInputChange('ptStartDate', e.target.value)}
                   required
+                  min={initialData ? undefined : getLocalDateString()}
+                  error={errors.ptStartDate}
                 />
               </div>
             </div>
@@ -544,6 +666,8 @@ export const ClientRegistrationForm: React.FC<ClientRegistrationFormProps> = ({ 
               value={formData.startDate}
               onChange={(e) => handleInputChange('startDate', e.target.value)}
               required
+              min={initialData ? undefined : getLocalDateString()}
+              error={errors.startDate}
             />
             <Input
               label="End Date"
@@ -552,6 +676,8 @@ export const ClientRegistrationForm: React.FC<ClientRegistrationFormProps> = ({ 
               value={formData.endDate}
               onChange={(e) => handleInputChange('endDate', e.target.value)}
               required
+              min={formData.startDate ? getNextDateString(formData.startDate) : (initialData ? undefined : getLocalDateString())}
+              error={errors.endDate}
             />
           </div>
         </div>
@@ -579,7 +705,7 @@ export const ClientRegistrationForm: React.FC<ClientRegistrationFormProps> = ({ 
       <div className="shrink-0 px-4 py-3 sm:px-6 sm:py-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
         <div className="flex justify-end space-x-3">
           <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button type="submit">Register Client</Button>
+          <Button type="submit">{initialData ? 'Update Client' : 'Register Client'}</Button>
         </div>
       </div>
     </form>

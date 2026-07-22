@@ -8,6 +8,13 @@ import { useClient } from '../../hooks/useClient';
 import { useStaff } from '../../hooks/useStaff';
 import { useToast } from '../../contexts/ToastContext';
 
+const getLocalDateString = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 interface PTAssignModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -29,7 +36,7 @@ export const PTAssignModal: React.FC<PTAssignModalProps> = ({
     const [memberId, setMemberId] = useState('');
     const [planId, setPlanId] = useState('');
     const [trainerId, setTrainerId] = useState('');
-    const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+    const [startDate, setStartDate] = useState(getLocalDateString());
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Initial Fetch
@@ -75,6 +82,12 @@ export const PTAssignModal: React.FC<PTAssignModalProps> = ({
         e.preventDefault();
         if (!memberId || !planId || !trainerId || !startDate) {
             addToast('Please fill all fields', 'error');
+            return;
+        }
+
+        const todayStr = getLocalDateString();
+        if (startDate < todayStr) {
+            addToast('Start date cannot be in the past', 'error');
             return;
         }
 
@@ -147,6 +160,7 @@ export const PTAssignModal: React.FC<PTAssignModalProps> = ({
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
                     required
+                    min={getLocalDateString()}
                 />
 
                 <div className="flex justify-end gap-3 pt-4">

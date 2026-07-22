@@ -33,10 +33,32 @@ export const createEnquiry = async (req: Request, res: Response): Promise<any> =
     }
 
     // Validate required fields (additional runtime check beyond Mongoose)
-    if (!name || !phone || !source) {
+    if (!name || !phone || !source || !email || !assignedStaff || !followUpDate || !interests || !budget) {
       return res.status(400).json({
         success: false,
-        message: 'Name, phone, and source are required fields.',
+        message: 'All fields are required: name, phone, source, email, assignedStaff, followUpDate, interests, and budget.',
+      });
+    }
+
+    if (!/^[a-zA-Z\s]+$/.test(name)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name must contain only alphabetical characters and spaces.',
+      });
+    }
+
+    if (interests && !/^[a-zA-Z\s.,\-()]*$/.test(interests)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Areas of Interest can only contain letters, spaces, and basic punctuation.',
+      });
+    }
+
+    const budgetNum = Number(budget);
+    if (isNaN(budgetNum) || budgetNum < 100 || budgetNum > 100000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Budget must be a valid number between 100 and 100,000.',
       });
     }
 
@@ -46,6 +68,22 @@ export const createEnquiry = async (req: Request, res: Response): Promise<any> =
         success: false,
         message: 'Invalid staff ID format.',
       });
+    }
+
+    if (comments) {
+      const commentWords = comments.trim().split(/\s+/).filter(Boolean).length;
+      if (commentWords > 50) {
+        return res.status(400).json({
+          success: false,
+          message: 'Comments cannot exceed 50 words.',
+        });
+      }
+      if (!/^[a-zA-Z\s.,\-()]*$/.test(comments)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Comments can only contain alphabetical characters, spaces, and basic punctuation.',
+        });
+      }
     }
 
     // Build the enquiry object
@@ -328,6 +366,66 @@ export const updateEnquiry = async (req: Request, res: Response): Promise<any> =
       return res.status(400).json({
         success: false,
         message: 'Invalid enquiry ID.',
+      });
+    }
+
+    if (name !== undefined && name !== null) {
+      if (!/^[a-zA-Z\s]+$/.test(name)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Name must contain only alphabetical characters and spaces.',
+        });
+      }
+    }
+
+    if (interests !== undefined && interests !== null) {
+      if (!/^[a-zA-Z\s.,\-()]*$/.test(interests)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Areas of Interest can only contain letters, spaces, and basic punctuation.',
+        });
+      }
+    }
+
+    if (budget !== undefined && budget !== null) {
+      const budgetNum = Number(budget);
+      if (isNaN(budgetNum) || budgetNum < 100 || budgetNum > 100000) {
+        return res.status(400).json({
+          success: false,
+          message: 'Budget must be a valid number between 100 and 100,000.',
+        });
+      }
+    }
+
+    if (comments !== undefined && comments !== null) {
+      const commentWords = comments.trim().split(/\s+/).filter(Boolean).length;
+      if (commentWords > 50) {
+        return res.status(400).json({
+          success: false,
+          message: 'Comments cannot exceed 50 words.',
+        });
+      }
+      if (!/^[a-zA-Z\s.,\-()]*$/.test(comments)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Comments can only contain alphabetical characters, spaces, and basic punctuation.',
+        });
+      }
+    }
+
+    if (
+      name === '' ||
+      phone === '' ||
+      source === '' ||
+      email === '' ||
+      assignedStaff === '' ||
+      followUpDate === '' ||
+      interests === '' ||
+      budget === ''
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Required fields cannot be empty.',
       });
     }
 

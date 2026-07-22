@@ -37,13 +37,49 @@ export const createGymClass = async (req: Request, res: Response, next: NextFunc
             durationMinutes, time, color, recurrence,
         } = req.body;
 
-        // Resolve trainer's userId from staff record
-        let trainerUserId: Types.ObjectId | null = null;
-        if (trainerId) {
-            const staffRecord = await Staff.findById(trainerId).select('userId');
-            if (!staffRecord) throw new ApiError(HttpStatusCode.NOT_FOUND, 'Trainer staff record not found');
-            trainerUserId = staffRecord.userId as Types.ObjectId;
+        if (!name || !name.trim()) {
+            throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Class name is required');
         }
+        if (!/^[a-zA-Z\s]+$/.test(name.trim())) {
+            throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Class name must contain only alphabetical characters and spaces');
+        }
+
+        const existingClass = await GymClass.findOne({
+            gymId: new Types.ObjectId(gymId),
+            name: { $regex: new RegExp(`^${name.trim()}$`, 'i') },
+            status: 'active',
+        });
+        if (existingClass) {
+            throw new ApiError(HttpStatusCode.BAD_REQUEST, 'A class with this name already exists');
+        }
+
+        if (description) {
+            const wordCount = description.trim().split(/\s+/).filter(Boolean).length;
+            if (wordCount > 50) {
+                throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Description cannot exceed 50 words');
+            }
+            if (!/^[a-zA-Z\s.,!?'"\-()]*$/.test(description.trim())) {
+                throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Description must contain only alphabetical characters and spaces (no numbers or special characters)');
+            }
+        }
+
+        if (notes) {
+            const wordCount = notes.trim().split(/\s+/).filter(Boolean).length;
+            if (wordCount > 50) {
+                throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Class notes cannot exceed 50 words');
+            }
+            if (!/^[a-zA-Z\s.,!?'"\-()]*$/.test(notes.trim())) {
+                throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Class notes must contain only alphabetical characters and spaces (no numbers or special characters)');
+            }
+        }
+
+        if (!trainerId) {
+            throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Trainer is required');
+        }
+        // Resolve trainer's userId from staff record
+        const staffRecord = await Staff.findById(trainerId).select('userId');
+        if (!staffRecord) throw new ApiError(HttpStatusCode.NOT_FOUND, 'Trainer staff record not found');
+        const trainerUserId = staffRecord.userId as Types.ObjectId;
 
         const gymClass = await GymClass.create({
             adminId: new Types.ObjectId(adminId),
@@ -143,6 +179,56 @@ export const updateGymClass = async (req: Request, res: Response, next: NextFunc
         });
         if (!gymClass) throw new ApiError(HttpStatusCode.NOT_FOUND, 'Class not found');
 
+        if (req.body.name !== undefined) {
+            if (!req.body.name || !req.body.name.trim()) {
+                throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Class name is required');
+            }
+            if (!/^[a-zA-Z\s]+$/.test(req.body.name.trim())) {
+                throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Class name must contain only alphabetical characters and spaces');
+            }
+            if (req.body.name.trim().toLowerCase() !== gymClass.name.toLowerCase()) {
+                const existingClass = await GymClass.findOne({
+                    gymId: gymClass.gymId,
+                    name: { $regex: new RegExp(`^${req.body.name.trim()}$`, 'i') },
+                    status: 'active',
+                    _id: { $ne: gymClass._id },
+                });
+                if (existingClass) {
+                    throw new ApiError(HttpStatusCode.BAD_REQUEST, 'A class with this name already exists');
+                }
+            }
+        }
+
+        if (req.body.description !== undefined) {
+            const desc = req.body.description || '';
+            if (desc.trim()) {
+                const wordCount = desc.trim().split(/\s+/).filter(Boolean).length;
+                if (wordCount > 50) {
+                    throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Description cannot exceed 50 words');
+                }
+                if (!/^[a-zA-Z\s.,!?'"\-()]*$/.test(desc.trim())) {
+                    throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Description must contain only alphabetical characters and spaces (no numbers or special characters)');
+                }
+            }
+        }
+
+        if (req.body.notes !== undefined) {
+            const classNotes = req.body.notes || '';
+            if (classNotes.trim()) {
+                const wordCount = classNotes.trim().split(/\s+/).filter(Boolean).length;
+                if (wordCount > 50) {
+                    throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Class notes cannot exceed 50 words');
+                }
+                if (!/^[a-zA-Z\s.,!?'"\-()]*$/.test(classNotes.trim())) {
+                    throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Class notes must contain only alphabetical characters and spaces (no numbers or special characters)');
+                }
+            }
+        }
+        if (req.body.trainerId !== undefined) {
+            if (!req.body.trainerId) {
+                throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Trainer is required');
+            }
+        }
         const allowedFields = ['name', 'description', 'notes', 'trainerId', 'capacity', 'durationMinutes', 'time', 'color', 'recurrence', 'status'];
         const updates: any = {};
 

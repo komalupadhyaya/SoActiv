@@ -18,6 +18,7 @@ import { useSupport, ISupportMessage } from '../../hooks/useSupport';
 export const ContactsInboxPage: React.FC = () => {
     const { messages, loading, fetchSupportMessages, updateSupportStatus } = useSupport();
     const [selectedMessage, setSelectedMessage] = useState<ISupportMessage | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
     const [filters, setFilters] = useState({
         status: '',
         category: ''
@@ -51,6 +52,18 @@ export const ContactsInboxPage: React.FC = () => {
             default: return <Filter className="w-4 h-4" />;
         }
     };
+
+    const filteredMessages = messages.filter((m) => {
+        if (!searchQuery.trim()) return true;
+        const q = searchQuery.toLowerCase().trim();
+        const gymName = typeof m.gymId === 'object' && m.gymId ? m.gymId.name : '';
+        return (
+            m.name?.toLowerCase().includes(q) ||
+            m.email?.toLowerCase().includes(q) ||
+            m.message?.toLowerCase().includes(q) ||
+            gymName?.toLowerCase().includes(q)
+        );
+    });
 
     return (
         <div className="space-y-6">
@@ -98,17 +111,19 @@ export const ContactsInboxPage: React.FC = () => {
                         <input
                             type="text"
                             placeholder="Search by name or email..."
-                            className="w-full pl-10 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 text-sm text-gray-900 dark:text-white"
                         />
                     </div>
 
                     <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
-                        {messages.length === 0 && !loading && (
+                        {filteredMessages.length === 0 && !loading && (
                             <div className="text-center py-10 text-gray-500 bg-white dark:bg-gray-800 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
                                 No messages found.
                             </div>
                         )}
-                        {messages.map((m) => (
+                        {filteredMessages.map((m) => (
                             <button
                                 key={m._id}
                                 onClick={() => {

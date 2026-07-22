@@ -1,9 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useFollowUp } from '../../hooks/useFollowUp';
 import { useStaff } from '../../hooks/useStaff';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
+
+const getLocalDateString = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 // 1. New imports + hooks
 import { useEnquiry } from '../../hooks/useEnquiry';
@@ -12,10 +19,12 @@ import { useClient } from '../../hooks/useClient';
 import { usePTExpiry } from '../../hooks/usePTExpiry';
 
 export const FollowUpFormPage: React.FC = () => {
-  const { createFollowUp, loading } = useFollowUp();
+  const { createFollowUp, updateFollowUp, followUps, fetchFollowUps, loading } = useFollowUp();
   const { staff, fetchAllStaff } = useStaff();
   const navigate = useNavigate();
   const location = useLocation();
+  const { id } = useParams();
+  const isEditMode = !!id;
 
   // 1. New Hooks (adapted to match requirements)
   const { enquiries, refreshEnquiries: fetchAllEnquiries } = useEnquiry();
@@ -45,6 +54,31 @@ export const FollowUpFormPage: React.FC = () => {
   useEffect(() => {
     fetchAllStaff();
   }, [fetchAllStaff]);
+
+  useEffect(() => {
+    if (isEditMode) {
+      if (followUps.length === 0) {
+        fetchFollowUps();
+      }
+    }
+  }, [isEditMode, followUps.length, fetchFollowUps]);
+
+  useEffect(() => {
+    if (isEditMode && id && followUps.length > 0) {
+      const f = followUps.find((item) => item._id === id);
+      if (f) {
+        setFormData({
+          assignedTo: f.assignedTo?._id || '',
+          type: f.type || 'enquiry',
+          relatedId: f.relatedId || '',
+          relatedName: f.relatedName || '',
+          scheduledDate: f.scheduledDate ? new Date(f.scheduledDate).toISOString().split('T')[0] : '',
+          scheduledTime: f.scheduledTime || '',
+          note: f.note || '',
+        });
+      }
+    }
+  }, [isEditMode, id, followUps]);
 
   // 2. New useEffect for type-based fetching
   useEffect(() => {
@@ -133,9 +167,23 @@ export const FollowUpFormPage: React.FC = () => {
     if (!formData.type) newErrors.type = 'Please select a follow-up type';
     if (!formData.relatedId && formData.type !== 'other') newErrors.relatedId = 'Related entity is required';
     if (!formData.relatedName) newErrors.relatedName = 'Related name is required';
-    if (!formData.scheduledDate) newErrors.scheduledDate = 'Scheduled date is required';
+    const todayStr = getLocalDateString();
+    if (!formData.scheduledDate) {
+      newErrors.scheduledDate = 'Scheduled date is required';
+    } else if (!isEditMode && formData.scheduledDate < todayStr) {
+      newErrors.scheduledDate = 'Scheduled date cannot be in the past';
+    }
     if (!formData.scheduledTime) newErrors.scheduledTime = 'Scheduled time is required';
-    if (!formData.note) newErrors.note = 'Note is required';
+    if (!formData.note) {
+      newErrors.note = 'Note is required';
+    } else {
+      const wordCount = formData.note.trim().split(/\s+/).filter(Boolean).length;
+      if (wordCount > 50) {
+        newErrors.note = 'Note cannot exceed 50 words';
+      } else if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(formData.note)) {
+        newErrors.note = 'Note can only contain letters, numbers, spaces, and basic punctuation';
+      }
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -156,7 +204,10 @@ export const FollowUpFormPage: React.FC = () => {
       relatedId: formData.type === 'other' ? formData.assignedTo : formData.relatedId
     };
 
-    const result = await createFollowUp(submissionData as any);
+    const result = isEditMode && id
+      ? await updateFollowUp(id, submissionData as any)
+      : await createFollowUp(submissionData as any);
+
     if (result.success) {
       navigate('/admin/follow-ups');
     }
@@ -173,8 +224,12 @@ export const FollowUpFormPage: React.FC = () => {
           <ArrowLeft size={24} />
         </button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Create Follow-Up</h1>
-          <p className="text-gray-500 mt-1">Schedule a new follow-up task</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            {isEditMode ? 'Edit Follow-Up' : 'Create Follow-Up'}
+          </h1>
+          <p className="text-gray-500 mt-1">
+            {isEditMode ? 'Modify an existing follow-up task' : 'Schedule a new follow-up task'}
+          </p>
         </div>
       </div>
 
@@ -275,6 +330,7 @@ export const FollowUpFormPage: React.FC = () => {
             name="scheduledDate"
             value={formData.scheduledDate}
             onChange={handleChange}
+            min={getLocalDateString()}
             className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.scheduledDate ? 'border-red-500' : 'border-gray-300'
               }`}
           />
@@ -312,7 +368,7 @@ export const FollowUpFormPage: React.FC = () => {
               }`}
           />
           {errors.note && <p className="text-red-500 text-sm mt-1">{errors.note}</p>}
-          <p className="text-gray-300 text-xs mt-1">Maximum 500 characters</p>
+          <p className="text-gray-300 text-xs mt-1">Maximum 50 words</p>
         </div>
 
         {/* Submit Button */}
@@ -323,7 +379,7 @@ export const FollowUpFormPage: React.FC = () => {
             className="flex items-center gap-2 px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save size={20} />
-            {loading ? 'Creating...' : 'Create'}
+            {loading ? (isEditMode ? 'Saving...' : 'Creating...') : (isEditMode ? 'Save Changes' : 'Create')}
           </button>
           <button
             type="button"

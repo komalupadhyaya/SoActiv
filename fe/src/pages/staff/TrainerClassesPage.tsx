@@ -18,6 +18,13 @@ function formatDate(dateStr: string) {
     return new Date(dateStr).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 }
 
+const getLocalDateString = (date = new Date()) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 function isAttendanceOpen(dateStr: string, time: string): boolean {
     const now = new Date();
     const [h, m] = time.split(':').map(Number);
@@ -47,6 +54,14 @@ export const TrainerClassesPage: React.FC = () => {
     const [isCancelOpen, setIsCancelOpen] = useState(false);
     const [cancelReason, setCancelReason] = useState('');
     const [isCancelling, setIsCancelling] = useState(false);
+    const [sessionsFromDate, setSessionsFromDate] = useState(getLocalDateString());
+
+    const handleSessionsFromDateChange = async (date: string) => {
+        setSessionsFromDate(date);
+        if (selectedClass) {
+            await fetchSessionsByClass(selectedClass._id, { from: date });
+        }
+    };
 
     useEffect(() => {
         fetchClasses();
@@ -55,7 +70,8 @@ export const TrainerClassesPage: React.FC = () => {
     const openSessions = async (cls: any) => {
         setSelectedClass(cls);
         setView('sessions');
-        const today = new Date().toISOString().slice(0, 10);
+        const today = getLocalDateString();
+        setSessionsFromDate(today);
         await fetchSessionsByClass(cls._id, { from: today });
     };
 
@@ -108,7 +124,7 @@ export const TrainerClassesPage: React.FC = () => {
         setIsCancelOpen(false);
         if (result.success && selectedClass) {
             setView('sessions');
-            await fetchSessionsByClass(selectedClass._id, { from: new Date().toISOString().slice(0, 10) });
+            await fetchSessionsByClass(selectedClass._id, { from: sessionsFromDate });
         }
     };
 
@@ -229,6 +245,18 @@ export const TrainerClassesPage: React.FC = () => {
                 {/* ─── Sessions View ──────────────────────────────────────────── */}
                 {view === 'sessions' && (
                     <>
+                        <div className="flex flex-wrap items-center justify-between gap-4 mb-4 bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                            <div className="flex items-center gap-2">
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Show sessions from:</label>
+                                <input
+                                    type="date"
+                                    value={sessionsFromDate}
+                                    onChange={e => handleSessionsFromDateChange(e.target.value)}
+                                    min={getLocalDateString()}
+                                    className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                />
+                            </div>
+                        </div>
                         {loading ? (
                             <div className="flex justify-center items-center h-48">
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500" />

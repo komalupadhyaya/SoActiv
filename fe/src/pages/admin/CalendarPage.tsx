@@ -323,10 +323,11 @@ export const CalendarPage: React.FC = () => {
                             Edit
                           </Button>
                         )}
-                        {isAdmin && (
+                        {canEditEvent && (
                           <Button
                             size="sm"
-                            className="bg-red-3400 text-red-600 hover:bg-red-700 border-red-200"
+                            variant="outline"
+                            className="text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 border-red-200 dark:border-red-900/30"
                             onClick={() => handleEventAction(event, 'delete')}
                           >
                             Delete

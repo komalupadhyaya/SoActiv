@@ -31,7 +31,7 @@ interface SidebarProps {
 }
 
 export const StaffSidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-    const { logout } = useAuth();
+    const { user, logout } = useAuth();
     const {
         canViewMembers,
         canViewLeads,
@@ -58,14 +58,14 @@ export const StaffSidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { name: 'Announcements', href: '/staff/announcements', icon: Bell, show: true },
 
         // Trainer Only
-        { name: 'My Classes', href: '/staff/my-classes', icon: GraduationCap, show: isTrainer },
-        { name: 'My PT Clients', href: '/staff/pt-clients', icon: Users, show: isTrainer },
+        { name: 'My Classes', href: '/staff/my-classes', icon: GraduationCap, show: isTrainer, feature: 'classes' },
+        { name: 'My PT Clients', href: '/staff/pt-clients', icon: Users, show: isTrainer, feature: 'pt' },
         { name: 'Client Nutrition', href: '/staff/client-nutrition', icon: Apple, show: isTrainer },
 
         // Manager Only
         { name: 'Staff List', href: '/staff/staff-list', icon: UserCog, show: isManager && canViewStaff },
-        { name: 'Classes', href: '/staff/classes', icon: GraduationCap, show: isManager },
-        { name: 'PT Assignments', href: '/staff/pt-assignments', icon: Dumbbell, show: isManager },
+        { name: 'Classes', href: '/staff/classes', icon: GraduationCap, show: isManager, feature: 'classes' },
+        { name: 'PT Assignments', href: '/staff/pt-assignments', icon: Dumbbell, show: isManager, feature: 'pt' },
         { name: 'Exercise Library', href: '/staff/exercises', icon: Dumbbell, show: isManager },
         { name: 'Member Support', href: '/staff/member-support', icon: Inbox, show: isManager },
         // { name: 'Team Attendance', href: '/staff/team-attendance', icon: FileText, show: isManager },
@@ -74,11 +74,20 @@ export const StaffSidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { name: 'Sales Leads', href: '/staff/enquiries', icon: TrendingUp, show: canViewLeads },
 
         // Receptionist Only
-        { name: 'Check In / Out', href: '/staff/check-in', icon: CheckCircle2, show: isReceptionist },
-        { name: 'Book Class', href: '/staff/book-class', icon: CalendarPlus, show: isReceptionist },
+        { name: 'Check In / Out', href: '/staff/check-in', icon: CheckCircle2, show: isReceptionist, feature: 'attendance' },
+        { name: 'Book Class', href: '/staff/book-class', icon: CalendarPlus, show: isReceptionist, feature: 'classes' },
         { name: 'Book Appointment', href: '/staff/book-appointment', icon: ClipboardList, show: isReceptionist },
         { name: 'Register Complaint', href: '/staff/complaints', icon: MessageSquare, show: isReceptionist },
     ];
+
+    const filteredItems = navigationItems.filter((item) => {
+        if (!item.show) return false;
+        if (item.feature) {
+            const hasFeature = user?.gymFeatures ? user.gymFeatures[item.feature as keyof typeof user.gymFeatures] : true;
+            if (hasFeature === false) return false;
+        }
+        return true;
+    });
 
     return (
         <div
@@ -111,7 +120,7 @@ export const StaffSidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             </div>
 
             <div className="flex flex-col flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-                {navigationItems.filter(i => i.show).map((item) => (
+                {filteredItems.map((item) => (
                     <NavLink
                         key={item.name}
                         to={item.href}

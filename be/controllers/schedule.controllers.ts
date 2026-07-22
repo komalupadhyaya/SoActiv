@@ -183,6 +183,66 @@ export const createScheduleEvent = async (req: Request, res: Response) => {
             });
         }
 
+        const titleWordCount = title.trim().split(/\s+/).filter(Boolean).length;
+        if (titleWordCount > 15) {
+            return res.status(400).json({
+                success: false,
+                message: 'Title cannot exceed 15 words'
+            });
+        }
+        if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(title.trim())) {
+            return res.status(400).json({
+                success: false,
+                message: 'Title can only contain letters, numbers, spaces, and basic punctuation'
+            });
+        }
+
+        if (description) {
+            const descTrimmed = description.trim();
+            if (descTrimmed) {
+                const descWordCount = descTrimmed.split(/\s+/).filter(Boolean).length;
+                const maxDescWords = (type === 'holiday' || type === 'class') ? 50 : 15;
+                if (descWordCount > maxDescWords) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Description cannot exceed ${maxDescWords} words`
+                    });
+                }
+                if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(descTrimmed)) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Description can only contain letters, numbers, spaces, and basic punctuation'
+                    });
+                }
+            }
+        }
+
+        const targetDate = new Date(scheduledDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (targetDate < today) {
+            return res.status(400).json({
+                success: false,
+                message: 'Scheduled date cannot be in the past'
+            });
+        }
+
+        if (startTime && endTime) {
+            if (startTime === endTime) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'End time cannot be the same as start time'
+                });
+            }
+            const toMin = (t: string) => { const parts = t.split(':').map(Number); return (parts[0] ?? 0) * 60 + (parts[1] ?? 0); };
+            if (toMin(endTime) < toMin(startTime)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'End time must be after start time'
+                });
+            }
+        }
+
         // --- HOLIDAY CONFLICT CHECK ---
         // Verify we aren't creating a normal event during a holiday
         if (type !== 'holiday') {
@@ -348,9 +408,7 @@ export const getAllScheduleEvents = async (req: Request, res: Response) => {
                 tomorrow.setDate(tomorrow.getDate() + 1);
                 filter.scheduledDate = { $gte: today, $lt: tomorrow };
             } else if (filterType === 'upcoming') {
-                const nextWeek = new Date(today);
-                nextWeek.setDate(nextWeek.getDate() + 7);
-                filter.scheduledDate = { $gte: today, $lt: nextWeek };
+                filter.scheduledDate = { $gte: today };
             }
         }
 
@@ -416,9 +474,7 @@ export const getMySchedule = async (req: Request, res: Response) => {
             tomorrow.setDate(tomorrow.getDate() + 1);
             filter.scheduledDate = { $gte: today, $lt: tomorrow };
         } else if (filterType === 'upcoming') {
-            const nextWeek = new Date(today);
-            nextWeek.setDate(nextWeek.getDate() + 7);
-            filter.scheduledDate = { $gte: today, $lt: nextWeek };
+            filter.scheduledDate = { $gte: today };
         }
 
         const scheduleEvents = await Schedule.find(filter)
@@ -468,6 +524,68 @@ export const updateScheduleEvent = async (req: Request, res: Response) => {
                 success: false,
                 message: 'Schedule event not found'
             });
+        }
+
+        const newStartTime = req.body.startTime !== undefined ? req.body.startTime : scheduleEvent.startTime;
+        const newEndTime = req.body.endTime !== undefined ? req.body.endTime : scheduleEvent.endTime;
+        if (newStartTime && newEndTime) {
+            if (newStartTime === newEndTime) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'End time cannot be the same as start time'
+                });
+            }
+            const toMin = (t: string) => { const parts = t.split(':').map(Number); return (parts[0] ?? 0) * 60 + (parts[1] ?? 0); };
+            if (toMin(newEndTime) < toMin(newStartTime)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'End time must be after start time'
+                });
+            }
+        }
+
+        if (req.body.title !== undefined) {
+            const titleTrimmed = req.body.title.trim();
+            if (!titleTrimmed) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Title is required'
+                });
+            }
+            const titleWordCount = titleTrimmed.split(/\s+/).filter(Boolean).length;
+            if (titleWordCount > 15) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Title cannot exceed 15 words'
+                });
+            }
+            if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(titleTrimmed)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Title can only contain letters, numbers, spaces, and basic punctuation'
+                });
+            }
+        }
+
+        if (req.body.description !== undefined && req.body.description !== null) {
+            const descTrimmed = req.body.description.trim();
+            if (descTrimmed) {
+                const descWordCount = descTrimmed.split(/\s+/).filter(Boolean).length;
+                const currentType = req.body.type || scheduleEvent.type;
+                const maxDescWords = (currentType === 'holiday' || currentType === 'class') ? 50 : 15;
+                if (descWordCount > maxDescWords) {
+                    return res.status(400).json({
+                        success: false,
+                        message: `Description cannot exceed ${maxDescWords} words`
+                    });
+                }
+                if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(descTrimmed)) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Description can only contain letters, numbers, spaces, and basic punctuation'
+                    });
+                }
+            }
         }
 
         // Restrict follow-up event edits to Admins only

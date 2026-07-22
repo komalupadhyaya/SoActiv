@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useFollowUp } from '../../hooks/useFollowUp';
-import { Bell, CheckCircle, XCircle, Plus, Calendar, Clock } from 'lucide-react';
+import { Bell, CheckCircle, XCircle, Plus, Calendar, Clock, Edit } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Modal } from '../../components/ui/Modal';
 
@@ -272,6 +272,13 @@ export const FollowUpsPage: React.FC = () => {
                         </>
                       )}
 
+                      <button
+                        onClick={() => navigate(`/admin/follow-ups/edit/${followUp._id}`)}
+                        className="flex items-center gap-2 px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm"
+                      >
+                        <Edit size={16} />
+                        Edit
+                      </button>
                       <button
                         onClick={() => handleDelete(followUp._id)}
                         className="flex items-center gap-2 px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm"

@@ -3,6 +3,7 @@ import { Types } from 'mongoose';
 import { GymClass } from '../models/gymClass.model';
 import { ClassSession } from '../models/classSession.model';
 import { ClassBooking } from '../models/classBooking.model';
+import { ClassAttendance } from '../models/classAttendance.model';
 import ApiError from '../lib/ApiError';
 import { HttpStatusCode } from '../lib/const';
 import { createNotification } from '../utils/notification.helper';
@@ -19,6 +20,32 @@ function computeEndTime(time: string, durationMinutes: number): string {
     const endM = totalMins % 60;
     return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
 }
+
+/**
+ * Helper: Delete expired sessions (where session date is before today) from database
+ * along with their bookings and attendance records.
+ */
+export const cleanupExpiredSessions = async (query: any = {}) => {
+    try {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+
+        const expiredFilter = {
+            ...query,
+            date: { $lt: todayStart }
+        };
+
+        const expiredSessions = await ClassSession.find(expiredFilter).select('_id');
+        if (expiredSessions.length > 0) {
+            const expiredIds = expiredSessions.map(s => s._id);
+            await ClassBooking.deleteMany({ sessionId: { $in: expiredIds } });
+            await ClassAttendance.deleteMany({ sessionId: { $in: expiredIds } });
+            await ClassSession.deleteMany({ _id: { $in: expiredIds } });
+        }
+    } catch (err) {
+        console.error('[ClassSession Cleanup] Failed to delete expired sessions:', err);
+    }
+};
 
 /**
  * @desc    Generate recurring sessions for a class within a date range
@@ -43,12 +70,32 @@ export const generateSessions = async (req: Request, res: Response, next: NextFu
         });
         if (!gymClass) throw new ApiError(HttpStatusCode.NOT_FOUND, 'Active class not found');
 
+        // Clean up expired sessions for this class
+        await cleanupExpiredSessions({ classId: new Types.ObjectId(classId), adminId: new Types.ObjectId(adminId) });
+
         const start = new Date(startDate);
         const end = new Date(endDate);
         start.setHours(0, 0, 0, 0);
         end.setHours(23, 59, 59, 999);
 
-        if (start > end) throw new ApiError(HttpStatusCode.BAD_REQUEST, 'startDate must be before endDate');
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (start < today) {
+            throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Start date cannot be in the past');
+        }
+        if (end < today) {
+            throw new ApiError(HttpStatusCode.BAD_REQUEST, 'End date cannot be in the past');
+        }
+        if (start > end) {
+            throw new ApiError(HttpStatusCode.BAD_REQUEST, 'startDate must be before or equal to endDate');
+        }
+
+        const maxDate = new Date(start);
+        maxDate.setDate(maxDate.getDate() + 90);
+        if (end > maxDate) {
+            throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Date range cannot exceed 90 days');
+        }
 
         const endTime = computeEndTime(gymClass.time, gymClass.durationMinutes);
         const sessionsToCreate: any[] = [];
@@ -121,6 +168,10 @@ export const getSessionsByClass = async (req: Request, res: Response, next: Next
         const { classId } = req.params;
         const user = (req as any).user;
         const adminId = user.adminId || user.id;
+
+        // Auto-delete expired sessions for this class/admin
+        await cleanupExpiredSessions({ classId: new Types.ObjectId(classId), adminId: new Types.ObjectId(adminId) });
+
         const { from, to, status } = req.query;
 
         const filter: any = {
@@ -169,6 +220,9 @@ export const getUpcomingSessions = async (req: Request, res: Response, next: Nex
         const { classId, days = 30 } = req.query;
 
         if (!gymId) throw new ApiError(HttpStatusCode.BAD_REQUEST, 'No gym associated with this account');
+
+        // Auto-delete expired sessions for this gym
+        await cleanupExpiredSessions({ gymId: new Types.ObjectId(gymId) });
 
         const now = new Date();
         const todayStart = new Date();
@@ -336,6 +390,10 @@ export const getAllSessions = async (req: Request, res: Response, next: NextFunc
     try {
         const user = (req as any).user;
         const adminId = user.adminId || user.id;
+
+        // Auto-delete expired sessions for this admin
+        await cleanupExpiredSessions({ adminId: new Types.ObjectId(adminId) });
+
         const { from, to, status, classId } = req.query;
 
         const filter: any = { adminId: new Types.ObjectId(adminId) };

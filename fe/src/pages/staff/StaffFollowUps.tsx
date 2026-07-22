@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Calendar, Clock, CheckCircle, XCircle, AlertCircle, MessageSquare, Filter } from 'lucide-react';
+
+const getLocalDateString = (date = new Date()) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
 import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -179,6 +186,12 @@ export const StaffFollowUps: React.FC = () => {
         e.preventDefault();
         if (!selectedFollowUp || !newScheduledDate || !newScheduledTime || !rescheduleNotes.trim()) {
             addToast('Please fill in all required fields', 'error');
+            return;
+        }
+
+        const todayStr = getLocalDateString();
+        if (newScheduledDate < todayStr) {
+            addToast('New scheduled date cannot be in the past', 'error');
             return;
         }
 
@@ -636,6 +649,7 @@ export const StaffFollowUps: React.FC = () => {
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                             value={newScheduledDate}
                             onChange={(e) => setNewScheduledDate(e.target.value)}
+                            min={getLocalDateString()}
                             required
                         />
                     </div>

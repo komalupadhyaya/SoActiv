@@ -240,6 +240,31 @@ export const createFollowUp = async (req: Request, res: Response) => {
       });
     }
 
+    const targetDate = new Date(scheduledDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (targetDate < today) {
+      return res.status(400).json({
+        success: false,
+        message: 'Scheduled date cannot be in the past'
+      });
+    }
+
+    const noteWordCount = note.trim().split(/\s+/).filter(Boolean).length;
+    if (noteWordCount > 50) {
+      return res.status(400).json({
+        success: false,
+        message: 'Note cannot exceed 50 words'
+      });
+    }
+
+    if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(note)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Note can only contain letters, numbers, spaces, and basic punctuation'
+      });
+    }
+
     // DUPLICATE PREVENTION CHECK
     // Check if a pending follow-up already exists for the same staff at the same date/time
     const existingFollowUp = await FollowUp.findOne({
@@ -491,6 +516,22 @@ export const updateFollowUp = async (req: Request, res: Response) => {
         success: false,
         message: 'Access denied: Only admins can edit follow-ups.'
       });
+    }
+
+    if (updates.note !== undefined && updates.note !== null) {
+      const noteWordCount = updates.note.trim().split(/\s+/).filter(Boolean).length;
+      if (noteWordCount > 50) {
+        return res.status(400).json({
+          success: false,
+          message: 'Note cannot exceed 50 words'
+        });
+      }
+      if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(updates.note)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Note can only contain letters, numbers, spaces, and basic punctuation'
+        });
+      }
     }
 
     const followUp = await FollowUp.findByIdAndUpdate(
@@ -894,6 +935,16 @@ export const rescheduleFollowUp = async (req: Request, res: Response) => {
       return res.status(400).json({
         success: false,
         message: 'newScheduledDate, newScheduledTime, and rescheduleNotes are required'
+      });
+    }
+
+    const targetDate = new Date(newScheduledDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (targetDate < today) {
+      return res.status(400).json({
+        success: false,
+        message: 'New scheduled date cannot be in the past'
       });
     }
 

@@ -126,16 +126,48 @@ const validateClientData = (data: any): string[] => {
     errors.push('Gender must be male, female, or other');
   }
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   if (!data.startdate) {
     errors.push('Start date is required');
+  } else {
+    const startDate = new Date(data.startdate);
+    const startOnlyDate = new Date(startDate);
+    startOnlyDate.setHours(0, 0, 0, 0);
+    if (startOnlyDate < today) {
+      errors.push('Start date cannot be in the past');
+    }
   }
 
   if (!data.enddate) {
     errors.push('End date is required');
+  } else {
+    const endDate = new Date(data.enddate);
+    const endOnlyDate = new Date(endDate);
+    endOnlyDate.setHours(0, 0, 0, 0);
+    if (endOnlyDate < today) {
+      errors.push('End date cannot be in the past');
+    }
   }
 
-  if (!data.packageprice || isNaN(Number(data.packageprice)) || Number(data.packageprice) < 0) {
-    errors.push('Valid package price is required (must be >= 0)');
+  if (data.startdate && data.enddate) {
+    const startDate = new Date(data.startdate);
+    const endDate = new Date(data.enddate);
+    const startOnlyDate = new Date(startDate);
+    startOnlyDate.setHours(0, 0, 0, 0);
+    const endOnlyDate = new Date(endDate);
+    endOnlyDate.setHours(0, 0, 0, 0);
+
+    if (startOnlyDate.getTime() === endOnlyDate.getTime()) {
+      errors.push('End date cannot be the same as start date');
+    } else if (endOnlyDate < startOnlyDate) {
+      errors.push('End date must be after start date');
+    }
+  }
+
+  if (!data.packageprice || isNaN(Number(data.packageprice)) || Number(data.packageprice) < 1 || Number(data.packageprice) > 100000) {
+    errors.push('Package price must be between 1 and 100,000');
   }
 
   if (!data.plan || !isValidPlan(data.plan)) {

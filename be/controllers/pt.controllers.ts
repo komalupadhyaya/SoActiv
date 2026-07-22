@@ -18,6 +18,44 @@ export const createPTPlan = async (req: Request, res: Response, next: NextFuncti
         const { name, totalSessions, validityDays, price, description } = req.body;
         const user = (req as any).user;
 
+        // Validate inputs
+        if (!name || !name.trim()) {
+            throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Plan Name is required');
+        }
+        if (!/^[a-zA-Z0-9\s]+$/.test(name.trim())) {
+            throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Plan Name can only contain letters, numbers, and spaces (no special characters)');
+        }
+        if (totalSessions !== undefined) {
+            const sessions = parseInt(totalSessions);
+            if (isNaN(sessions) || sessions < 1 || sessions > 500) {
+                throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Total Sessions must be between 1 and 500');
+            }
+        }
+        if (validityDays !== undefined) {
+            const validity = parseInt(validityDays);
+            if (isNaN(validity) || validity < 1 || validity > 365) {
+                throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Validity must be between 1 and 365 days');
+            }
+        }
+        if (price !== undefined) {
+            const p = parseFloat(price);
+            if (isNaN(p) || p < 1 || p > 100000) {
+                throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Price must be between 1 and 100,000');
+            }
+        }
+        if (description !== undefined) {
+            const descTrimmed = description.trim();
+            if (descTrimmed) {
+                const wordCount = descTrimmed.split(/\s+/).filter(Boolean).length;
+                if (wordCount > 50) {
+                    throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Description cannot exceed 50 words');
+                }
+                if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(descTrimmed)) {
+                    throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Description can only contain letters, numbers, spaces, and basic punctuation');
+                }
+            }
+        }
+
         // Ensure user is admin (Double check, though middleware should handle this)
         if (user.role !== 'admin' && user.role !== 'superadmin') {
             throw new ApiError(HttpStatusCode.FORBIDDEN, 'Only Admins can create PT Plans');
@@ -75,11 +113,51 @@ export const updatePTPlan = async (req: Request, res: Response, next: NextFuncti
         const { id } = req.params;
         const updates = req.body;
 
+        // Validate inputs
+        if (updates.name !== undefined) {
+            if (!updates.name || !updates.name.trim()) {
+                throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Plan Name is required');
+            }
+            if (!/^[a-zA-Z0-9\s]+$/.test(updates.name.trim())) {
+                throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Plan Name can only contain letters, numbers, and spaces (no special characters)');
+            }
+        }
+        if (updates.totalSessions !== undefined) {
+            const sessions = parseInt(updates.totalSessions);
+            if (isNaN(sessions) || sessions < 1 || sessions > 500) {
+                throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Total Sessions must be between 1 and 500');
+            }
+        }
+        if (updates.validityDays !== undefined) {
+            const validity = parseInt(updates.validityDays);
+            if (isNaN(validity) || validity < 1 || validity > 365) {
+                throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Validity must be between 1 and 365 days');
+            }
+        }
+        if (updates.price !== undefined) {
+            const p = parseFloat(updates.price);
+            if (isNaN(p) || p < 1 || p > 100000) {
+                throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Price must be between 1 and 100,000');
+            }
+        }
+        if (updates.description !== undefined) {
+            const descTrimmed = updates.description.trim();
+            if (descTrimmed) {
+                const wordCount = descTrimmed.split(/\s+/).filter(Boolean).length;
+                if (wordCount > 50) {
+                    throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Description cannot exceed 50 words');
+                }
+                if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(descTrimmed)) {
+                    throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Description can only contain letters, numbers, spaces, and basic punctuation');
+                }
+            }
+        }
+
         // Prevent changing adminId
         delete updates.adminId;
         delete updates.createdAt;
 
-        const plan = await PTPlan.findByIdAndUpdate(id, updates, { new: true });
+        const plan = await PTPlan.findByIdAndUpdate(id, updates, { new: true, runValidators: true });
 
         if (!plan) {
             throw new ApiError(HttpStatusCode.NOT_FOUND, 'PT Plan not found');
@@ -134,10 +212,21 @@ export const assignPT = async (req: Request, res: Response, next: NextFunction) 
             throw new ApiError(HttpStatusCode.NOT_FOUND, 'PT Plan not found');
         }
 
+        // Validate PT Start Date
+        const start = new Date(startDate || Date.now());
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const startOnly = new Date(start);
+        startOnly.setHours(0, 0, 0, 0);
+
+        if (startOnly < today) {
+            throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Personal Training start date cannot be in the past');
+        }
+
         // 2. Validate Trainer belongs to this admin? (Ideally yes)
 
         // 3. Calculate Expiry
-        const start = new Date(startDate || Date.now());
         const expiry = new Date(start);
         expiry.setDate(expiry.getDate() + plan.validityDays);
 

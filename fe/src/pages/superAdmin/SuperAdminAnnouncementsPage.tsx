@@ -1,18 +1,27 @@
 import React, { useEffect, useState } from 'react';
-import { useAnnouncement } from '../../hooks/useAnnouncement';
+import { useAnnouncement, Announcement } from '../../hooks/useAnnouncement';
 import { Button } from '../../components/ui/Button';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { useConfirm } from '../../hooks/useConfirm';
-import { Plus, Trash2, AlertTriangle, Megaphone, Clock, Calendar, ShieldAlert } from 'lucide-react';
+import { Plus, Trash2, AlertTriangle, Megaphone, Clock, Calendar, ShieldAlert, Edit } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 
+const getLocalDateString = (date = new Date()) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 export const SuperAdminAnnouncementsPage: React.FC = () => {
-    const { announcements, loading, fetchAnnouncements, createAnnouncement, deleteAnnouncement } = useAnnouncement();
+    const { announcements, loading, fetchAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement } = useAnnouncement();
     const { confirm, confirmState, handleConfirm, handleCancel } = useConfirm();
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
+    const [errors, setErrors] = useState<Record<string, string>>({});
     
     const [formData, setFormData] = useState({
         title: '',
@@ -25,8 +34,68 @@ export const SuperAdminAnnouncementsPage: React.FC = () => {
         fetchAnnouncements();
     }, [fetchAnnouncements]);
 
+    const handleNewClick = () => {
+        setEditingAnnouncement(null);
+        setFormData({
+            title: '',
+            message: '',
+            priority: 'normal',
+            expiresAt: ''
+        });
+        setErrors({});
+        setIsModalOpen(true);
+    };
+
+    const handleEditClick = (ann: Announcement) => {
+        setEditingAnnouncement(ann);
+        setFormData({
+            title: ann.title,
+            message: ann.message,
+            priority: ann.priority,
+            expiresAt: ann.expiresAt ? getLocalDateString(new Date(ann.expiresAt)) : ''
+        });
+        setErrors({});
+        setIsModalOpen(true);
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        const formErrors: Record<string, string> = {};
+
+        const titleTrimmed = formData.title.trim();
+        if (!titleTrimmed) {
+            formErrors.title = 'Title is required';
+        } else {
+            const wordCount = titleTrimmed.split(/\s+/).filter(Boolean).length;
+            if (wordCount > 15) {
+                formErrors.title = 'Title cannot exceed 15 words';
+            } else if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(titleTrimmed)) {
+                formErrors.title = 'Title can only contain letters, numbers, spaces, and basic punctuation';
+            }
+        }
+
+        const messageTrimmed = formData.message.trim();
+        if (!messageTrimmed) {
+            formErrors.message = 'Message is required';
+        } else {
+            const wordCount = messageTrimmed.split(/\s+/).filter(Boolean).length;
+            if (wordCount > 50) {
+                formErrors.message = 'Message cannot exceed 50 words';
+            } else if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(messageTrimmed)) {
+                formErrors.message = 'Message can only contain letters, numbers, spaces, and basic punctuation';
+            }
+        }
+
+        const todayStr = getLocalDateString();
+        if (formData.expiresAt && formData.expiresAt < todayStr) {
+            formErrors.expiresAt = 'Expiry date cannot be in the past';
+        }
+
+        if (Object.keys(formErrors).length > 0) {
+            setErrors(formErrors);
+            return;
+        }
 
         // Super Admin announcements target admins platform-wide
         const data = {
@@ -39,16 +108,24 @@ export const SuperAdminAnnouncementsPage: React.FC = () => {
                 : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // Default 7 days
         };
 
-        const success = await createAnnouncement(data);
+        let success = false;
+        if (editingAnnouncement) {
+            success = await updateAnnouncement(editingAnnouncement._id, data);
+        } else {
+            success = await createAnnouncement(data);
+        }
+
         if (success) {
             setIsModalOpen(false);
+            setEditingAnnouncement(null);
             setFormData({
                 title: '',
                 message: '',
                 priority: 'normal',
                 expiresAt: ''
             });
-            fetchAnnouncements(); // Refresh list to get new items
+            setErrors({});
+            fetchAnnouncements(); // Refresh list to get updated items
         }
     };
 
@@ -78,7 +155,7 @@ export const SuperAdminAnnouncementsPage: React.FC = () => {
                     </p>
                 </div>
                 <button
-                    onClick={() => setIsModalOpen(true)}
+                    onClick={handleNewClick}
                     className="sm:self-center flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl font-semibold shadow-lg shadow-indigo-500/20 transition-all hover:-translate-y-0.5 active:translate-y-0"
                 >
                     <Plus size={20} />
@@ -124,6 +201,15 @@ export const SuperAdminAnnouncementsPage: React.FC = () => {
                                 <Button 
                                     size="sm" 
                                     variant="ghost" 
+                                    className="text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 border border-transparent hover:border-indigo-200 dark:hover:border-indigo-900/30 rounded-lg p-2"
+                                    onClick={() => handleEditClick(ann)}
+                                    title="Edit Announcement"
+                                >
+                                    <Edit size={18} />
+                                </Button>
+                                <Button 
+                                    size="sm" 
+                                    variant="ghost" 
                                     className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 border border-transparent hover:border-red-200 dark:hover:border-red-900/30 rounded-lg p-2"
                                     onClick={() => handleDelete(ann._id)}
                                     title="Delete Announcement"
@@ -150,32 +236,56 @@ export const SuperAdminAnnouncementsPage: React.FC = () => {
                 )}
             </div>
 
-            {/* Create Announcement Modal */}
+            {/* Create/Edit Announcement Modal */}
             <Modal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
-                title="Create Platform Announcement"
+                title={editingAnnouncement ? 'Edit Platform Announcement' : 'Create Platform Announcement'}
             >
                 <form onSubmit={handleSubmit} className="space-y-5">
                     <Input
                         label="Title"
                         value={formData.title}
-                        onChange={e => setFormData({ ...formData, title: e.target.value })}
+                        onChange={e => {
+                            setFormData({ ...formData, title: e.target.value });
+                            if (errors.title) {
+                                setErrors(prev => {
+                                    const next = { ...prev };
+                                    delete next.title;
+                                    return next;
+                                });
+                            }
+                        }}
                         required
                         placeholder="e.g., Scheduled Maintenance Notification"
                         className="w-full"
+                        error={errors.title}
                     />
 
                     <div className="flex flex-col gap-1.5">
                         <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Message Content</label>
                         <textarea
-                            className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none text-sm leading-relaxed"
+                            className={`w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none text-sm leading-relaxed ${
+                                errors.message ? 'border-red-500 focus:ring-red-500' : ''
+                            }`}
                             rows={5}
                             value={formData.message}
-                            onChange={e => setFormData({ ...formData, message: e.target.value })}
+                            onChange={e => {
+                                setFormData({ ...formData, message: e.target.value });
+                                if (errors.message) {
+                                    setErrors(prev => {
+                                        const next = { ...prev };
+                                        delete next.message;
+                                        return next;
+                                    });
+                                }
+                            }}
                             required
                             placeholder="Type announcement message here..."
                         />
+                        {errors.message && (
+                            <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.message}</p>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -195,11 +305,25 @@ export const SuperAdminAnnouncementsPage: React.FC = () => {
                             <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Expiry Date (Optional)</label>
                             <input
                                 type="date"
-                                className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                                className={`w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none text-sm ${
+                                    errors.expiresAt ? 'border-red-500' : ''
+                                }`}
                                 value={formData.expiresAt}
-                                onChange={e => setFormData({ ...formData, expiresAt: e.target.value })}
-                                min={new Date().toISOString().split('T')[0]}
+                                onChange={e => {
+                                    setFormData({ ...formData, expiresAt: e.target.value });
+                                    if (errors.expiresAt) {
+                                        setErrors(prev => {
+                                            const next = { ...prev };
+                                            delete next.expiresAt;
+                                            return next;
+                                        });
+                                    }
+                                }}
+                                min={getLocalDateString()}
                             />
+                            {errors.expiresAt && (
+                                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.expiresAt}</p>
+                            )}
                         </div>
                     </div>
 
@@ -216,7 +340,7 @@ export const SuperAdminAnnouncementsPage: React.FC = () => {
                             type="submit"
                             className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold shadow-md shadow-indigo-500/10 transition-colors"
                         >
-                            Publish Announcement
+                            {editingAnnouncement ? 'Save Changes' : 'Publish Announcement'}
                         </button>
                     </div>
                 </form>

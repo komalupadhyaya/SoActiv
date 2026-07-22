@@ -311,11 +311,31 @@ export const Schedule: React.FC = () => {
                                                             Edit
                                                         </Button>
                                                     )}
+                                                    {canEditEvent && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 border-red-200 dark:border-red-900/30"
+                                                            onClick={() => handleEventAction(event, 'delete')}
+                                                        >
+                                                            Delete
+                                                        </Button>
+                                                    )}
                                                 </>
                                             )}
                                             {/* Admin Delete Holiday */}
                                             {canCreate && event.type === 'holiday' && (
-                                                <Button size="sm" variant="outline" onClick={() => handleEditClick(event)}>Edit</Button>
+                                                <>
+                                                    <Button size="sm" variant="outline" onClick={() => handleEditClick(event)}>Edit</Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 border-red-200 dark:border-red-900/30"
+                                                        onClick={() => handleEventAction(event, 'delete')}
+                                                    >
+                                                        Delete
+                                                    </Button>
+                                                </>
                                             )}
                                         </div>
                                     </div>

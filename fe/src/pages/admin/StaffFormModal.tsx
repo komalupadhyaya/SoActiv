@@ -81,9 +81,15 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
         field: keyof StaffFormData,
         value: string | number | boolean
     ) => {
+        let finalValue = value;
+        if (field === 'contactNumber' && typeof value === 'string') {
+            finalValue = value.replace(/\D/g, '').slice(0, 10);
+        } else if (field === 'fullName' && typeof value === 'string') {
+            finalValue = value.replace(/[^a-zA-Z\s]/g, '');
+        }
         setFormData((prev) => ({
             ...prev,
-            [field]: value,
+            [field]: finalValue,
         }));
         // Clear error when user types
         if (validationError) setValidationError(null);

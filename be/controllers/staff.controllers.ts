@@ -56,6 +56,21 @@ export const createStaff = async (req: Request, res: Response): Promise<void> =>
     const { fullName, email, position, contactNumber, joiningDate, salary, status, notifications } = req.body;
 
     // --- 1. STRICT VALIDATION (Before any DB writes) ---
+    if (!fullName || !fullName.trim()) {
+      res.status(400).json({
+        success: false,
+        message: 'Full Name is required',
+      });
+      return;
+    }
+
+    if (!/^[a-zA-Z\s]+$/.test(fullName.trim())) {
+      res.status(400).json({
+        success: false,
+        message: 'Full Name must contain only alphabetical characters and spaces',
+      });
+      return;
+    }
 
     // Check if email exists in User collection (Global Uniqueness for Login)
     const existingUser = await User.findOne({ email: email.toLowerCase() });

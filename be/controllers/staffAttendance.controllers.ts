@@ -22,6 +22,14 @@ const getStartAndEndOfDay = (date: Date, timezone: string): { start: Date; end: 
 export const markAttendance = async (req: Request, res: Response): Promise<void> => {
   try {
     const { staffId, status = 'present', notes, checkInTime } = req.body;
+    
+    if (notes !== undefined && notes !== null) {
+      const wordCount = notes.trim().split(/\s+/).filter(Boolean).length;
+      if (wordCount > 10) {
+        res.status(400).json({ message: 'No more than 10 words to be entered' });
+        return;
+      }
+    }
     const user = (req as any).user;
     const userId = user?._id || user?.id;
 
@@ -140,6 +148,14 @@ export const updateAttendance = async (req: Request, res: Response): Promise<voi
     }
 
     const { status, checkInTime, checkOutTime, notes } = req.body;
+
+    if (notes !== undefined && notes !== null) {
+      const wordCount = notes.trim().split(/\s+/).filter(Boolean).length;
+      if (wordCount > 10) {
+        res.status(400).json({ message: 'No more than 10 words to be entered' });
+        return;
+      }
+    }
     const updateData: Partial<IAttendance> = {};
 
     // Validate status

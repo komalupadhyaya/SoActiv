@@ -70,9 +70,9 @@ export const MemberSidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     const navigationItems = [
         { name: 'Dashboard', href: '/member/dashboard', icon: LayoutDashboard },
         { name: 'Announcements', href: '/member/announcements', icon: Megaphone },
-        { name: 'Classes', href: '/member/classes', icon: GraduationCap },
-        { name: 'Payment History', href: '/member/payments', icon: CreditCard, feature: 'memberPortal' },
-        { name: 'Attendance Tracking', href: '/member/attendance', icon: CalendarDays },
+        { name: 'Classes', href: '/member/classes', icon: GraduationCap, feature: 'classes' },
+        { name: 'Payment History', href: '/member/payments', icon: CreditCard, feature: 'payments' },
+        { name: 'Attendance Tracking', href: '/member/attendance', icon: CalendarDays, feature: 'attendance' },
         { name: 'Progress Photos', href: '/member/progress-photos', icon: Camera, feature: 'memberPortal' },
         { name: 'Fitness Goals', href: '/member/fitness-goals', icon: Target, feature: 'memberPortal' },
         { name: 'Nutrition & Diet', href: '/member/nutrition', icon: Apple, feature: 'memberPortal' },
@@ -80,8 +80,11 @@ export const MemberSidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { name: 'Contact Support', href: '/member/contact-support', icon: MessageSquare },
         { name: 'My Profile', href: '/member/profile', icon: User },
     ].filter(item => {
-        if (item.feature === 'memberPortal' && user?.gymFeatures?.memberPortal === false) {
-            return false;
+        if (item.feature) {
+            const hasFeature = user?.gymFeatures ? user.gymFeatures[item.feature as keyof typeof user.gymFeatures] : true;
+            if (hasFeature === false) {
+                return false;
+            }
         }
         return true;
     });

@@ -5,6 +5,13 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useSchedule, Schedule as ScheduleType } from '../../hooks/useSchedule';
 import { useStaff } from '../../hooks/useStaff';
 
+const getLocalDateString = (date = new Date()) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 interface ScheduleFormModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -155,8 +162,44 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
     const validate = (): boolean => {
         const newErrors: Record<string, string> = {};
 
-        if (!formData.title.trim()) newErrors.title = 'Title is required';
-        if (!formData.scheduledDate) newErrors.scheduledDate = 'Date is required';
+        if (!formData.title.trim()) {
+            newErrors.title = 'Title is required';
+        } else {
+            const wordCount = formData.title.trim().split(/\s+/).filter(Boolean).length;
+            if (wordCount > 15) {
+                newErrors.title = 'Title cannot exceed 15 words';
+            } else if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(formData.title.trim())) {
+                newErrors.title = 'Title can only contain letters, numbers, spaces, and basic punctuation';
+            }
+        }
+
+        const descTrimmed = formData.description.trim();
+        if (descTrimmed) {
+            const wordCount = descTrimmed.split(/\s+/).filter(Boolean).length;
+            if (wordCount > 50) {
+                newErrors.description = 'Description cannot exceed 50 words';
+            } else if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(descTrimmed)) {
+                newErrors.description = 'Description can only contain letters, numbers, spaces, and basic punctuation';
+            }
+        }
+        
+        const todayStr = getLocalDateString();
+        if (!formData.scheduledDate) {
+            newErrors.scheduledDate = 'Date is required';
+        } else if (!isEditMode && formData.scheduledDate < todayStr) {
+            newErrors.scheduledDate = 'Date cannot be in the past';
+        }
+
+        if (formData.startTime && formData.endTime) {
+            if (formData.startTime === formData.endTime) {
+                newErrors.endTime = 'End time cannot be the same as start time';
+            } else {
+                const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+                if (toMin(formData.endTime) < toMin(formData.startTime)) {
+                    newErrors.endTime = 'End time must be after start time';
+                }
+            }
+        }
 
         // Relax validation for Holiday
         if (formData.type !== 'holiday') {
@@ -287,10 +330,13 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
                             value={formData.description}
                             onChange={handleChange}
                             rows={3}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                            className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-white ${errors.description ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                             placeholder="Enter event description (optional)"
                             disabled={submitting}
                         />
+                        {errors.description && (
+                            <p className="mt-1 text-sm text-red-500">{errors.description}</p>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -303,6 +349,7 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
                                 name="scheduledDate"
                                 value={formData.scheduledDate}
                                 onChange={handleChange}
+                                min={getLocalDateString()}
                                 className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-white ${errors.scheduledDate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                                 disabled={submitting}
                             />

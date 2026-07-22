@@ -66,6 +66,32 @@ export const useAnnouncement = () => {
         }
     };
 
+    const updateAnnouncement = async (id: string, data: Partial<Announcement>) => {
+        setLoading(true);
+        try {
+            const res = await fetch(`${API_URL}/announcements/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+                credentials: 'include'
+            });
+            const result = await res.json();
+            if (res.ok && result.success) {
+                setAnnouncements(prev => prev.map(a => a._id === id ? result.data : a));
+                addToast('Announcement updated', 'success');
+                return true;
+            } else {
+                addToast(result.message || 'Failed to update', 'error');
+                return false;
+            }
+        } catch (err: any) {
+            addToast(err.message, 'error');
+            return false;
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const deleteAnnouncement = async (id: string) => {
         setLoading(true);
         try {
@@ -94,6 +120,7 @@ export const useAnnouncement = () => {
         loading,
         fetchAnnouncements,
         createAnnouncement,
+        updateAnnouncement,
         deleteAnnouncement
     };
 };

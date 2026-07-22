@@ -71,6 +71,58 @@ export const createClient = asyncHandler(async (req: Request, res: Response) => 
   let createdMemberUserId: string | null = null;
 
   try {
+    // Validate Full Name
+    if (!req.body.fullName || !req.body.fullName.trim()) {
+      return res.status(400).json({ success: false, message: 'Full name is required' });
+    }
+    if (!/^[a-zA-Z\s]+$/.test(req.body.fullName.trim())) {
+      return res.status(400).json({ success: false, message: 'Full name must contain only alphabetical characters and spaces' });
+    }
+
+    // Validate Date of Birth
+    if (req.body.dateOfBirth) {
+      const dob = new Date(req.body.dateOfBirth);
+      const endOfToday = new Date();
+      endOfToday.setHours(23, 59, 59, 999);
+      if (dob > endOfToday) {
+        return res.status(400).json({ success: false, message: 'Date of birth cannot be in the future' });
+      }
+    }
+
+    // Validate Membership Period Dates
+    if (!req.body.startDate || !req.body.endDate) {
+      return res.status(400).json({ success: false, message: 'Start date and End date are required' });
+    }
+    const startDate = new Date(req.body.startDate);
+    const endDate = new Date(req.body.endDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const startOnlyDate = new Date(startDate);
+    startOnlyDate.setHours(0, 0, 0, 0);
+
+    const endOnlyDate = new Date(endDate);
+    endOnlyDate.setHours(0, 0, 0, 0);
+
+    if (startOnlyDate < today) {
+      return res.status(400).json({ success: false, message: 'Start date cannot be in the past' });
+    }
+    if (endOnlyDate < today) {
+      return res.status(400).json({ success: false, message: 'End date cannot be in the past' });
+    }
+    if (startOnlyDate.getTime() === endOnlyDate.getTime()) {
+      return res.status(400).json({ success: false, message: 'End date cannot be the same as start date' });
+    }
+    if (endOnlyDate < startOnlyDate) {
+      return res.status(400).json({ success: false, message: 'End date must be after start date' });
+    }
+
+    // Validate Package Price limits
+    const packagePriceVal = parseFloat(req.body.packagePrice);
+    if (isNaN(packagePriceVal) || packagePriceVal < 1 || packagePriceVal > 100000) {
+      return res.status(400).json({ success: false, message: 'Package price must be between 1 and 100,000' });
+    }
+
     // 1. Resolve true Owner ID
     const ownerId = await getOwnerId(req);
 
@@ -391,6 +443,68 @@ export const updateClientById = asyncHandler(async (req: Request, res: Response)
   }
   const ownerId = await getOwnerId(req);
   const { id } = req.params;
+
+  const currentClient = await Client.findOne({ _id: id, userId: ownerId });
+  if (!currentClient) return res.status(404).json({ success: false, message: 'Client not found' });
+
+  // Validate Membership Period Dates for Update
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let finalStart = currentClient.startDate;
+  let finalEnd = currentClient.endDate;
+
+  if (req.body.startDate !== undefined) {
+    const newStart = new Date(req.body.startDate);
+    const newStartOnly = new Date(newStart);
+    newStartOnly.setHours(0, 0, 0, 0);
+
+    const oldStartOnly = new Date(currentClient.startDate);
+    oldStartOnly.setHours(0, 0, 0, 0);
+
+    if (newStartOnly.getTime() !== oldStartOnly.getTime()) {
+      if (newStartOnly < today) {
+        return res.status(400).json({ success: false, message: 'Start date cannot be in the past' });
+      }
+      finalStart = newStart;
+    }
+  }
+
+  if (req.body.endDate !== undefined) {
+    const newEnd = new Date(req.body.endDate);
+    const newEndOnly = new Date(newEnd);
+    newEndOnly.setHours(0, 0, 0, 0);
+
+    const oldEndOnly = new Date(currentClient.endDate);
+    oldEndOnly.setHours(0, 0, 0, 0);
+
+    if (newEndOnly.getTime() !== oldEndOnly.getTime()) {
+      if (newEndOnly < today) {
+        return res.status(400).json({ success: false, message: 'End date cannot be in the past' });
+      }
+      finalEnd = newEnd;
+    }
+  }
+
+  const finalStartOnly = new Date(finalStart);
+  finalStartOnly.setHours(0, 0, 0, 0);
+  const finalEndOnly = new Date(finalEnd);
+  finalEndOnly.setHours(0, 0, 0, 0);
+
+  if (finalStartOnly.getTime() === finalEndOnly.getTime()) {
+    return res.status(400).json({ success: false, message: 'End date cannot be the same as start date' });
+  }
+  if (finalEndOnly < finalStartOnly) {
+    return res.status(400).json({ success: false, message: 'End date must be after start date' });
+  }
+
+  // Validate Package Price limits
+  if (req.body.packagePrice !== undefined) {
+    const packagePriceVal = parseFloat(req.body.packagePrice);
+    if (isNaN(packagePriceVal) || packagePriceVal < 1 || packagePriceVal > 100000) {
+      return res.status(400).json({ success: false, message: 'Package price must be between 1 and 100,000' });
+    }
+  }
 
   // Uniqueness Check on Update (if email/phone changed)
   if (req.body.email || req.body.contactNumber) {

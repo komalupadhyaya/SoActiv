@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useAnnouncement } from '../../hooks/useAnnouncement';
+import { useAnnouncement, Announcement } from '../../hooks/useAnnouncement';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/ui/Button';
 import { Card, CardContent } from '../../components/ui/Card';
@@ -7,16 +7,25 @@ import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { useConfirm } from '../../hooks/useConfirm';
-import { Plus, Trash2, AlertTriangle, Megaphone, Info } from 'lucide-react';
+import { Plus, Trash2, Edit, AlertTriangle, Megaphone, Info } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 
+const getLocalDateString = (date = new Date()) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 export const StaffAnnouncementsPage: React.FC = () => {
-    const { announcements, loading, fetchAnnouncements, createAnnouncement, deleteAnnouncement } = useAnnouncement();
+    const { announcements, loading, fetchAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement } = useAnnouncement();
     const { user } = useAuth();
     const isManager = user?.role === 'staff' && user?.position === 'manager';
 
     const { confirm, confirmState, handleConfirm, handleCancel } = useConfirm();
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
+    const [errors, setErrors] = useState<Record<string, string>>({});
     const [formData, setFormData] = useState({
         title: '',
         message: '',
@@ -30,6 +39,34 @@ export const StaffAnnouncementsPage: React.FC = () => {
         fetchAnnouncements();
     }, [fetchAnnouncements]);
 
+    const handleNewClick = () => {
+        setEditingAnnouncement(null);
+        setFormData({
+            title: '',
+            message: '',
+            targetAudience: 'all',
+            priority: 'normal',
+            expiresAt: '',
+            visibleRoles: ''
+        });
+        setErrors({});
+        setIsModalOpen(true);
+    };
+
+    const handleEditClick = (ann: Announcement) => {
+        setEditingAnnouncement(ann);
+        setFormData({
+            title: ann.title,
+            message: ann.message,
+            targetAudience: ann.targetAudience,
+            priority: ann.priority,
+            expiresAt: ann.expiresAt ? getLocalDateString(new Date(ann.expiresAt)) : '',
+            visibleRoles: ann.visibleRoles ? ann.visibleRoles.join(', ') : ''
+        });
+        setErrors({});
+        setIsModalOpen(true);
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -41,23 +78,32 @@ export const StaffAnnouncementsPage: React.FC = () => {
         // Validate future date
         const expiry = formData.expiresAt ? new Date(formData.expiresAt) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // Default 7 days
 
-        await createAnnouncement({
+        const payload = {
             ...formData,
             visibleRoles: roles,
             expiresAt: expiry.toISOString()
-        } as any);
+        };
 
-        setIsModalOpen(false);
-        // Reset form
-        setFormData({
-            title: '',
-            message: '',
-            targetAudience: 'all',
-            priority: 'normal',
-            expiresAt: '',
-            visibleRoles: ''
-        });
-        fetchAnnouncements();
+        let success = false;
+        if (editingAnnouncement) {
+            success = await updateAnnouncement(editingAnnouncement._id, payload as any);
+        } else {
+            success = await createAnnouncement(payload as any);
+        }
+
+        if (success) {
+            setIsModalOpen(false);
+            setEditingAnnouncement(null);
+            setFormData({
+                title: '',
+                message: '',
+                targetAudience: 'all',
+                priority: 'normal',
+                expiresAt: '',
+                visibleRoles: ''
+            });
+            fetchAnnouncements();
+        }
     };
 
     const handleDelete = async (id: string) => {
@@ -78,7 +124,7 @@ export const StaffAnnouncementsPage: React.FC = () => {
                     </div>
                 </div>
                 {isManager && (
-                    <Button onClick={() => setIsModalOpen(true)}>
+                    <Button onClick={handleNewClick}>
                         <Plus size={16} className="mr-2" />
                         New Announcement
                     </Button>
@@ -105,7 +151,10 @@ export const StaffAnnouncementsPage: React.FC = () => {
                                 </div>
                             </div>
                             {isManager && !ann.isPlatformWide && (
-                                <div className="flex items-start">
+                                <div className="flex items-start gap-1">
+                                    <Button size="sm" variant="ghost" className="text-gray-500 hover:bg-gray-50" onClick={() => handleEditClick(ann)}>
+                                        <Edit size={16} />
+                                    </Button>
                                     <Button size="sm" variant="ghost" className="text-red-500 hover:bg-red-50" onClick={() => handleDelete(ann._id)}>
                                         <Trash2 size={16} />
                                     </Button>
@@ -126,7 +175,7 @@ export const StaffAnnouncementsPage: React.FC = () => {
             <Modal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
-                title="Create Announcement"
+                title={editingAnnouncement ? 'Edit Announcement' : 'Create Announcement'}
             >
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <Input
@@ -193,7 +242,7 @@ export const StaffAnnouncementsPage: React.FC = () => {
 
                     <div className="flex justify-end gap-3 pt-4">
                         <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-                        <Button type="submit">Post Announcement</Button>
+                        <Button type="submit">{editingAnnouncement ? 'Save Changes' : 'Post Announcement'}</Button>
                     </div>
                 </form>
             </Modal>

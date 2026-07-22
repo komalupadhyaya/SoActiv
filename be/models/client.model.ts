@@ -80,7 +80,11 @@ const clientSchema = new Schema<IClient>(
     },
     address: String,
 
-    emergencyContactName: String,
+    emergencyContactName: {
+      type: String,
+      match: [/^[a-zA-Z\s]*$/, 'Emergency contact name must contain only alphabetical characters and spaces'],
+      trim: true
+    },
     emergencyContactNumber: { type: String, trim: true },
     emergencyContactRelation: { type: String, enum: ['parent', 'spouse', 'sibling', 'friend', 'child', 'other'] },
 
@@ -97,7 +101,7 @@ const clientSchema = new Schema<IClient>(
     remainingDays: { type: Number, default: 0 },
     status: { type: String, enum: ['active', 'expired', 'pending'], default: 'active' },
 
-    packagePrice: { type: Number, required: true, min: 0 },
+    packagePrice: { type: Number, required: true, min: 1, max: 100000 },
 
     hasPersonalTraining: { type: Boolean, default: false },
     personalTrainer: {

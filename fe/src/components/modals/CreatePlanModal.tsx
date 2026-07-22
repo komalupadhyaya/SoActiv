@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X } from 'lucide-react';
+import { X, AlertCircle } from 'lucide-react';
 
 interface CreatePlanModalProps {
     isOpen: boolean;
@@ -28,6 +28,16 @@ interface PlanFormData {
     isActive: boolean;
 }
 
+interface FieldErrors {
+    name?: string;
+    displayName?: string;
+    price?: string;
+    maxMembers?: string;
+    maxStaff?: string;
+}
+
+const PLAN_NAME_REGEX = /^[a-z0-9_-]+$/;
+
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '').replace(/\/api\/v1$/, '');
 
 export default function CreatePlanModal({ isOpen, onClose, onSuccess }: CreatePlanModalProps) {
@@ -53,32 +63,107 @@ export default function CreatePlanModal({ isOpen, onClose, onSuccess }: CreatePl
     });
 
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+    const [submitError, setSubmitError] = useState('');
+    const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+    const [touched, setTouched] = useState<Record<string, boolean>>({});
 
     if (!isOpen) return null;
 
+    // --- Validation ---
+    const validateField = (field: string, value: string, extra?: Partial<PlanFormData>): string | undefined => {
+        const data = { ...formData, ...extra };
+        switch (field) {
+            case 'name':
+                if (!value.trim()) return 'Name is required';
+                if (value.trim().length < 2) return 'Name must be at least 2 characters';
+                if (value.trim().length > 50) return 'Name must be under 50 characters';
+                if (!PLAN_NAME_REGEX.test(value.trim())) return 'Only lowercase letters, numbers, hyphens and underscores allowed';
+                break;
+            case 'displayName':
+                if (!value.trim()) return 'Display name is required';
+                if (value.trim().length < 2) return 'Display name must be at least 2 characters';
+                if (value.trim().length > 80) return 'Display name must be under 80 characters';
+                break;
+            case 'price': {
+                const num = parseFloat(value);
+                if (value === '' || isNaN(num)) return 'Price is required';
+                if (num < 0) return 'Price cannot be negative';
+                break;
+            }
+            case 'maxMembers':
+                if (!data.isUnlimitedMembers) {
+                    const n = parseInt(value);
+                    if (value === '' || isNaN(n)) return 'Max Members is required';
+                    if (n <= 0) return 'Must be greater than 0, or check Unlimited';
+                }
+                break;
+            case 'maxStaff':
+                if (!data.isUnlimitedStaff) {
+                    const n = parseInt(value);
+                    if (value === '' || isNaN(n)) return 'Max Staff is required';
+                    if (n <= 0) return 'Must be greater than 0, or check Unlimited';
+                }
+                break;
+        }
+        return undefined;
+    };
+
+    const validateAll = (data = formData): FieldErrors => {
+        const errors: FieldErrors = {};
+        const fields = ['name', 'displayName', 'price', 'maxMembers', 'maxStaff'];
+        for (const field of fields) {
+            const value = data[field as keyof PlanFormData] as string;
+            const err = validateField(field, value, data);
+            if (err) errors[field as keyof FieldErrors] = err;
+        }
+        return errors;
+    };
+
+    const handleChange = (field: string, value: string, extra?: Partial<PlanFormData>) => {
+        const updated = { ...formData, [field]: value, ...extra };
+        setFormData(updated);
+        if (touched[field]) {
+            const err = validateField(field, value, updated);
+            setFieldErrors(prev => ({ ...prev, [field]: err }));
+        }
+        if (submitError) setSubmitError('');
+    };
+
+    const handleBlur = (field: string, value: string) => {
+        setTouched(prev => ({ ...prev, [field]: true }));
+        const err = validateField(field, value);
+        setFieldErrors(prev => ({ ...prev, [field]: err }));
+    };
+
+    // --- Helpers ---
+    const inputClass = (field: string, extra = '') =>
+        `w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 transition-colors ${extra} ${
+            fieldErrors[field as keyof FieldErrors]
+                ? 'border-red-400 dark:border-red-500 focus:ring-red-400'
+                : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500'
+        }`;
+
+    const FieldError = ({ field }: { field: string }) =>
+        fieldErrors[field as keyof FieldErrors] ? (
+            <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                {fieldErrors[field as keyof FieldErrors]}
+            </p>
+        ) : null;
+
+    // --- Submit ---
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError('');
+        setSubmitError('');
 
-        // Validation
-        if (!formData.name || !formData.displayName) {
-            setError('Name and Display Name are required');
-            return;
-        }
+        // Touch all validated fields
+        const allFields = ['name', 'displayName', 'price', 'maxMembers', 'maxStaff'];
+        setTouched(allFields.reduce((acc, f) => ({ ...acc, [f]: true }), {}));
 
-        if (parseFloat(formData.price) < 0) {
-            setError('Price cannot be negative');
-            return;
-        }
-
-        if (!formData.isUnlimitedMembers && parseInt(formData.maxMembers) <= 0) {
-            setError('Max Members must be greater than 0 or set to Unlimited');
-            return;
-        }
-
-        if (!formData.isUnlimitedStaff && parseInt(formData.maxStaff) <= 0) {
-            setError('Max Staff must be greater than 0 or set to Unlimited');
+        const errors = validateAll();
+        if (Object.keys(errors).length > 0) {
+            setFieldErrors(errors);
+            setSubmitError('Please fix the errors below before submitting.');
             return;
         }
 
@@ -100,9 +185,7 @@ export default function CreatePlanModal({ isOpen, onClose, onSuccess }: CreatePl
 
             const response = await fetch(`${API_URL}/api/v1/super-admin/plans`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
                 body: JSON.stringify(payload)
             });
@@ -116,16 +199,14 @@ export default function CreatePlanModal({ isOpen, onClose, onSuccess }: CreatePl
             onSuccess();
             onClose();
         } catch (err: any) {
-            setError(err.message || 'Failed to create plan');
+            setSubmitError(err.message || 'Failed to create plan');
         } finally {
             setLoading(false);
         }
     };
 
     const handleClose = () => {
-        if (!loading) {
-            onClose();
-        }
+        if (!loading) onClose();
     };
 
     return (
@@ -154,10 +235,12 @@ export default function CreatePlanModal({ isOpen, onClose, onSuccess }: CreatePl
                     </div>
 
                     {/* Form */}
-                    <form onSubmit={handleSubmit} className="px-6 py-4">
-                        {error && (
-                            <div className="mb-4 p-3 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded-lg">
-                                {error}
+                    <form onSubmit={handleSubmit} noValidate className="px-6 py-4">
+                        {/* Top-level submit error */}
+                        {submitError && (
+                            <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 rounded-lg flex items-start gap-2">
+                                <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                                <span className="text-sm">{submitError}</span>
                             </div>
                         )}
 
@@ -168,6 +251,7 @@ export default function CreatePlanModal({ isOpen, onClose, onSuccess }: CreatePl
                                     Basic Information
                                 </h4>
                                 <div className="grid grid-cols-2 gap-4">
+                                    {/* Name */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                             Name <span className="text-red-500">*</span>
@@ -175,16 +259,21 @@ export default function CreatePlanModal({ isOpen, onClose, onSuccess }: CreatePl
                                         <input
                                             type="text"
                                             value={formData.name}
-                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                            onChange={(e) => handleChange('name', e.target.value)}
+                                            onBlur={(e) => handleBlur('name', e.target.value)}
                                             placeholder="e.g., pro, enterprise"
-                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                                            required
+                                            className={inputClass('name')}
                                         />
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                            Lowercase, unique identifier
-                                        </p>
+                                        {fieldErrors.name ? (
+                                            <FieldError field="name" />
+                                        ) : (
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                Lowercase, unique identifier
+                                            </p>
+                                        )}
                                     </div>
 
+                                    {/* Display Name */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                             Display Name <span className="text-red-500">*</span>
@@ -192,11 +281,12 @@ export default function CreatePlanModal({ isOpen, onClose, onSuccess }: CreatePl
                                         <input
                                             type="text"
                                             value={formData.displayName}
-                                            onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
+                                            onChange={(e) => handleChange('displayName', e.target.value)}
+                                            onBlur={(e) => handleBlur('displayName', e.target.value)}
                                             placeholder="e.g., Pro Plan"
-                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                                            required
+                                            className={inputClass('displayName')}
                                         />
+                                        <FieldError field="displayName" />
                                     </div>
                                 </div>
 
@@ -209,7 +299,7 @@ export default function CreatePlanModal({ isOpen, onClose, onSuccess }: CreatePl
                                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                         placeholder="Optional description"
                                         rows={2}
-                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
                                     />
                                 </div>
                             </div>
@@ -220,31 +310,33 @@ export default function CreatePlanModal({ isOpen, onClose, onSuccess }: CreatePl
                                     Pricing
                                 </h4>
                                 <div className="grid grid-cols-3 gap-4">
+                                    {/* Price */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                            Price
+                                            Price <span className="text-red-500">*</span>
                                         </label>
                                         <input
                                             type="number"
                                             value={formData.price}
-                                            onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                                            onChange={(e) => handleChange('price', e.target.value)}
                                             onFocus={() => {
                                                 if (formData.price === '0') {
                                                     setFormData(prev => ({ ...prev, price: '' }));
                                                 }
                                             }}
-                                            onBlur={() => {
-                                                if (formData.price === '') {
-                                                    setFormData(prev => ({ ...prev, price: '0' }));
-                                                }
+                                            onBlur={(e) => {
+                                                const val = e.target.value === '' ? '0' : e.target.value;
+                                                setFormData(prev => ({ ...prev, price: val }));
+                                                handleBlur('price', val);
                                             }}
                                             min="0"
                                             step="0.01"
-                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                                            required
+                                            className={inputClass('price')}
                                         />
+                                        <FieldError field="price" />
                                     </div>
 
+                                    {/* Currency */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                             Currency
@@ -252,7 +344,7 @@ export default function CreatePlanModal({ isOpen, onClose, onSuccess }: CreatePl
                                         <select
                                             value={formData.currency}
                                             onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
                                         >
                                             <option value="INR">INR</option>
                                             <option value="USD">USD</option>
@@ -260,6 +352,7 @@ export default function CreatePlanModal({ isOpen, onClose, onSuccess }: CreatePl
                                         </select>
                                     </div>
 
+                                    {/* Billing Cycle */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                             Billing Cycle
@@ -267,7 +360,7 @@ export default function CreatePlanModal({ isOpen, onClose, onSuccess }: CreatePl
                                         <select
                                             value={formData.billingCycle}
                                             onChange={(e) => setFormData({ ...formData, billingCycle: e.target.value as 'monthly' | 'yearly' })}
-                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
                                         >
                                             <option value="monthly">Monthly</option>
                                             <option value="yearly">Yearly</option>
@@ -282,54 +375,65 @@ export default function CreatePlanModal({ isOpen, onClose, onSuccess }: CreatePl
                                     Limits
                                 </h4>
                                 <div className="grid grid-cols-2 gap-4">
+                                    {/* Max Members */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                             Max Members
                                         </label>
-                                        <div className="flex gap-2">
+                                        <input
+                                            type="number"
+                                            value={formData.maxMembers}
+                                            onChange={(e) => handleChange('maxMembers', e.target.value)}
+                                            onBlur={(e) => handleBlur('maxMembers', e.target.value)}
+                                            disabled={formData.isUnlimitedMembers}
+                                            min="1"
+                                            className={inputClass('maxMembers', 'disabled:opacity-50')}
+                                        />
+                                        <FieldError field="maxMembers" />
+                                        <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mt-2 cursor-pointer select-none">
                                             <input
-                                                type="number"
-                                                value={formData.maxMembers}
-                                                onChange={(e) => setFormData({ ...formData, maxMembers: e.target.value })}
-                                                disabled={formData.isUnlimitedMembers}
-                                                min="1"
-                                                className=" w-40 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                                                type="checkbox"
+                                                checked={formData.isUnlimitedMembers}
+                                                onChange={(e) => {
+                                                    const checked = e.target.checked;
+                                                    setFormData(prev => ({ ...prev, isUnlimitedMembers: checked }));
+                                                    // Clear error when toggled to unlimited
+                                                    if (checked) setFieldErrors(prev => ({ ...prev, maxMembers: undefined }));
+                                                }}
+                                                className="rounded"
                                             />
-                                            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={formData.isUnlimitedMembers}
-                                                    onChange={(e) => setFormData({ ...formData, isUnlimitedMembers: e.target.checked })}
-                                                    className="rounded"
-                                                />
-                                                Unlimited
-                                            </label>
-                                        </div>
+                                            Unlimited
+                                        </label>
                                     </div>
 
+                                    {/* Max Staff */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                             Max Staff
                                         </label>
-                                        <div className="flex gap-2">
+                                        <input
+                                            type="number"
+                                            value={formData.maxStaff}
+                                            onChange={(e) => handleChange('maxStaff', e.target.value)}
+                                            onBlur={(e) => handleBlur('maxStaff', e.target.value)}
+                                            disabled={formData.isUnlimitedStaff}
+                                            min="1"
+                                            className={inputClass('maxStaff', 'disabled:opacity-50')}
+                                        />
+                                        <FieldError field="maxStaff" />
+                                        <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mt-2 cursor-pointer select-none">
                                             <input
-                                                type="number"
-                                                value={formData.maxStaff}
-                                                onChange={(e) => setFormData({ ...formData, maxStaff: e.target.value })}
-                                                disabled={formData.isUnlimitedStaff}
-                                                min="1"
-                                                className="w-40 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                                                type="checkbox"
+                                                checked={formData.isUnlimitedStaff}
+                                                onChange={(e) => {
+                                                    const checked = e.target.checked;
+                                                    setFormData(prev => ({ ...prev, isUnlimitedStaff: checked }));
+                                                    if (checked) setFieldErrors(prev => ({ ...prev, maxStaff: undefined }));
+                                                }}
+                                                className="rounded"
                                             />
-                                            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={formData.isUnlimitedStaff}
-                                                    onChange={(e) => setFormData({ ...formData, isUnlimitedStaff: e.target.checked })}
-                                                    className="rounded"
-                                                />
-                                                Unlimited
-                                            </label>
-                                        </div>
+                                            Unlimited
+                                        </label>
                                     </div>
                                 </div>
                             </div>
@@ -341,7 +445,7 @@ export default function CreatePlanModal({ isOpen, onClose, onSuccess }: CreatePl
                                 </h4>
                                 <div className="grid grid-cols-2 gap-3">
                                     {Object.entries(formData.features).map(([key, value]) => (
-                                        <label key={key} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                                        <label key={key} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">
                                             <input
                                                 type="checkbox"
                                                 checked={value}
@@ -359,7 +463,7 @@ export default function CreatePlanModal({ isOpen, onClose, onSuccess }: CreatePl
 
                             {/* Status */}
                             <div>
-                                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">
                                     <input
                                         type="checkbox"
                                         checked={formData.isActive}

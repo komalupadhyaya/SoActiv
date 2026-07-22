@@ -26,6 +26,18 @@ interface Plan {
     currency: string;
 }
 
+interface FieldErrors {
+    name?: string;
+    plan?: string;
+    phone?: string;
+    ownerName?: string;
+    ownerEmail?: string;
+    ownerPassword?: string;
+}
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^[+]?[\d\s\-().]{7,15}$/;
+
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '').replace(/\/api\/v1$/, '');
 
 export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalProps) {
@@ -38,7 +50,7 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
         address: '',
         phone: '',
         status: 'active',
-        plan: '', // Default empty, will pick first available or 'pro'
+        plan: '',
         ownerName: '',
         ownerEmail: '',
         ownerPassword: ''
@@ -47,7 +59,9 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
     const [plans, setPlans] = useState<Plan[]>([]);
     const [loadingPlans, setLoadingPlans] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+    const [submitError, setSubmitError] = useState('');
+    const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+    const [touched, setTouched] = useState<Record<string, boolean>>({});
     const [showCreatePlanModal, setShowCreatePlanModal] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
@@ -60,7 +74,7 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
         try {
             setLoadingPlans(true);
             const response = await axios.get(`${API_URL}/api/v1/super-admin/plans`, {
-                params: { includeInactive: 'true' }, // We need all plans, maybe filter active ones for new gyms
+                params: { includeInactive: 'true' },
                 withCredentials: true
             });
             if (response.data.success) {
@@ -77,7 +91,9 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
     // Reset/Populate form
     useEffect(() => {
         if (isOpen) {
-            setError('');
+            setSubmitError('');
+            setFieldErrors({});
+            setTouched({});
             setShowPassword(false);
 
             if (gym) {
@@ -87,9 +103,9 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
                     phone: gym.phone || '',
                     status: gym.status,
                     plan: gym.plan || '',
-                    ownerName: '',    // Not editable here
-                    ownerEmail: '',   // Not editable here
-                    ownerPassword: '' // Not editable here
+                    ownerName: '',
+                    ownerEmail: '',
+                    ownerPassword: ''
                 });
             } else {
                 setFormData({
@@ -106,30 +122,91 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
         }
     }, [isOpen, gym]);
 
+    // Validate a single field and return error string or undefined
+    const validateField = (field: string, value: string): string | undefined => {
+        switch (field) {
+            case 'name':
+                if (!value.trim()) return 'Gym name is required';
+                if (value.trim().length < 2) return 'Gym name must be at least 2 characters';
+                if (value.trim().length > 100) return 'Gym name must be under 100 characters';
+                break;
+            case 'plan':
+                if (!value) return 'Please select a plan';
+                break;
+            case 'phone':
+                if (value && !PHONE_REGEX.test(value)) return 'Enter a valid phone number';
+                break;
+            case 'ownerName':
+                if (!isEdit) {
+                    if (!value.trim()) return 'Owner name is required';
+                    if (value.trim().length < 2) return 'Owner name must be at least 2 characters';
+                }
+                break;
+            case 'ownerEmail':
+                if (!isEdit) {
+                    if (!value.trim()) return 'Owner email is required';
+                    if (!EMAIL_REGEX.test(value.trim())) return 'Enter a valid email address';
+                }
+                break;
+            case 'ownerPassword':
+                if (!isEdit) {
+                    if (!value) return 'Owner password is required';
+                    if (value.length < 6) return 'Password must be at least 6 characters';
+                    if (value.length > 128) return 'Password must be under 128 characters';
+                }
+                break;
+        }
+        return undefined;
+    };
+
+    // Validate all fields and return errors map
+    const validateAll = (): FieldErrors => {
+        const errors: FieldErrors = {};
+        const fields = isEdit
+            ? ['name', 'plan', 'phone']
+            : ['name', 'plan', 'phone', 'ownerName', 'ownerEmail', 'ownerPassword'];
+
+        for (const field of fields) {
+            const value = formData[field as keyof typeof formData];
+            const err = validateField(field, value);
+            if (err) errors[field as keyof FieldErrors] = err;
+        }
+        return errors;
+    };
+
+    // Handle field change with live validation for touched fields
+    const handleChange = (field: string, value: string) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+        if (touched[field]) {
+            const err = validateField(field, value);
+            setFieldErrors(prev => ({ ...prev, [field]: err }));
+        }
+        if (submitError) setSubmitError('');
+    };
+
+    // Mark field as touched on blur and validate
+    const handleBlur = (field: string, value: string) => {
+        setTouched(prev => ({ ...prev, [field]: true }));
+        const err = validateField(field, value);
+        setFieldErrors(prev => ({ ...prev, [field]: err }));
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError('');
+        setSubmitError('');
 
-        // Basic Validation
-        if (!formData.name) {
-            setError('Gym name is required');
+        // Touch all fields so errors show
+        const allFields = isEdit
+            ? ['name', 'plan', 'phone']
+            : ['name', 'plan', 'phone', 'ownerName', 'ownerEmail', 'ownerPassword'];
+        const newTouched = allFields.reduce((acc, f) => ({ ...acc, [f]: true }), {});
+        setTouched(newTouched);
+
+        const errors = validateAll();
+        if (Object.keys(errors).length > 0) {
+            setFieldErrors(errors);
+            setSubmitError('Please fix the errors below before submitting.');
             return;
-        }
-
-        if (!formData.plan) {
-            setError('Please select a plan');
-            return;
-        }
-
-        if (!isEdit) {
-            if (!formData.ownerName || !formData.ownerEmail || !formData.ownerPassword) {
-                setError('Owner details are required for new gyms');
-                return;
-            }
-            if (formData.ownerPassword.length < 6) {
-                setError('Owner password must be at least 6 characters');
-                return;
-            }
         }
 
         try {
@@ -162,7 +239,7 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
         } catch (err: any) {
             console.error('Failed to save gym:', err);
             const msg = err.response?.data?.message || (isEdit ? 'Failed to update gym' : 'Failed to create gym');
-            setError(msg);
+            setSubmitError(msg);
             addToast(msg, 'error');
         } finally {
             setLoading(false);
@@ -170,6 +247,22 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
     };
 
     if (!isOpen) return null;
+
+    // Helper: input class based on field error
+    const inputClass = (field: string, extra = '') =>
+        `w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 transition-colors ${extra} ${
+            fieldErrors[field as keyof FieldErrors]
+                ? 'border-red-400 dark:border-red-500 focus:ring-red-400'
+                : 'border-gray-300 dark:border-gray-600 focus:ring-blue-500'
+        }`;
+
+    const FieldError = ({ field }: { field: string }) =>
+        fieldErrors[field as keyof FieldErrors] ? (
+            <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                {fieldErrors[field as keyof FieldErrors]}
+            </p>
+        ) : null;
 
     return (
         <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -192,11 +285,12 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
                         </button>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="px-6 py-4">
-                        {error && (
-                            <div className="mb-4 p-3 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded-lg flex items-start gap-2">
+                    <form onSubmit={handleSubmit} noValidate className="px-6 py-4">
+                        {/* Top-level submit error */}
+                        {submitError && (
+                            <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 rounded-lg flex items-start gap-2">
                                 <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                                <span className="text-sm">{error}</span>
+                                <span className="text-sm">{submitError}</span>
                             </div>
                         )}
 
@@ -206,6 +300,8 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
                                 <h4 className="text-sm font-medium text-gray-900 dark:text-white uppercase tracking-wider">
                                     Gym Details
                                 </h4>
+
+                                {/* Gym Name */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                         Gym Name <span className="text-red-500">*</span>
@@ -213,11 +309,15 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
                                     <input
                                         type="text"
                                         value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                                        required
+                                        onChange={(e) => handleChange('name', e.target.value)}
+                                        onBlur={(e) => handleBlur('name', e.target.value)}
+                                        className={inputClass('name')}
+                                        placeholder="e.g. FitZone Gym"
                                     />
+                                    <FieldError field="name" />
                                 </div>
+
+                                {/* Plan & Status */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -229,12 +329,12 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
                                                 if (e.target.value === 'create_new_plan') {
                                                     setShowCreatePlanModal(true);
                                                 } else {
-                                                    setFormData({ ...formData, plan: e.target.value });
+                                                    handleChange('plan', e.target.value);
                                                 }
                                             }}
-                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                            onBlur={(e) => handleBlur('plan', e.target.value)}
+                                            className={inputClass('plan')}
                                             disabled={loadingPlans}
-                                            required
                                         >
                                             <option value="">{loadingPlans ? 'Loading plans...' : 'Select Plan'}</option>
                                             {!loadingPlans && (
@@ -248,6 +348,7 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
                                                 </option>
                                             ))}
                                         </select>
+                                        <FieldError field="plan" />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -256,7 +357,7 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
                                         <select
                                             value={formData.status}
                                             onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                            className={inputClass('status')}
                                         >
                                             <option value="active">Active</option>
                                             <option value="trial">Trial</option>
@@ -265,6 +366,8 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
                                         </select>
                                     </div>
                                 </div>
+
+                                {/* Address */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                         Address
@@ -273,9 +376,12 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
                                         type="text"
                                         value={formData.address}
                                         onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                        className={inputClass('address')}
+                                        placeholder="e.g. 123 Main St, City"
                                     />
                                 </div>
+
+                                {/* Phone */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                         Phone
@@ -283,9 +389,12 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
                                     <input
                                         type="tel"
                                         value={formData.phone}
-                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                                        onChange={(e) => handleChange('phone', e.target.value)}
+                                        onBlur={(e) => handleBlur('phone', e.target.value)}
+                                        className={inputClass('phone')}
+                                        placeholder="e.g. +91 98765 43210"
                                     />
+                                    <FieldError field="phone" />
                                 </div>
                             </div>
 
@@ -295,6 +404,8 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
                                     <h4 className="text-sm font-medium text-gray-900 dark:text-white uppercase tracking-wider">
                                         Owner Details
                                     </h4>
+
+                                    {/* Owner Name */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                             Owner Name <span className="text-red-500">*</span>
@@ -302,11 +413,15 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
                                         <input
                                             type="text"
                                             value={formData.ownerName}
-                                            onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })}
-                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                                            required
+                                            onChange={(e) => handleChange('ownerName', e.target.value)}
+                                            onBlur={(e) => handleBlur('ownerName', e.target.value)}
+                                            className={inputClass('ownerName')}
+                                            placeholder="e.g. John Doe"
                                         />
+                                        <FieldError field="ownerName" />
                                     </div>
+
+                                    {/* Owner Email */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                             Owner Email <span className="text-red-500">*</span>
@@ -314,11 +429,15 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
                                         <input
                                             type="email"
                                             value={formData.ownerEmail}
-                                            onChange={(e) => setFormData({ ...formData, ownerEmail: e.target.value })}
-                                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                                            required
+                                            onChange={(e) => handleChange('ownerEmail', e.target.value)}
+                                            onBlur={(e) => handleBlur('ownerEmail', e.target.value)}
+                                            className={inputClass('ownerEmail')}
+                                            placeholder="e.g. owner@example.com"
                                         />
+                                        <FieldError field="ownerEmail" />
                                     </div>
+
+                                    {/* Owner Password */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                             Owner Password <span className="text-red-500">*</span>
@@ -327,10 +446,10 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
                                             <input
                                                 type={showPassword ? 'text' : 'password'}
                                                 value={formData.ownerPassword}
-                                                onChange={(e) => setFormData({ ...formData, ownerPassword: e.target.value })}
-                                                className="w-full pl-3 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
-                                                minLength={6}
-                                                required
+                                                onChange={(e) => handleChange('ownerPassword', e.target.value)}
+                                                onBlur={(e) => handleBlur('ownerPassword', e.target.value)}
+                                                className={inputClass('ownerPassword', 'pr-10')}
+                                                placeholder="Min 6 characters"
                                             />
                                             <button
                                                 type="button"
@@ -340,7 +459,10 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
                                                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                             </button>
                                         </div>
-                                        <p className="text-xs text-gray-500 mt-1">Min 6 characters</p>
+                                        <FieldError field="ownerPassword" />
+                                        {!fieldErrors.ownerPassword && (
+                                            <p className="text-xs text-gray-500 mt-1">Min 6 characters</p>
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -381,7 +503,7 @@ export default function GymModal({ isOpen, onClose, onSuccess, gym }: GymModalPr
                         if (response.data.success) {
                             const newPlans = response.data.data;
                             setPlans(newPlans);
-                            
+
                             // Auto-select the newly created plan
                             const addedPlan = newPlans.find((p: any) => !oldPlanIds.has(p._id));
                             if (addedPlan) {

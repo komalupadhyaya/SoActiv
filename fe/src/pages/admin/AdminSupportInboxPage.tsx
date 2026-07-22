@@ -183,100 +183,107 @@ export const AdminSupportInboxPage: React.FC = () => {
                 <div className="lg:col-span-7">
                     {selectedMessage ? (
                         <Card className="h-full border border-gray-100 dark:border-gray-700 shadow-sm">
-                            <CardHeader className="flex flex-row items-center justify-between border-b dark:border-gray-700 pb-4">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-full bg-orange-100 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 flex items-center justify-center font-bold text-lg border border-orange-200 dark:border-orange-900/30">
-                                        {selectedMessage.name.charAt(0).toUpperCase()}
-                                    </div>
-                                    <div>
-                                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">{selectedMessage.name}</h2>
-                                        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                                            <span>Member Support Request</span>
-                                            <span className="w-1.5 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full"></span>
-                                            <span className="capitalize bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">
-                                                {getCategoryLabel(selectedMessage.category)}
-                                            </span>
+                            <CardHeader className="border-b dark:border-gray-700 pb-4 space-y-3">
+                                {/* Top Row: User Avatar + Name/Subtitle + Action Buttons */}
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className="w-12 h-12 rounded-full bg-orange-100 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 flex items-center justify-center font-bold text-lg border border-orange-200 dark:border-orange-900/30 shrink-0">
+                                            {selectedMessage.name.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <h2 className="text-xl font-bold text-gray-900 dark:text-white truncate">{selectedMessage.name}</h2>
+                                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Member Support Request</p>
                                         </div>
                                     </div>
-                                </div>
-                                <div className="flex gap-2">
-                                    {/* Closed tickets can be reopened by Admin or Manager (if not escalated) */}
-                                    {selectedMessage.status === 'closed' && (!selectedMessage.isEscalated || isAdmin) && (
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20"
-                                            onClick={() => handleStatusUpdate(selectedMessage._id, 'read')}
-                                        >
-                                            <Inbox className="w-4 h-4 mr-1.5" /> Reopen Ticket
-                                        </Button>
-                                    )}
 
-                                    {/* Escalated tickets that are closed show Final Decision (Closed) */}
-                                    {selectedMessage.status === 'closed' && selectedMessage.isEscalated && (
-                                        <span className="text-xs font-semibold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/30 px-3 py-1.5 rounded-lg border border-purple-200 dark:border-purple-900/30">
-                                            Final Decision (Closed)
-                                        </span>
-                                    )}
+                                    {/* Action Buttons & Status Badges */}
+                                    <div className="flex items-center gap-2 flex-wrap shrink-0">
+                                        {/* Escalated tickets that are closed show Final Decision (Closed) */}
+                                        {selectedMessage.status === 'closed' && selectedMessage.isEscalated && (
+                                            <span className="text-xs font-semibold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/30 px-3 py-1.5 rounded-lg border border-purple-200 dark:border-purple-900/30 whitespace-nowrap shrink-0">
+                                                Final Decision (Closed)
+                                            </span>
+                                        )}
 
-                                    {/* Escalated tickets can only be resolved/closed by Admin */}
-                                    {selectedMessage.status === 'escalated' && (
-                                        <>
-                                            {isAdmin ? (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="text-green-600 hover:bg-green-50 dark:hover:bg-green-950/20 font-bold border border-green-200 dark:border-green-800/40 px-3 py-1.5"
-                                                    onClick={() => handleStatusUpdate(selectedMessage._id, 'closed')}
-                                                >
-                                                    <CheckCircle className="w-4 h-4 mr-1.5" /> Final Decision (Close)
-                                                </Button>
-                                            ) : (
-                                                <span className="text-xs font-semibold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/30 px-3 py-1.5 rounded-lg border border-purple-200 dark:border-purple-900/30">
-                                                    Escalated to Admin (Pending)
-                                                </span>
-                                            )}
-                                        </>
-                                    )}
+                                        {/* Closed tickets can be reopened by Admin or Manager (if regular closed ticket OR admin reopening escalated closed) */}
+                                        {selectedMessage.status === 'closed' && (!selectedMessage.isEscalated || isAdmin) && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20 whitespace-nowrap shrink-0 border border-blue-200 dark:border-blue-800/40 px-3 py-1.5"
+                                                onClick={() => handleStatusUpdate(selectedMessage._id, 'read')}
+                                            >
+                                                <Inbox className="w-4 h-4 mr-1.5 shrink-0" /> Reopen Ticket
+                                            </Button>
+                                        )}
 
-                                    {/* Active tickets ('new' or 'read') */}
-                                    {(selectedMessage.status === 'new' || selectedMessage.status === 'read') && (
-                                        <>
-                                            {/* Managers can Resolve (Close) OR Escalate */}
-                                            {isManager && (
-                                                <div className="flex items-center gap-2">
+                                        {/* Escalated tickets that are open can only be resolved/closed by Admin */}
+                                        {selectedMessage.status === 'escalated' && (
+                                            <>
+                                                {isAdmin ? (
                                                     <Button
                                                         variant="ghost"
                                                         size="sm"
-                                                        className="text-green-600 hover:bg-green-50 dark:hover:bg-green-950/20"
+                                                        className="text-green-600 hover:bg-green-50 dark:hover:bg-green-950/20 font-bold border border-green-200 dark:border-green-800/40 px-3 py-1.5 whitespace-nowrap shrink-0"
                                                         onClick={() => handleStatusUpdate(selectedMessage._id, 'closed')}
                                                     >
-                                                        <CheckCircle className="w-4 h-4 mr-1.5" /> Resolve (Close)
+                                                        <CheckCircle className="w-4 h-4 mr-1.5 shrink-0" /> Final Decision (Close)
                                                     </Button>
+                                                ) : (
+                                                    <span className="text-xs font-semibold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/30 px-3 py-1.5 rounded-lg border border-purple-200 dark:border-purple-900/30 whitespace-nowrap shrink-0">
+                                                        Escalated to Admin (Pending)
+                                                    </span>
+                                                )}
+                                            </>
+                                        )}
+
+                                        {/* Active tickets ('new' or 'read') */}
+                                        {(selectedMessage.status === 'new' || selectedMessage.status === 'read') && (
+                                            <>
+                                                {/* Managers can Resolve (Close) OR Escalate */}
+                                                {isManager && (
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="text-green-600 hover:bg-green-50 dark:hover:bg-green-950/20 whitespace-nowrap shrink-0"
+                                                            onClick={() => handleStatusUpdate(selectedMessage._id, 'closed')}
+                                                        >
+                                                            <CheckCircle className="w-4 h-4 mr-1.5 shrink-0" /> Resolve (Close)
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/20 border border-purple-100 dark:border-purple-900/30 whitespace-nowrap shrink-0"
+                                                            onClick={() => handleStatusUpdate(selectedMessage._id, 'escalated')}
+                                                        >
+                                                            <ExternalLink className="w-4 h-4 mr-1.5 shrink-0" /> Escalate to Admin
+                                                        </Button>
+                                                    </div>
+                                                )}
+
+                                                {/* Admins can Resolve (Close) */}
+                                                {isAdmin && (
                                                     <Button
                                                         variant="ghost"
                                                         size="sm"
-                                                        className="text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/20 border border-purple-100 dark:border-purple-900/30"
-                                                        onClick={() => handleStatusUpdate(selectedMessage._id, 'escalated')}
+                                                        className="text-green-600 hover:bg-green-50 dark:hover:bg-green-950/20 whitespace-nowrap shrink-0"
+                                                        onClick={() => handleStatusUpdate(selectedMessage._id, 'closed')}
                                                     >
-                                                        <ExternalLink className="w-4 h-4 mr-1.5" /> Escalate to Admin
+                                                        <CheckCircle className="w-4 h-4 mr-1.5 shrink-0" /> Close Ticket
                                                     </Button>
-                                                </div>
-                                            )}
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
 
-                                            {/* Admins can Resolve (Close) */}
-                                            {isAdmin && (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="text-green-600 hover:bg-green-50 dark:hover:bg-green-950/20"
-                                                    onClick={() => handleStatusUpdate(selectedMessage._id, 'closed')}
-                                                >
-                                                    <CheckCircle className="w-4 h-4 mr-1.5" /> Close Ticket
-                                                </Button>
-                                            )}
-                                        </>
-                                    )}
+                                {/* Bottom Row: Category Pill */}
+                                <div className="flex items-center gap-2 pt-1">
+                                    <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Category:</span>
+                                    <span className="capitalize bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs px-2.5 py-0.5 rounded-md font-medium">
+                                        {getCategoryLabel(selectedMessage.category)}
+                                    </span>
                                 </div>
                             </CardHeader>
                             <CardContent className="space-y-6 pt-6">
