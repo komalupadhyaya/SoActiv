@@ -73,68 +73,68 @@ export const PTAssignmentsPage: React.FC = () => {
             </Card>
 
             {/* Table */}
-            <Card>
+            <Card className="w-full">
                 <CardHeader>
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Active Assignments</h3>
                 </CardHeader>
-                <CardContent className="p-0 overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead className="bg-gray-50 dark:bg-gray-800">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Member</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Plan</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Trainer</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Progress</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Expiry</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                            {filteredAssignments.map((assignment) => (
-                                <tr key={assignment._id}>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm font-medium text-gray-900 dark:text-white">{assignment.memberId?.fullName || 'Unknown Member'}</div>
-                                        <div className="text-xs text-gray-500">{assignment.memberId?.contactNumber || '--'}</div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm text-gray-900 dark:text-white">{assignment.planId?.name || 'Unknown Plan'}</div>
-                                        <div className="text-xs text-gray-500">{assignment.planId?.totalSessions || 0} Sessions</div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm text-gray-900 dark:text-white">{assignment.trainerId?.fullName || 'Unknown Trainer'}</div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 max-w-[100px]">
-                                            <div
-                                                className="bg-orange-600 h-2.5 rounded-full"
-                                                style={{ width: `${(assignment.usedSessions / assignment.totalSessions) * 100}%` }}
-                                            ></div>
-                                        </div>
-                                        <div className="text-xs text-gray-500 mt-1">
-                                            {assignment.usedSessions} / {assignment.totalSessions} used
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm text-gray-900 dark:text-white">
-                                            {new Date(assignment.expiryDate).toLocaleDateString()}
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <Badge className={statusColors[assignment.status as keyof typeof statusColors]}>
-                                            {assignment.status}
-                                        </Badge>
-                                    </td>
-                                </tr>
-                            ))}
-                            {filteredAssignments.length === 0 && (
+                <CardContent className="p-0">
+                    <div className="overflow-x-auto w-full">
+                        <table className="w-full min-w-[750px] table-auto divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-800/90">
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
-                                        No assignments found.
-                                    </td>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider min-w-[170px]">Member</th>
+                                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider min-w-[140px]">Plan</th>
+                                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider min-w-[130px]">Trainer</th>
+                                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider min-w-[120px]">Progress</th>
+                                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider min-w-[110px]">Expiry</th>
+                                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider min-w-[90px]">Status</th>
                                 </tr>
-                            )}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                {filteredAssignments.map((assignment) => (
+                                    <tr key={assignment._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/60 transition-colors">
+                                        <td className="px-4 py-2.5 whitespace-nowrap">
+                                            <div className="text-sm font-semibold text-gray-900 dark:text-white leading-tight">{assignment.memberId?.fullName || 'Unknown Member'}</div>
+                                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{assignment.memberId?.contactNumber || '--'}</div>
+                                        </td>
+                                        <td className="px-3 py-2.5 whitespace-nowrap">
+                                            <div className="text-sm font-medium text-gray-900 dark:text-white leading-tight">{assignment.planId?.name || 'Unknown Plan'}</div>
+                                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{assignment.planId?.totalSessions || 0} Sessions</div>
+                                        </td>
+                                        <td className="px-3 py-2.5 whitespace-nowrap">
+                                            <div className="text-sm font-medium text-gray-900 dark:text-white">{assignment.trainerId?.fullName || 'Unknown Trainer'}</div>
+                                        </td>
+                                        <td className="px-3 py-2.5 whitespace-nowrap">
+                                            <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700 max-w-[100px]">
+                                                <div
+                                                    className="bg-orange-600 h-2 rounded-full transition-all"
+                                                    style={{ width: `${Math.min(100, Math.max(0, (assignment.usedSessions / (assignment.totalSessions || 1)) * 100))}%` }}
+                                                ></div>
+                                            </div>
+                                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium">
+                                                {assignment.usedSessions} / {assignment.totalSessions} used
+                                            </div>
+                                        </td>
+                                        <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">
+                                            {new Date(assignment.expiryDate).toLocaleDateString()}
+                                        </td>
+                                        <td className="px-3 py-2.5 whitespace-nowrap">
+                                            <Badge className={`text-xs px-2.5 py-0.5 font-medium ${statusColors[assignment.status as keyof typeof statusColors]}`}>
+                                                {assignment.status}
+                                            </Badge>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {filteredAssignments.length === 0 && (
+                                    <tr>
+                                        <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                                            No assignments found.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </CardContent>
             </Card>
 

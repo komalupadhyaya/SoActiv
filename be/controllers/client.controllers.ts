@@ -202,9 +202,9 @@ export const createClient = asyncHandler(async (req: Request, res: Response) => 
         memberManager: req.body.memberManager || undefined,
         trainer: req.body.trainer || undefined,
 
-        attendanceId: req.body.attendanceId,
-        clubId: req.body.clubId,
-        gstNo: req.body.gstNo,
+        attendanceId: req.body.attendanceId?.trim() || undefined,
+        clubId: req.body.clubId?.trim() || undefined,
+        gstNo: req.body.gstNo?.trim() || undefined,
 
         startDate: req.body.startDate,
         endDate: req.body.endDate,
@@ -538,9 +538,9 @@ export const updateClientById = asyncHandler(async (req: Request, res: Response)
     salesRep: req.body.salesRep === '' ? null : req.body.salesRep,
     memberManager: req.body.memberManager === '' ? null : req.body.memberManager,
     trainer: req.body.trainer === '' ? null : req.body.trainer,
-    attendanceId: req.body.attendanceId,
-    clubId: req.body.clubId,
-    gstNo: req.body.gstNo,
+    attendanceId: req.body.attendanceId ? (req.body.attendanceId.trim() || undefined) : undefined,
+    clubId: req.body.clubId ? (req.body.clubId.trim() || undefined) : undefined,
+    gstNo: req.body.gstNo ? (req.body.gstNo.trim() || undefined) : undefined,
     startDate: req.body.startDate,
     endDate: req.body.endDate,
     packagePrice: req.body.packagePrice,
@@ -570,6 +570,21 @@ export const updateClientById = asyncHandler(async (req: Request, res: Response)
   ]);
 
   if (!updatedClient) return res.status(404).json({ success: false, message: 'Client not found' });
+
+  // Sync member User account details
+  if (currentClient.email) {
+    const userUpdates: any = {};
+    if (updatedClient.fullName) userUpdates.fullname = updatedClient.fullName;
+    if (updatedClient.email) userUpdates.email = updatedClient.email.toLowerCase();
+    if (updatedClient.contactNumber) userUpdates.phone = updatedClient.contactNumber;
+
+    if (Object.keys(userUpdates).length > 0) {
+      await User.updateOne(
+        { email: currentClient.email.toLowerCase(), role: 'member' },
+        { $set: userUpdates }
+      );
+    }
+  }
 
   emitToUserRoom(req, ownerId, 'client:updated', updatedClient);
 
@@ -628,6 +643,15 @@ export const deleteClientById = asyncHandler(async (req: Request, res: Response)
 
   const deletedClient = await Client.findOneAndDelete({ _id: id, userId: ownerId });
   if (!deletedClient) return res.status(404).json({ success: false, message: 'Client not found' });
+
+  // Delete associated User account for this client (role: 'member')
+  if (deletedClient.email) {
+    await User.deleteMany({
+      email: deletedClient.email.toLowerCase(),
+      role: 'member'
+    });
+    console.log(`✅ [deleteClientById] Deleted User account for client email: ${deletedClient.email}`);
+  }
 
   emitToUserRoom(req, ownerId, 'client:deleted', { id: deletedClient._id.toString() });
 

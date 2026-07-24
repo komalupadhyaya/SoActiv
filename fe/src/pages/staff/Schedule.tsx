@@ -68,10 +68,11 @@ export const Schedule: React.FC = () => {
     const filteredEvents = schedules.filter(event => {
         // Type Filter
         if (filterType !== 'all') {
+            if (filterType === 'followup' && event.type !== 'followup' && !event.relatedFollowUp) return false;
             if (filterType === 'expiry' && !['pt_expiry', 'membership_expiry'].includes(event.type)) return false;
             if (filterType === 'tasks' && !['task', 'admin_task', 'manager_task'].includes(event.type)) return false;
             if (filterType === 'holidays' && event.type !== 'holiday') return false;
-            if (!['expiry', 'tasks', 'holidays'].includes(filterType) && event.type !== filterType) return false;
+            if (!['expiry', 'tasks', 'holidays', 'followup'].includes(filterType) && event.type !== filterType) return false;
         }
 
         // "My Tasks" Filter
@@ -189,6 +190,7 @@ export const Schedule: React.FC = () => {
                 <div className="flex items-center gap-2 flex-wrap">
                     <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="px-3 py-2 border rounded-md bg-white dark:bg-gray-900 text-sm">
                         <option value="all">All Events</option>
+                        <option value="followup">Follow-up Only</option>
                         <option value="holidays">Holidays Only</option>
                         <option value="tasks">Tasks Only</option>
                     </select>

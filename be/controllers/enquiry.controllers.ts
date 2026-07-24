@@ -6,6 +6,44 @@ import { createNotification } from '../utils/notification.helper';
 import { createOrUpdateEnquiryFollowUp } from './followUp.controllers';
 
 
+/**
+ * Helper: Resolve Gym Admin Owner ID for any user (admin or staff)
+ */
+export const getGymOwnerAdminId = async (reqUser: any): Promise<string> => {
+  if (!reqUser) throw new Error('Unauthorized');
+  if (reqUser.role === 'admin' || reqUser.role === 'superadmin') {
+    return (reqUser.adminId || reqUser.id || reqUser._id).toString();
+  }
+  if (reqUser.role === 'staff' || reqUser.role === 'trainer') {
+    if (reqUser.adminId) return reqUser.adminId.toString();
+    const staffDoc = await Staff.findOne({ userId: reqUser.id || reqUser._id }).select('createdBy');
+    if (staffDoc && staffDoc.createdBy) return staffDoc.createdBy.toString();
+  }
+  return (reqUser.id || reqUser._id).toString();
+};
+
+/**
+ * Helper: Build tenant query clause for enquiries matching a gym owner adminId
+ */
+export const getEnquiryTenantFilter = async (reqUser: any): Promise<any> => {
+  const adminIdStr = await getGymOwnerAdminId(reqUser);
+  const adminObjectId = new Types.ObjectId(adminIdStr);
+
+  // Find all staff belonging to this gym
+  const gymStaff = await Staff.find({ createdBy: adminObjectId }).select('_id userId');
+  const gymStaffIds = gymStaff.map(s => s._id);
+  const gymStaffUserIds = gymStaff.map(s => s.userId).filter(Boolean);
+
+  return {
+    $or: [
+      { adminId: adminObjectId },
+      { userId: adminObjectId },
+      { userId: { $in: gymStaffUserIds } },
+      { assignedStaff: { $in: gymStaffIds } }
+    ]
+  };
+};
+
 // POST: Create a new enquiry (user-based)
 export const createEnquiry = async (req: Request, res: Response): Promise<any> => {
   try {
@@ -31,6 +69,8 @@ export const createEnquiry = async (req: Request, res: Response): Promise<any> =
         message: 'Unauthorized: User not authenticated',
       });
     }
+
+    const adminOwnerId = await getGymOwnerAdminId(req.user);
 
     // Validate required fields (additional runtime check beyond Mongoose)
     if (!name || !phone || !source || !email || !assignedStaff || !followUpDate || !interests || !budget) {
@@ -88,7 +128,8 @@ export const createEnquiry = async (req: Request, res: Response): Promise<any> =
 
     // Build the enquiry object
     const enquiryData: Partial<IEnquiry> = {
-      userId,
+      userId: new Types.ObjectId(userId),
+      adminId: new Types.ObjectId(adminOwnerId),
       name,
       phone,
       email,
@@ -107,13 +148,7 @@ export const createEnquiry = async (req: Request, res: Response): Promise<any> =
 
     // Auto-create or schedule follow-up if assignedStaff and followUpDate are set
     if (assignedStaff && followUpDate) {
-      let adminId = userId; // Default fallback
-      if (req.user?.role === 'staff') {
-        const creatorDoc = await Staff.findOne({ userId }).select('createdBy');
-        if (creatorDoc) {
-          adminId = creatorDoc.createdBy.toString();
-        }
-      }
+      let adminId = adminOwnerId;
       await createOrUpdateEnquiryFollowUp(
         (savedEnquiry._id as any).toString(),
         name,
@@ -228,26 +263,26 @@ export const getEnquiries = async (req: Request, res: Response): Promise<any> =>
       });
     }
 
-    const filter: any = {};
+    const tenantFilter = await getEnquiryTenantFilter(currentUser);
+    const filter: any = { ...tenantFilter };
 
     // 🔒 Access Control Logic
     if (currentUser.role === 'admin' || currentUser.role === 'superadmin') {
-      // Admins see everything
+      // Admins see all enquiries in their gym (tenantFilter applied)
     } else if (currentUser.role === 'staff' || currentUser.role === 'trainer') {
-      // Staff see only assigned enquiries
+      // Staff see only assigned enquiries unless manager or receptionist
       const staff = await Staff.findOne({ userId: currentUser.id });
       if (!staff) {
         return res.status(403).json({ success: false, message: 'Staff profile not found' });
       }
 
-      // If manager or receptionist, they might see all
       if (staff.position === 'manager' || staff.position === 'receptionist') {
-        // Managers and Receptionists see everything
+        // Managers and Receptionists see all enquiries in their gym
       } else {
         filter.assignedStaff = staff._id;
       }
     } else {
-      // Other roles (like members) only see their own (if any)
+      // Other roles (like members) only see their own
       filter.userId = new Types.ObjectId(currentUser.id);
     }
 
@@ -306,7 +341,8 @@ export const getEnquiryById = async (req: Request, res: Response): Promise<any> 
       });
     }
 
-    const enquiry = await Enquiry.findById(id)
+    const tenantFilter = await getEnquiryTenantFilter(req.user);
+    const enquiry = await Enquiry.findOne({ _id: id, ...tenantFilter })
       .populate('userId', 'name email')
       .populate('assignedStaff', 'name email role');
 
@@ -501,10 +537,12 @@ export const updateEnquiry = async (req: Request, res: Response): Promise<any> =
       updateData.followUpDate = date;
     }
 
-    const updatedEnquiry = await Enquiry.findByIdAndUpdate(id, updateData, {
-      new: true,
-      runValidators: true,
-    })
+    const tenantFilter = await getEnquiryTenantFilter(req.user);
+    const updatedEnquiry = await Enquiry.findOneAndUpdate(
+      { _id: id, ...tenantFilter },
+      updateData,
+      { new: true, runValidators: true }
+    )
       .populate('userId', 'name email')
       .populate('assignedStaff', 'name email role');
 
@@ -591,7 +629,8 @@ export const deleteEnquiry = async (req: Request, res: Response): Promise<any> =
       });
     }
 
-    const deletedEnquiry = await Enquiry.findByIdAndDelete(id);
+    const tenantFilter = await getEnquiryTenantFilter(req.user);
+    const deletedEnquiry = await Enquiry.findOneAndDelete({ _id: id, ...tenantFilter });
 
     if (!deletedEnquiry) {
       return res.status(404).json({
@@ -625,7 +664,8 @@ export const getEnquiriesByUser = async (req: Request, res: Response): Promise<a
       });
     }
 
-    const enquiries = await Enquiry.find({ userId: new Types.ObjectId(userId) })
+    const tenantFilter = await getEnquiryTenantFilter(req.user);
+    const enquiries = await Enquiry.find({ userId: new Types.ObjectId(userId), ...tenantFilter })
       .populate('assignedStaff', 'name email')
       .sort({ createdAt: -1 });
 
@@ -670,8 +710,9 @@ export const assignStaffToEnquiry = async (req: Request, res: Response): Promise
       });
     }
 
-    const enquiry = await Enquiry.findByIdAndUpdate(
-      id,
+    const tenantFilter = await getEnquiryTenantFilter(req.user);
+    const enquiry = await Enquiry.findOneAndUpdate(
+      { _id: id, ...tenantFilter },
       { assignedStaff: new Types.ObjectId(staffId) },
       { new: true, runValidators: true }
     ).populate('assignedStaff', 'name email role');

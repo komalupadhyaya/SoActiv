@@ -12,10 +12,11 @@ export const getExpiringPTPackages = async (req: Request, res: Response) => {
   try {
     const { days = 7 } = req.query; // Default: show PT expiring within 7 days
     const daysThreshold = parseInt(days as string, 10);
-    const user = (req as any).user;
+    const ownerId = user.adminId || user.id || user._id;
 
     // Build filter for clients with PT
     const filter: any = {
+      userId: ownerId,
       hasPersonalTraining: true,
     };
 
@@ -88,8 +89,11 @@ export const getExpiringPTByTrainer = async (req: Request, res: Response) => {
     const { days = 7 } = req.query;
     const daysThreshold = parseInt(days as string, 10);
 
-    // Get all clients with PT
-    const clientsWithPT = await Client.find({ hasPersonalTraining: true })
+    const user = (req as any).user;
+    const ownerId = user.adminId || user.id || user._id;
+
+    // Get all clients with PT for this gym
+    const clientsWithPT = await Client.find({ userId: ownerId, hasPersonalTraining: true })
       .populate('trainer', 'fullName position email')
       .populate('personalTrainer', 'fullName position email')
       .sort({ endDate: 1 });

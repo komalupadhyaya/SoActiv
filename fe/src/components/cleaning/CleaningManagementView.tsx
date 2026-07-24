@@ -152,19 +152,19 @@ export const CleaningManagementView: React.FC = () => {
                         setSelectedCleanerId(cleaner._id);
                         setExpandedLogId(null);
                       }}
-                      className={`w-full text-left p-4 rounded-xl flex justify-between items-center transition-all duration-300 transform ${
+                      className={`w-full text-left p-3.5 rounded-xl flex items-center justify-between gap-3 overflow-hidden transition-all duration-300 transform ${
                         isSelected
                           ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md scale-[1.02]'
-                          : 'bg-gray-50 hover:bg-orange-50/50 dark:bg-gray-800/40 dark:hover:bg-gray-850 dark:text-gray-200 text-gray-800 hover:text-orange-600 dark:hover:text-white border border-transparent dark:border-gray-850 hover:border-orange-100'
+                          : 'bg-gray-50 hover:bg-orange-50/50 dark:bg-gray-800/40 dark:hover:bg-gray-800 dark:text-gray-200 text-gray-800 hover:text-orange-600 dark:hover:text-white border border-transparent dark:border-gray-700 hover:border-orange-100'
                       }`}
                     >
-                      <div>
-                        <h4 className="font-semibold text-sm leading-tight">{cleaner.fullName}</h4>
-                        <span className={`text-xs ${isSelected ? 'text-orange-100' : 'text-gray-400'}`}>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-semibold text-sm leading-tight truncate">{cleaner.fullName}</h4>
+                        <span className={`text-xs block truncate mt-0.5 ${isSelected ? 'text-orange-100' : 'text-gray-400'}`}>
                           {cleaner.email}
                         </span>
                       </div>
-                      <Badge className={isSelected ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-400'}>
+                      <Badge className={`shrink-0 text-xs px-2.5 py-0.5 whitespace-nowrap ${isSelected ? 'bg-white/20 text-white border-0' : 'bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-400'}`}>
                         Cleaner
                       </Badge>
                     </button>
@@ -181,21 +181,21 @@ export const CleaningManagementView: React.FC = () => {
         {selectedCleanerId ? (
           <div className="space-y-6">
             {/* Header for selected cleaner */}
-            <div className="bg-gradient-to-r from-gray-550 to-gray-600 dark:from-gray-800 dark:to-gray-850 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="bg-gradient-to-r from-orange-50/80 via-amber-50/50 to-orange-50/80 dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl shadow-sm border border-orange-100/80 dark:border-gray-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
-                <span className="text-xs font-bold text-orange-500 dark:text-orange-400 uppercase tracking-widest">Active Workspace</span>
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mt-0.5">{selectedCleaner?.fullName}</h2>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{selectedCleaner?.email} • {selectedCleaner?.contactNumber}</p>
+                <span className="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-widest">Active Workspace</span>
+                <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white mt-0.5">{selectedCleaner?.fullName}</h2>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{selectedCleaner?.email} • {selectedCleaner?.contactNumber}</p>
               </div>
 
               {/* Tabs with HSL Glow effect */}
-              <div className="flex bg-gray-100 dark:bg-gray-900 p-1 rounded-xl border border-gray-200 dark:border-gray-800">
+              <div className="flex bg-white/80 dark:bg-gray-900/90 p-1 rounded-xl border border-orange-200/60 dark:border-gray-800 shadow-sm">
                 <button
                   onClick={() => setActiveTab('template')}
                   className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg transition-all duration-300 ${
                     activeTab === 'template'
-                      ? 'bg-white dark:bg-gray-800 text-orange-600 dark:text-orange-400 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                      ? 'bg-orange-500 text-white dark:bg-gray-800 dark:text-orange-400 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
                   }`}
                 >
                   <ClipboardList size={14} />
@@ -205,8 +205,8 @@ export const CleaningManagementView: React.FC = () => {
                   onClick={() => setActiveTab('history')}
                   className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg transition-all duration-300 ${
                     activeTab === 'history'
-                      ? 'bg-white dark:bg-gray-800 text-orange-600 dark:text-orange-400 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                      ? 'bg-orange-500 text-white dark:bg-gray-800 dark:text-orange-400 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
                   }`}
                 >
                   <History size={14} />
@@ -261,21 +261,22 @@ export const CleaningManagementView: React.FC = () => {
                         {templateItems.map((item, idx) => (
                           <div
                             key={idx}
-                            className="group flex items-center justify-between p-3.5 bg-gray-50 hover:bg-orange-50/20 dark:bg-gray-850 dark:hover:bg-gray-800/60 border border-gray-100 dark:border-gray-800/80 rounded-xl transition-all duration-300"
+                            className="group flex items-center justify-between p-3.5 bg-gray-50 hover:bg-orange-50/20 dark:bg-gray-800 dark:hover:bg-gray-700/80 border border-gray-200 dark:border-gray-700 rounded-xl transition-all duration-300 shadow-sm"
                           >
-                            <span className="text-sm text-gray-800 dark:text-gray-200 font-medium">
+                            <span className="text-sm text-gray-900 dark:text-gray-100 font-semibold">
                               {idx + 1}. {item}
                             </span>
-                            <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center gap-1.5 shrink-0">
                               <Button
                                 size="sm"
                                 variant="ghost"
                                 type="button"
                                 disabled={idx === 0}
                                 onClick={() => handleMoveItem(idx, 'up')}
-                                className="text-gray-400 hover:text-orange-500 h-8 w-8 p-0"
+                                className="h-9 w-9 p-2 rounded-lg text-gray-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/30 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                                title="Move Up"
                               >
-                                <ArrowUp size={14} />
+                                <ArrowUp size={18} />
                               </Button>
                               <Button
                                 size="sm"
@@ -283,18 +284,20 @@ export const CleaningManagementView: React.FC = () => {
                                 type="button"
                                 disabled={idx === templateItems.length - 1}
                                 onClick={() => handleMoveItem(idx, 'down')}
-                                className="text-gray-400 hover:text-orange-500 h-8 w-8 p-0"
+                                className="h-9 w-9 p-2 rounded-lg text-gray-500 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/30 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                                title="Move Down"
                               >
-                                <ArrowDown size={14} />
+                                <ArrowDown size={18} />
                               </Button>
                               <Button
                                 size="sm"
                                 variant="ghost"
                                 type="button"
                                 onClick={() => handleRemoveItem(idx)}
-                                className="text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 h-8 w-8 p-0"
+                                className="h-9 w-9 p-2 rounded-lg text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                                title="Remove Task"
                               >
-                                <Trash2 size={14} />
+                                <Trash2 size={18} />
                               </Button>
                             </div>
                           </div>
@@ -364,7 +367,7 @@ export const CleaningManagementView: React.FC = () => {
                             {/* Log Summary Row */}
                             <div
                               onClick={() => setExpandedLogId(isExpanded ? null : log._id)}
-                              className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 cursor-pointer bg-gray-50/50 hover:bg-gray-100/40 dark:bg-gray-850/40 dark:hover:bg-gray-800/80 transition-colors"
+                              className="p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 cursor-pointer bg-gray-50/50 hover:bg-gray-100/40 dark:bg-gray-800/60 dark:hover:bg-gray-800 transition-colors"
                             >
                               <div className="space-y-1">
                                 <div className="flex items-center gap-2">
@@ -416,7 +419,7 @@ export const CleaningManagementView: React.FC = () => {
                                 {log.items.map((item) => (
                                   <div
                                     key={item._id}
-                                    className="flex justify-between items-center py-2 px-3 bg-white dark:bg-gray-850 rounded-lg border border-gray-100 dark:border-gray-800/80 text-sm"
+                                    className="flex justify-between items-center py-2 px-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700/80 text-sm"
                                   >
                                     <div className="flex items-center gap-2">
                                       {item.completed ? (

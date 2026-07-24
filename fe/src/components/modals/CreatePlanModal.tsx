@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, AlertCircle } from 'lucide-react';
 
 interface CreatePlanModalProps {
@@ -48,8 +48,8 @@ export default function CreatePlanModal({ isOpen, onClose, onSuccess }: CreatePl
         price: '0',
         currency: 'INR',
         billingCycle: 'monthly',
-        maxMembers: '50',
-        maxStaff: '3',
+        maxMembers: '0',
+        maxStaff: '0',
         isUnlimitedMembers: false,
         isUnlimitedStaff: false,
         features: {
@@ -66,6 +66,35 @@ export default function CreatePlanModal({ isOpen, onClose, onSuccess }: CreatePl
     const [submitError, setSubmitError] = useState('');
     const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
     const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+    // Reset form every time the modal is opened
+    useEffect(() => {
+        if (isOpen) {
+            setFormData({
+                name: '',
+                displayName: '',
+                description: '',
+                price: '0',
+                currency: 'INR',
+                billingCycle: 'monthly',
+                maxMembers: '0',
+                maxStaff: '0',
+                isUnlimitedMembers: false,
+                isUnlimitedStaff: false,
+                features: {
+                    payments: true,
+                    attendance: true,
+                    pt: true,
+                    classes: true,
+                    memberPortal: true
+                },
+                isActive: true
+            });
+            setSubmitError('');
+            setFieldErrors({});
+            setTouched({});
+        }
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -94,14 +123,14 @@ export default function CreatePlanModal({ isOpen, onClose, onSuccess }: CreatePl
                 if (!data.isUnlimitedMembers) {
                     const n = parseInt(value);
                     if (value === '' || isNaN(n)) return 'Max Members is required';
-                    if (n <= 0) return 'Must be greater than 0, or check Unlimited';
+                    if (n < 0) return 'Cannot be negative';
                 }
                 break;
             case 'maxStaff':
                 if (!data.isUnlimitedStaff) {
                     const n = parseInt(value);
                     if (value === '' || isNaN(n)) return 'Max Staff is required';
-                    if (n <= 0) return 'Must be greater than 0, or check Unlimited';
+                    if (n < 0) return 'Cannot be negative';
                 }
                 break;
         }
@@ -382,11 +411,21 @@ export default function CreatePlanModal({ isOpen, onClose, onSuccess }: CreatePl
                                         </label>
                                         <input
                                             type="number"
-                                            value={formData.maxMembers}
+                                            value={formData.isUnlimitedMembers ? '' : formData.maxMembers}
                                             onChange={(e) => handleChange('maxMembers', e.target.value)}
-                                            onBlur={(e) => handleBlur('maxMembers', e.target.value)}
+                                            onFocus={() => {
+                                                if (formData.maxMembers === '0') {
+                                                    setFormData(prev => ({ ...prev, maxMembers: '' }));
+                                                }
+                                            }}
+                                            onBlur={(e) => {
+                                                const val = e.target.value === '' ? '0' : e.target.value;
+                                                setFormData(prev => ({ ...prev, maxMembers: val }));
+                                                handleBlur('maxMembers', val);
+                                            }}
                                             disabled={formData.isUnlimitedMembers}
-                                            min="1"
+                                            placeholder={formData.isUnlimitedMembers ? 'Unlimited' : '0'}
+                                            min="0"
                                             className={inputClass('maxMembers', 'disabled:opacity-50')}
                                         />
                                         <FieldError field="maxMembers" />
@@ -396,8 +435,11 @@ export default function CreatePlanModal({ isOpen, onClose, onSuccess }: CreatePl
                                                 checked={formData.isUnlimitedMembers}
                                                 onChange={(e) => {
                                                     const checked = e.target.checked;
-                                                    setFormData(prev => ({ ...prev, isUnlimitedMembers: checked }));
-                                                    // Clear error when toggled to unlimited
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        isUnlimitedMembers: checked,
+                                                        maxMembers: checked ? '' : (prev.maxMembers || '0')
+                                                    }));
                                                     if (checked) setFieldErrors(prev => ({ ...prev, maxMembers: undefined }));
                                                 }}
                                                 className="rounded"
@@ -413,11 +455,21 @@ export default function CreatePlanModal({ isOpen, onClose, onSuccess }: CreatePl
                                         </label>
                                         <input
                                             type="number"
-                                            value={formData.maxStaff}
+                                            value={formData.isUnlimitedStaff ? '' : formData.maxStaff}
                                             onChange={(e) => handleChange('maxStaff', e.target.value)}
-                                            onBlur={(e) => handleBlur('maxStaff', e.target.value)}
+                                            onFocus={() => {
+                                                if (formData.maxStaff === '0') {
+                                                    setFormData(prev => ({ ...prev, maxStaff: '' }));
+                                                }
+                                            }}
+                                            onBlur={(e) => {
+                                                const val = e.target.value === '' ? '0' : e.target.value;
+                                                setFormData(prev => ({ ...prev, maxStaff: val }));
+                                                handleBlur('maxStaff', val);
+                                            }}
                                             disabled={formData.isUnlimitedStaff}
-                                            min="1"
+                                            placeholder={formData.isUnlimitedStaff ? 'Unlimited' : '0'}
+                                            min="0"
                                             className={inputClass('maxStaff', 'disabled:opacity-50')}
                                         />
                                         <FieldError field="maxStaff" />
@@ -427,7 +479,11 @@ export default function CreatePlanModal({ isOpen, onClose, onSuccess }: CreatePl
                                                 checked={formData.isUnlimitedStaff}
                                                 onChange={(e) => {
                                                     const checked = e.target.checked;
-                                                    setFormData(prev => ({ ...prev, isUnlimitedStaff: checked }));
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        isUnlimitedStaff: checked,
+                                                        maxStaff: checked ? '' : (prev.maxStaff || '0')
+                                                    }));
                                                     if (checked) setFieldErrors(prev => ({ ...prev, maxStaff: undefined }));
                                                 }}
                                                 className="rounded"

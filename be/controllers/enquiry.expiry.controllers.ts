@@ -1,7 +1,6 @@
-// controllers/enquiry.expiry.controllers.ts
-
 import type { Request, Response } from 'express';
 import Enquiry from '../models/enquiry.model';
+import { getEnquiryTenantFilter } from './enquiry.controllers';
 
 /**
  * @route   GET /api/v1/enquiry/expiring
@@ -13,8 +12,10 @@ export const getExpiringEnquiries = async (req: Request, res: Response) => {
     const { days = 7 } = req.query; // Default: show enquiries expiring within 7 days
     const daysThreshold = parseInt(days as string, 10);
 
-    // Get all enquiries
-    const allEnquiries = await Enquiry.find()
+    const tenantFilter = await getEnquiryTenantFilter(req.user);
+
+    // Get all enquiries for the current user's gym
+    const allEnquiries = await Enquiry.find(tenantFilter)
       .populate('assignedStaff', 'fullName position')
       .sort({ expiryDate: 1 });
 
@@ -81,7 +82,8 @@ export const extendEnquiryExpiry = async (req: Request, res: Response) => {
       });
     }
 
-    const enquiry = await Enquiry.findById(id);
+    const tenantFilter = await getEnquiryTenantFilter(req.user);
+    const enquiry = await Enquiry.findOne({ _id: id, ...tenantFilter });
     if (!enquiry) {
       return res.status(404).json({
         success: false,

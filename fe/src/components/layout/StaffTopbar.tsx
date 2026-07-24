@@ -17,6 +17,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../hooks/useNotifications';
+import { Avatar } from '../ui/Avatar';
 
 interface StaffTopbarProps {
     onMobileMenuToggle: () => void;
@@ -243,12 +244,16 @@ export const StaffTopbar: React.FC<StaffTopbarProps> = ({
                     <div className="relative">
                         <button
                             onClick={() => setShowProfileMenu(!showProfileMenu)}
-                            className="flex items-center space-x-2 p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                            className="flex items-center space-x-2 p-1 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                             aria-label="User menu"
                         >
-                            <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
-                                <User size={16} className="text-white" />
-                            </div>
+                            <Avatar
+                                src={user?.avatar}
+                                name={user?.name || 'Staff Member'}
+                                userId={user?.id}
+                                size="md"
+                                customColors={user?.avatarSettings}
+                            />
                         </button>
 
                         {showProfileMenu && (

@@ -323,7 +323,6 @@ export const Header: React.FC<HeaderProps> = ({
                 name={user?.name || 'User'}
                 userId={user?.id}
                 size="md"
-                forceInitials={true}
                 customColors={user?.avatarSettings}
               />
               {/* <span className="hidden sm:block text-sm font-medium">{user?.name}</span> */}

@@ -3,7 +3,7 @@ import mongoose, { Schema, Document, model } from 'mongoose';
 export interface IExercise extends Document {
   adminId: mongoose.Types.ObjectId;
   title: string;
-  category: 'Chest' | 'Back' | 'Legs' | 'Cardio' | 'Yoga';
+  category: 'Chest' | 'Back' | 'Legs' | 'Cardio' | 'Yoga' | 'Shoulder' | 'Arms';
   muscleTargeting: string;
   difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
   videoUrl: string;
@@ -28,7 +28,7 @@ const exerciseSchema = new Schema<IExercise>(
     },
     category: {
       type: String,
-      enum: ['Chest', 'Back', 'Legs', 'Cardio', 'Yoga'],
+      enum: ['Chest', 'Back', 'Legs', 'Cardio', 'Yoga', 'Shoulder', 'Arms'],
       required: true,
     },
     muscleTargeting: {

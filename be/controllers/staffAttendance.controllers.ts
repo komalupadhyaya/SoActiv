@@ -88,6 +88,20 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
     }
 
     const { start, end } = getStartAndEndOfDay(targetDate, timezone);
+    const todayStart = moment.tz(timezone).startOf('day').toDate();
+    const todayEnd = moment.tz(timezone).endOf('day').toDate();
+
+    // Prevent non-admins from editing historical attendance records
+    if (start < todayStart && user.role !== 'admin' && user.role !== 'superadmin') {
+      res.status(403).json({ message: 'Historical attendance records cannot be edited for previous dates.' });
+      return;
+    }
+
+    // Prevent marking attendance as present, late, or half-day for future dates
+    if (start > todayEnd && ['present', 'late', 'half-day'].includes(status)) {
+      res.status(400).json({ message: 'Cannot mark attendance as present, late, or half-day for future dates.' });
+      return;
+    }
 
     // 🔎 Look for existing attendance
     const existingAttendance = await Attendance.findOne({
@@ -193,6 +207,21 @@ export const updateAttendance = async (req: Request, res: Response): Promise<voi
 
     if (!isAllowed) {
       res.status(403).json({ message: 'Access denied: Cannot edit this attendance record' });
+      return;
+    }
+
+    // Check if the attendance record is historical (from a previous date)
+    const timezone = typeof req.body.timezone === 'string' ? req.body.timezone : 'Asia/Kolkata';
+    const todayStart = moment.tz(timezone).startOf('day').toDate();
+    const todayEnd = moment.tz(timezone).endOf('day').toDate();
+
+    if (attendance.date < todayStart && user.role !== 'admin' && user.role !== 'superadmin') {
+      res.status(403).json({ message: 'Historical attendance records cannot be edited for previous dates.' });
+      return;
+    }
+
+    if (attendance.date > todayEnd && status && ['present', 'late', 'half-day'].includes(status)) {
+      res.status(400).json({ message: 'Cannot mark attendance as present, late, or half-day for future dates.' });
       return;
     }
 
@@ -412,11 +441,15 @@ export const getAttendanceByStaff = async (req: Request, res: Response): Promise
 
     const query: any = { staffId: id };
 
+    const timezone = typeof req.query.timezone === 'string' ? req.query.timezone : 'Asia/Kolkata';
+
     if (req.query.startDate) {
-      query.date = { ...query.date, $gte: new Date(req.query.startDate as string) };
+      const startD = moment.tz(req.query.startDate as string, timezone).startOf('day').toDate();
+      query.date = { ...query.date, $gte: startD };
     }
     if (req.query.endDate) {
-      query.date = { ...query.date, $lte: new Date(req.query.endDate as string) };
+      const endD = moment.tz(req.query.endDate as string, timezone).endOf('day').toDate();
+      query.date = { ...query.date, $lte: endD };
     }
 
     const records = await Attendance.find(query)

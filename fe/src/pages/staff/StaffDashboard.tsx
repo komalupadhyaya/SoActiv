@@ -49,11 +49,25 @@ export const StaffDashboard: React.FC = () => {
     const [loading, setLoading] = useState(true);
 
     // Filtered Data
-    const assignedMembers = clients.filter(c =>
-        (c.trainer as any)?._id === user?.staffId ||
-        (c.salesRep as any)?._id === user?.staffId ||
-        (c.personalTrainer as any)?._id === user?.staffId
-    );
+    const getRefId = (ref: any) => {
+        if (!ref) return undefined;
+        if (typeof ref === 'object') return (ref._id || ref.id || ref)?.toString();
+        return ref.toString();
+    };
+
+    const staffIdStr = user?.staffId?.toString() || user?.id?.toString();
+
+    const assignedMembers = clients.filter(c => {
+        if (!staffIdStr) return false;
+        return (
+            getRefId(c.trainer) === staffIdStr ||
+            getRefId(c.salesRep) === staffIdStr ||
+            getRefId(c.personalTrainer) === staffIdStr ||
+            getRefId(c.memberManager) === staffIdStr
+        );
+    });
+
+    const recentMembersToDisplay = assignedMembers.length > 0 ? assignedMembers : clients;
 
     useEffect(() => {
         const loadData = async () => {
@@ -272,7 +286,7 @@ export const StaffDashboard: React.FC = () => {
                                             {isSales ? 'My Leads' : 'My Members'}
                                         </p>
                                         <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                                            {isSales ? myEnquiries.length : assignedMembers.length}
+                                            {isSales ? myEnquiries.length : (assignedMembers.length > 0 ? assignedMembers.length : clients.length)}
                                         </p>
                                     </div>
                                     <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
@@ -480,22 +494,22 @@ export const StaffDashboard: React.FC = () => {
                                             <p className="text-sm text-gray-500">No leads assigned.</p>
                                         )
                                     ) : (
-                                        assignedMembers.length > 0 ? (
+                                        recentMembersToDisplay.length > 0 ? (
                                             <ul className="space-y-3">
-                                                {assignedMembers.slice(0, 4).map(member => (
+                                                {recentMembersToDisplay.slice(0, 4).map(member => (
                                                     <li key={member._id} className="flex items-center space-x-3">
-                                                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600">
-                                                            {member.fullName.charAt(0)}
+                                                        <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-xs font-bold text-orange-600 dark:text-orange-400">
+                                                            {member.fullName?.charAt(0)?.toUpperCase() || 'M'}
                                                         </div>
                                                         <div>
                                                             <p className="text-sm font-medium text-gray-900 dark:text-white">{member.fullName}</p>
-                                                            <p className="text-xs text-gray-500">{member.plan} plan</p>
+                                                            <p className="text-xs text-gray-500 capitalize">{member.plan || 'Standard'} plan</p>
                                                         </div>
                                                     </li>
                                                 ))}
                                             </ul>
                                         ) : (
-                                            <p className="text-sm text-gray-500">No members assigned.</p>
+                                            <p className="text-sm text-gray-500">No members found.</p>
                                         )
                                     )}
                                 </CardContent>

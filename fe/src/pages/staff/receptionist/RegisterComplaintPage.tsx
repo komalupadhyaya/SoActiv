@@ -10,7 +10,9 @@ import {
   RefreshCw,
   User,
   ShieldCheck,
-  Tag
+  Tag,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { Card, CardHeader, CardContent } from '../../../components/ui/Card';
 import { Input } from '../../../components/ui/Input';
@@ -134,11 +136,26 @@ export const RegisterComplaintPage: React.FC = () => {
     }
   };
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterStatus]);
+
   const filteredComplaints = useMemo(() => {
     return messages
       .filter(m => filterStatus === 'all' || m.status === filterStatus)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [messages, filterStatus]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredComplaints.length / itemsPerPage));
+
+  const paginatedComplaints = useMemo(() => {
+    const validPage = Math.min(currentPage, totalPages);
+    const start = (validPage - 1) * itemsPerPage;
+    return filteredComplaints.slice(start, start + itemsPerPage);
+  }, [filteredComplaints, currentPage, totalPages, itemsPerPage]);
 
   const formatDate = (dateStr: string) =>
     new Date(dateStr).toLocaleDateString('en-IN', {
@@ -401,51 +418,83 @@ export const RegisterComplaintPage: React.FC = () => {
                   <p className="text-xs font-normal">Use the form on the left to register a new complaint.</p>
                 </div>
               ) : (
-                <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {filteredComplaints.map((ticket: ISupportMessage) => (
-                    <div key={ticket._id} className="p-4 hover:bg-gray-50/60 dark:hover:bg-gray-800/30 transition">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0 space-y-1.5">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-bold text-sm text-gray-900 dark:text-white truncate">
-                              {ticket.name}
-                            </h3>
-                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${STATUS_STYLES[ticket.status] || ''}`}>
-                              {ticket.status}
-                            </span>
-                          </div>
-
-                          <p className="text-xs text-gray-800 dark:text-gray-200 italic font-medium">
-                            "{ticket.message}"
-                          </p>
-
-                          <div className="flex items-center gap-3 text-[10px] text-gray-500 dark:text-gray-400 flex-wrap pt-0.5">
-                            <span className="flex items-center gap-1">
-                              <Tag size={10} className="text-orange-500" />
-                              {CATEGORY_LABELS[ticket.category] || ticket.category}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Clock size={10} />
-                              {formatDate(ticket.createdAt)}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <User size={10} />
-                              {ticket.email}
-                            </span>
-                          </div>
-
-                          {/* Escalated Notification */}
-                          {ticket.status === 'escalated' && (
-                            <div className="inline-flex items-center gap-1.5 bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-400 border border-purple-100 dark:border-purple-900/30 rounded-lg p-2 mt-1 text-[9px]">
-                              <ShieldCheck size={11} className="shrink-0" />
-                              <span>Escalated to gym administrator for action.</span>
+                <>
+                  <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {paginatedComplaints.map((ticket: ISupportMessage) => (
+                      <div key={ticket._id} className="p-4 hover:bg-gray-50/60 dark:hover:bg-gray-800/30 transition">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0 space-y-1.5">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-bold text-sm text-gray-900 dark:text-white truncate">
+                                {ticket.name}
+                              </h3>
+                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${STATUS_STYLES[ticket.status] || ''}`}>
+                                {ticket.status}
+                              </span>
                             </div>
-                          )}
+
+                            <p className="text-xs text-gray-800 dark:text-gray-200 italic font-medium">
+                              "{ticket.message}"
+                            </p>
+
+                            <div className="flex items-center gap-3 text-[10px] text-gray-500 dark:text-gray-400 flex-wrap pt-0.5">
+                              <span className="flex items-center gap-1">
+                                <Tag size={10} className="text-orange-500" />
+                                {CATEGORY_LABELS[ticket.category] || ticket.category}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Clock size={10} />
+                                {formatDate(ticket.createdAt)}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <User size={10} />
+                                {ticket.email}
+                              </span>
+                            </div>
+
+                            {/* Escalated Notification */}
+                            {ticket.status === 'escalated' && (
+                              <div className="inline-flex items-center gap-1.5 bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-400 border border-purple-100 dark:border-purple-900/30 rounded-lg p-2 mt-1 text-[9px]">
+                                <ShieldCheck size={11} className="shrink-0" />
+                                <span>Escalated to gym administrator for action.</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
+                    ))}
+                  </div>
+
+                  {/* Pagination Controls */}
+                  {filteredComplaints.length > itemsPerPage && (
+                    <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 bg-gray-50/50 dark:bg-gray-800/20">
+                      <span>
+                        Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredComplaints.length)} - {Math.min(currentPage * itemsPerPage, filteredComplaints.length)} of {filteredComplaints.length}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          disabled={currentPage === 1}
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:hover:bg-transparent transition"
+                          title="Previous Page"
+                        >
+                          <ChevronLeft size={14} />
+                        </button>
+                        <span className="px-2 font-semibold text-gray-700 dark:text-gray-300">
+                          {currentPage} / {totalPages}
+                        </span>
+                        <button
+                          disabled={currentPage >= totalPages}
+                          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                          className="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:hover:bg-transparent transition"
+                          title="Next Page"
+                        >
+                          <ChevronRight size={14} />
+                        </button>
+                      </div>
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>

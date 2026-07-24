@@ -229,6 +229,16 @@ export const resetAdminPassword = asyncHandler(async (req: Request, res: Respons
 
     // Update password (will be hashed by pre-save hook)
     admin.password = newPassword;
+
+    // Increment tokenVersion to immediately invalidate ALL existing active sessions
+    // The auth middleware checks decoded.tokenVersion === user.tokenVersion
+    // so any token issued before this change will be rejected on the next request
+    if (typeof admin.tokenVersion === 'number') {
+        admin.tokenVersion += 1;
+    } else {
+        admin.tokenVersion = 1;
+    }
+
     await admin.save();
 
     // Log action
@@ -238,14 +248,14 @@ export const resetAdminPassword = asyncHandler(async (req: Request, res: Respons
         targetType: "admin",
         targetId: admin._id,
         performedBy: context.performedBy,
-        metadata: { adminEmail: admin.email },
+        metadata: { adminEmail: admin.email, sessionsInvalidated: true },
         ipAddress: context.ipAddress,
         userAgent: context.userAgent
     });
 
     res.status(HttpStatusCode.OK).json({
         success: true,
-        message: "Password reset successfully"
+        message: "Password reset successfully. All active sessions have been invalidated."
     });
 });
 

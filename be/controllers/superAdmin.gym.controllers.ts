@@ -9,6 +9,9 @@ import { User } from "../models/user.model.js";
 import { Client } from "../models/client.model.js";
 import { Staff } from "../models/staff.model.js";
 import { Subscription } from "../models/subscription.model.js";
+import Enquiry from "../models/enquiry.model.js";
+import { FollowUp } from "../models/followUp.model.js";
+import Schedule from "../models/schedule.model.js";
 import { logSuperAdminAction, getSuperAdminContext } from "../utils/superAdminLogger.js";
 
 /**
@@ -344,7 +347,7 @@ export const toggleFeature = asyncHandler(async (req: Request, res: Response) =>
 });
 
 /**
- * Soft delete gym
+ * Permanently delete gym and all associated records from database
  * DELETE /api/v1/super-admin/gyms/:id
  */
 export const deleteGym = asyncHandler(async (req: Request, res: Response) => {
@@ -355,8 +358,28 @@ export const deleteGym = asyncHandler(async (req: Request, res: Response) => {
         throw new ApiError(HttpStatusCode.NOT_FOUND, "Gym not found");
     }
 
-    gym.deletedAt = new Date();
-    await gym.save();
+    const ownerId = gym.owner;
+
+    // 1. Gather all staff and client user IDs linked to this gym
+    const staffDocs = ownerId ? await Staff.find({ createdBy: ownerId }).select("userId") : [];
+    const staffUserIds = staffDocs.map(s => s.userId).filter(Boolean);
+
+    const clientDocs = ownerId ? await Client.find({ userId: ownerId }).select("userId") : [];
+    const clientUserIds = clientDocs.map(c => c.userId).filter(Boolean);
+
+    const allUserIdsToDelete = [ownerId, ...staffUserIds, ...clientUserIds].filter(Boolean);
+
+    // 2. Cascade delete all documents associated with this gym across collections
+    await Promise.all([
+        User.deleteMany({ $or: [{ _id: { $in: allUserIdsToDelete } }, { gym: gym._id }] }),
+        Staff.deleteMany({ $or: [{ createdBy: ownerId }, { gym: gym._id }] }),
+        Client.deleteMany({ userId: ownerId }),
+        Subscription.deleteMany({ gymId: gym._id }),
+        Enquiry.deleteMany({ $or: [{ adminId: ownerId }, { userId: ownerId }] }),
+        FollowUp.deleteMany({ userId: ownerId }),
+        Schedule.deleteMany({ $or: [{ adminId: ownerId }, { createdBy: ownerId }] }),
+        Gym.findByIdAndDelete(id)
+    ]);
 
     // Log action
     const context = getSuperAdminContext(req);
@@ -372,7 +395,7 @@ export const deleteGym = asyncHandler(async (req: Request, res: Response) => {
 
     res.status(HttpStatusCode.OK).json({
         success: true,
-        message: "Gym deleted successfully"
+        message: "Gym and all associated records permanently deleted successfully"
     });
 });
 

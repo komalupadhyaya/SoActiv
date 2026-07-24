@@ -245,25 +245,25 @@ export const EnquiriesPage: React.FC = () => {
             <>
               {/* Desktop / tablet table */}
               <div className="hidden sm:block overflow-x-auto w-full">
-                <table className="w-full min-w-[950px] table-auto divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-800">
+                <table className="w-full min-w-[850px] table-auto divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-800/90">
                     <tr>
-                      <th className="px-2 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider min-w-[200px]">
                         Contact Info
                       </th>
-                      <th className="px-2 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Status
                       </th>
-                      <th className="px-2 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Assigned Staff
                       </th>
-                      <th className="px-2 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Date
                       </th>
-                      <th className="px-2 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Follow-up
                       </th>
-                      <th className="px-2 md:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider pr-4">
                         Actions
                       </th>
                     </tr>
@@ -273,63 +273,65 @@ export const EnquiriesPage: React.FC = () => {
                       <tr 
                         key={enquiry._id} 
                         id={`enquiry-desktop-${enquiry._id}`}
-                        className={`transition-all duration-500 hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                        className={`transition-all duration-300 hover:bg-gray-50 dark:hover:bg-gray-700/60 ${
                           highlightedId === enquiry._id
                             ? 'ring-2 ring-orange-500 dark:ring-orange-450 bg-orange-50/50 dark:bg-orange-950/20 font-medium'
                             : ''
                         }`}
                       >
-                        <td className="px-2 md:px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 py-3 whitespace-nowrap min-w-[200px]">
                           <div>
-                            <div className="text-sm font-medium text-gray-900 dark:text-white">
+                            <div className="text-sm font-semibold text-gray-900 dark:text-white leading-tight mb-0.5">
                               {enquiry.name}
                             </div>
-                            <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-                              <Phone size={12} />
+                            <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 leading-tight">
+                              <Phone size={12} className="shrink-0" />
                               <span>{enquiry.phone}</span>
                             </div>
-                            <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-                              <Mail size={12} />
-                              <span>{enquiry.email}</span>
-                            </div>
+                            {enquiry.email && (
+                              <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 leading-tight">
+                                <Mail size={12} className="shrink-0" />
+                                <span className="truncate max-w-[180px]">{enquiry.email}</span>
+                              </div>
+                            )}
                           </div>
                         </td>
-                        <td className="px-2 md:px-6 py-4 whitespace-nowrap">
-                          <Badge className={statusColors[enquiry.status]}>{enquiry.status}</Badge>
+                        <td className="px-3 py-3 whitespace-nowrap">
+                          <Badge className={`text-xs px-2.5 py-0.5 font-medium ${statusColors[enquiry.status]}`}>{enquiry.status}</Badge>
                         </td>
-                        <td className="px-2 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white font-medium">
                           {getStaffName(enquiry.assignedStaff)}
                         </td>
-                        <td className="px-2 md:px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                            <Calendar size={14} className="mr-1" />
+                        <td className="px-3 py-3 whitespace-nowrap">
+                          <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+                            <Calendar size={13} className="mr-1.5 shrink-0" />
                             {new Date(enquiry.createdAt).toLocaleDateString()}
                           </div>
                         </td>
-                        <td className="px-2 md:px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                            <Calendar size={14} className="mr-1" />
+                        <td className="px-3 py-3 whitespace-nowrap">
+                          <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+                            <Calendar size={13} className="mr-1.5 shrink-0" />
                             {enquiry.followUpDate
                               ? new Date(enquiry.followUpDate).toLocaleDateString()
                               : '—'}
                           </div>
                         </td>
-                        <td className="px-2 md:px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex space-x-2">
+                        <td className="px-3 py-3 whitespace-nowrap text-sm font-medium text-right pr-4">
+                          <div className="flex items-center justify-end space-x-2">
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/20"
+                              className="p-2 h-9 w-9 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/40 bg-blue-50 dark:bg-blue-950/40 rounded-lg transition-colors"
                               onClick={() => navigate(`/admin/enquiries/edit/${enquiry._id}`)}
                               aria-label="Edit enquiry"
                               title="Edit Enquiry"
                             >
-                              <Edit size={16} />
+                              <Edit size={18} />
                             </Button>
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20"
+                              className="p-2 h-9 w-9 text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/40 bg-red-50 dark:bg-red-950/40 rounded-lg transition-colors"
                               onClick={async () => {
                                 if (await confirm('Are you sure you want to delete this enquiry?', { title: 'Delete Enquiry' })) {
                                   await deleteEnquiry(enquiry._id);
@@ -337,8 +339,9 @@ export const EnquiriesPage: React.FC = () => {
                                 }
                               }}
                               aria-label="Delete enquiry"
+                              title="Delete Enquiry"
                             >
-                              <Trash2 size={16} />
+                              <Trash2 size={18} />
                             </Button>
                           </div>
                         </td>
@@ -387,21 +390,21 @@ export const EnquiriesPage: React.FC = () => {
                           </span>
                         </div>
                       </div>
-                      <div className="mt-3 flex space-x-2">
+                      <div className="mt-3 flex items-center space-x-2">
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/20"
+                          className="p-2 h-9 w-9 text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/40 bg-blue-50 dark:bg-blue-950/40 rounded-lg transition-colors"
                           onClick={() => navigate(`/admin/enquiries/edit/${enquiry._id}`)}
                           aria-label="Edit enquiry"
                           title="Edit Enquiry"
                         >
-                          <Edit size={16} />
+                          <Edit size={18} />
                         </Button>
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20"
+                          className="p-2 h-9 w-9 text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/40 bg-red-50 dark:bg-red-950/40 rounded-lg transition-colors"
                           onClick={async () => {
                             if (await confirm('Are you sure you want to delete this enquiry?', { title: 'Delete Enquiry' })) {
                               await deleteEnquiry(enquiry._id);
@@ -409,8 +412,9 @@ export const EnquiriesPage: React.FC = () => {
                             }
                           }}
                           aria-label="Delete enquiry"
+                          title="Delete Enquiry"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={18} />
                         </Button>
                       </div>
                     </CardContent>

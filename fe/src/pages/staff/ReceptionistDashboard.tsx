@@ -523,37 +523,37 @@ export const ReceptionistDashboard: React.FC = () => {
                     setSelectedClient(null);
                     setSearchTerm('');
                     setIsCheckInModalOpen(true);
-                  }} className="flex flex-col items-center justify-center p-4 border border-dashed border-gray-300 rounded-lg dark:hover:bg-gray-850 hover:border-orange-500 hover:bg-orange-50/30 transition text-center">
+                  }} className="flex flex-col items-center justify-center p-4 border border-dashed border-gray-300 rounded-lg dark:hover:bg-gray-800 hover:border-orange-500 hover:bg-orange-50/30 transition text-center">
                     <CheckCircle className="w-6 h-6 text-green-500 mb-2" />
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Check In/Out</span>
                   </button>
 
                   {/* Book Gym Class Modal Button */}
-                  <button onClick={() => setIsClassListModalOpen(true)} className="flex flex-col items-center justify-center p-4 border border-dashed border-gray-300 rounded-lg dark:hover:bg-gray-850 hover:border-orange-500 hover:bg-orange-50/30 transition text-center">
+                  <button onClick={() => setIsClassListModalOpen(true)} className="flex flex-col items-center justify-center p-4 border border-dashed border-gray-300 rounded-lg dark:hover:bg-gray-800 hover:border-orange-500 hover:bg-orange-50/30 transition text-center">
                     <Calendar className="w-6 h-6 text-orange-500 mb-2" />
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Book Class</span>
                   </button>
 
                   {/* PT Consultation Booking Modal Button */}
-                  <button onClick={() => setIsApptModalOpen(true)} className="flex flex-col items-center justify-center p-4 border border-dashed border-gray-300 rounded-lg dark:hover:bg-gray-850 hover:border-orange-500 hover:bg-orange-50/30 transition text-center">
+                  <button onClick={() => setIsApptModalOpen(true)} className="flex flex-col items-center justify-center p-4 border border-dashed border-gray-300 rounded-lg dark:hover:bg-gray-800 hover:border-orange-500 hover:bg-orange-50/30 transition text-center">
                     <Clock className="w-6 h-6 text-blue-500 mb-2" />
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Book Appt.</span>
                   </button>
 
                   {/* Renewal Alerts Modal Button */}
-                  <button onClick={() => setIsRenewalModalOpen(true)} className="flex flex-col items-center justify-center p-4 border border-dashed border-gray-300 rounded-lg dark:hover:bg-gray-850 hover:border-orange-500 hover:bg-orange-50/30 transition text-center">
+                  <button onClick={() => setIsRenewalModalOpen(true)} className="flex flex-col items-center justify-center p-4 border border-dashed border-gray-300 rounded-lg dark:hover:bg-gray-800 hover:border-orange-500 hover:bg-orange-50/30 transition text-center">
                     <Bell className="w-6 h-6 text-yellow-500 mb-2" />
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Renewal Alerts</span>
                   </button>
 
                   {/* View Members Directory Modal Button */}
-                  <button onClick={() => setIsMembersModalOpen(true)} className="flex flex-col items-center justify-center p-4 border border-dashed border-gray-300 rounded-lg dark:hover:bg-gray-850 hover:border-orange-500 hover:bg-orange-50/30 transition text-center">
+                  <button onClick={() => setIsMembersModalOpen(true)} className="flex flex-col items-center justify-center p-4 border border-dashed border-gray-300 rounded-lg dark:hover:bg-gray-800 hover:border-orange-500 hover:bg-orange-50/30 transition text-center">
                     <Users className="w-6 h-6 text-indigo-500 mb-2" />
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Members Dir.</span>
                   </button>
 
                   {/* Quick Enquiry Modal Button */}
-                  <button onClick={() => setIsEnquiryModalOpen(true)} className="flex flex-col items-center justify-center p-4 border border-dashed border-gray-300 rounded-lg dark:hover:bg-gray-850 hover:border-orange-500 hover:bg-orange-50/30 transition text-center">
+                  <button onClick={() => setIsEnquiryModalOpen(true)} className="flex flex-col items-center justify-center p-4 border border-dashed border-gray-300 rounded-lg dark:hover:bg-gray-800 hover:border-orange-500 hover:bg-orange-50/30 transition text-center">
                     <Plus className="w-6 h-6 text-teal-500 mb-2" />
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Log Enquiry</span>
                   </button>
@@ -661,7 +661,7 @@ export const ReceptionistDashboard: React.FC = () => {
                 </div>
 
                 {filteredClients.length > 0 && !selectedClient && (
-                  <div className="border border-gray-200 dark:border-gray-700/80 rounded-xl max-h-48 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800 shadow-sm bg-white dark:bg-gray-850">
+                  <div className="border border-gray-200 dark:border-gray-700/80 rounded-xl max-h-48 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800 shadow-sm bg-white dark:bg-gray-800">
                     {filteredClients.map(client => (
                       <button
                         key={client._id}
@@ -749,7 +749,7 @@ export const ReceptionistDashboard: React.FC = () => {
                 ) : (
                   <div className="overflow-x-auto border border-gray-150 dark:border-gray-800 rounded-xl shadow-inner max-h-[350px]">
                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
-                      <thead className="bg-gray-50 dark:bg-gray-850">
+                      <thead className="bg-gray-50 dark:bg-gray-800">
                         <tr>
                           <th className="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">Name</th>
                           <th className="px-3 py-2 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">Check In</th>
@@ -1037,7 +1037,7 @@ export const ReceptionistDashboard: React.FC = () => {
                       <p className="flex items-center gap-1.5"><User size={11} className="text-gray-400" /> Trainer: {client.trainer?.fullName || 'None'}</p>
                     </div>
 
-                    <div className="bg-gray-50 dark:bg-gray-850 p-2 rounded-lg text-[10px] border border-gray-100 dark:border-gray-800">
+                    <div className="bg-gray-50 dark:bg-gray-800 p-2 rounded-lg text-[10px] border border-gray-100 dark:border-gray-800">
                       <p className="font-bold text-gray-400">Emergency Contact</p>
                       <p className="text-gray-900 dark:text-white font-medium">{client.emergencyContactName || 'N/A'}</p>
                       <p className="text-gray-500 flex items-center gap-1 mt-0.5">

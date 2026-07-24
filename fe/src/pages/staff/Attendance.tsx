@@ -23,7 +23,33 @@ export const Attendance: React.FC = () => {
     const isManagerStaff = user?.role === 'staff' && user?.position === 'manager';
     const canViewTeamAttendance = isAdmin || isManagerStaff;
 
-    // Fetch History
+    const now = new Date();
+    const isCurrentMonth =
+        currentMonth.getMonth() === now.getMonth() &&
+        currentMonth.getFullYear() === now.getFullYear();
+
+    // 1. Fetch Today's Record (remains accurate regardless of month selection)
+    useEffect(() => {
+        const fetchTodayRecord = async () => {
+            if (!user?.staffId) return;
+
+            const todayStr = new Date().toISOString().split('T')[0];
+            try {
+                const res = await getAttendanceByStaff(user.staffId, todayStr, todayStr);
+                if (res.records && res.records.length > 0) {
+                    setTodayRecord(res.records[0]);
+                } else {
+                    setTodayRecord(null);
+                }
+            } catch (error) {
+                console.error('Failed to fetch today attendance record', error);
+            }
+        };
+
+        fetchTodayRecord();
+    }, [user?.staffId, getAttendanceByStaff]);
+
+    // 2. Fetch History for Selected Month
     useEffect(() => {
         const fetchHistory = async () => {
             if (!user?.staffId) return;
@@ -34,16 +60,19 @@ export const Attendance: React.FC = () => {
             try {
                 const res = await getAttendanceByStaff(user.staffId, start, end);
                 if (res.records) {
+                    const uniqueRecords = res.records.reduce((acc: AttendanceRecord[], current: AttendanceRecord) => {
+                        const dateKey = new Date(current.date).toISOString().split('T')[0];
+                        if (!acc.some(r => new Date(r.date).toISOString().split('T')[0] === dateKey)) {
+                            acc.push(current);
+                        }
+                        return acc;
+                    }, []);
+
                     setHistory(
-                        res.records.sort(
+                        uniqueRecords.sort(
                             (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
                         ),
                     );
-
-                    // Find today's record
-                    const todayStr = new Date().toISOString().split('T')[0];
-                    const foundToday = res.records.find((r) => r.date.startsWith(todayStr));
-                    setTodayRecord(foundToday || null);
                 }
             } catch (error) {
                 console.error('Failed to fetch attendance history', error);
@@ -55,13 +84,13 @@ export const Attendance: React.FC = () => {
 
     // Handlers
     const handleCheckIn = async () => {
-        if (!user?.staffId) return;
+        if (!user?.staffId || !isCurrentMonth) return;
         try {
-            const now = new Date();
+            const checkInNow = new Date();
             const res = await markAttendance({
                 staffId: user.staffId,
                 status: 'present',
-                checkInTime: now.toISOString(),
+                checkInTime: checkInNow.toISOString(),
                 timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
             });
             if (res.attendance) {
@@ -75,20 +104,20 @@ export const Attendance: React.FC = () => {
     };
 
     const handleCheckOut = async () => {
-        if (!todayRecord) return;
+        if (!todayRecord || !isCurrentMonth) return;
         try {
-            const now = new Date();
+            const checkOutNow = new Date();
             await updateAttendance(todayRecord._id, {
-                checkOutTime: now.toISOString(),
+                checkOutTime: checkOutNow.toISOString(),
             });
 
             // Update local state
             setTodayRecord((prev) =>
-                prev ? { ...prev, checkOutTime: now.toISOString() } : null,
+                prev ? { ...prev, checkOutTime: checkOutNow.toISOString() } : null,
             );
             setHistory((prev) =>
                 prev.map((r) =>
-                    r._id === todayRecord._id ? { ...r, checkOutTime: now.toISOString() } : r,
+                    r._id === todayRecord._id ? { ...r, checkOutTime: checkOutNow.toISOString() } : r,
                 ),
             );
         } catch (error) {
@@ -129,16 +158,18 @@ export const Attendance: React.FC = () => {
                         {!todayRecord ? (
                             <Button
                                 onClick={handleCheckIn}
-                                disabled={loading}
-                                className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
+                                disabled={!isCurrentMonth || loading}
+                                className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                title={!isCurrentMonth ? "Check-in is only available for the current month" : ""}
                             >
                                 <CheckCircle className="w-4 h-4" /> Check In
                             </Button>
                         ) : !isCheckedOut ? (
                             <Button
                                 onClick={handleCheckOut}
-                                disabled={loading}
-                                className="bg-orange-600 hover:bg-orange-700 text-white flex items-center gap-2"
+                                disabled={!isCurrentMonth || loading}
+                                className="bg-orange-600 hover:bg-orange-700 text-white flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                title={!isCurrentMonth ? "Check-out is only available for the current month" : ""}
                             >
                                 <Clock className="w-4 h-4" /> Check Out
                             </Button>

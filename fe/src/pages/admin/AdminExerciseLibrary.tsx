@@ -17,7 +17,7 @@ import api from '../../utils/api';
 interface Exercise {
   _id: string;
   title: string;
-  category: 'Chest' | 'Back' | 'Legs' | 'Cardio' | 'Yoga';
+  category: 'Chest' | 'Back' | 'Legs' | 'Cardio' | 'Yoga' | 'Shoulder' | 'Arms';
   muscleTargeting: string;
   difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
   videoUrl: string;
@@ -37,7 +37,7 @@ export const AdminExerciseLibrary: React.FC = () => {
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
   const [formData, setFormData] = useState({
     title: '',
-    category: 'Chest' as 'Chest' | 'Back' | 'Legs' | 'Cardio' | 'Yoga',
+    category: 'Chest' as 'Chest' | 'Back' | 'Legs' | 'Cardio' | 'Yoga' | 'Shoulder' | 'Arms',
     muscleTargeting: '',
     difficulty: 'Beginner' as 'Beginner' | 'Intermediate' | 'Advanced',
     videoUrl: '',
@@ -239,13 +239,16 @@ export const AdminExerciseLibrary: React.FC = () => {
     return matchesSearch && matchesCategory && matchesDifficulty;
   });
 
-  // Calculate quick stats
+  // Calculate quick stats for all exercise video categories
   const stats = {
     total: exercises.length,
     chest: exercises.filter(e => e.category === 'Chest').length,
     back: exercises.filter(e => e.category === 'Back').length,
     legs: exercises.filter(e => e.category === 'Legs').length,
-    other: exercises.filter(e => e.category === 'Cardio' || e.category === 'Yoga').length
+    shoulder: exercises.filter(e => e.category === 'Shoulder').length,
+    arms: exercises.filter(e => e.category === 'Arms').length,
+    cardio: exercises.filter(e => e.category === 'Cardio').length,
+    yoga: exercises.filter(e => e.category === 'Yoga').length,
   };
 
   return (
@@ -273,19 +276,26 @@ export const AdminExerciseLibrary: React.FC = () => {
         </button>
       </div>
 
-      {/* Stats Board */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      {/* Stats Board for All Categories */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 xl:grid-cols-8 gap-4">
         {[
-          { label: 'Total Exercises', count: stats.total, color: 'from-blue-500 to-indigo-500', shadow: 'shadow-blue-500/10' },
-          { label: 'Chest Videos', count: stats.chest, color: 'from-red-500 to-rose-500', shadow: 'shadow-red-500/10' },
-          { label: 'Back Videos', count: stats.back, color: 'from-emerald-500 to-teal-500', shadow: 'shadow-emerald-500/10' },
-          { label: 'Legs Videos', count: stats.legs, color: 'from-amber-500 to-orange-500', shadow: 'shadow-amber-500/10' },
-          { label: 'Cardio & Yoga', count: stats.other, color: 'from-purple-500 to-fuchsia-500', shadow: 'shadow-purple-500/10' },
+          { label: 'Total Exercises', count: stats.total, color: 'from-blue-500 to-indigo-500', shadow: 'shadow-blue-500/10', cat: 'All' },
+          { label: 'Chest Videos', count: stats.chest, color: 'from-red-500 to-rose-500', shadow: 'shadow-red-500/10', cat: 'Chest' },
+          { label: 'Back Videos', count: stats.back, color: 'from-emerald-500 to-teal-500', shadow: 'shadow-emerald-500/10', cat: 'Back' },
+          { label: 'Legs Videos', count: stats.legs, color: 'from-amber-500 to-orange-500', shadow: 'shadow-amber-500/10', cat: 'Legs' },
+          { label: 'Shoulder Videos', count: stats.shoulder, color: 'from-sky-500 to-blue-500', shadow: 'shadow-sky-500/10', cat: 'Shoulder' },
+          { label: 'Arms Videos', count: stats.arms, color: 'from-cyan-500 to-teal-500', shadow: 'shadow-cyan-500/10', cat: 'Arms' },
+          { label: 'Cardio Videos', count: stats.cardio, color: 'from-pink-500 to-rose-500', shadow: 'shadow-pink-500/10', cat: 'Cardio' },
+          { label: 'Yoga Videos', count: stats.yoga, color: 'from-purple-500 to-fuchsia-500', shadow: 'shadow-purple-500/10', cat: 'Yoga' },
         ].map((stat, idx) => (
-          <div key={idx} className={`p-4 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700/60 shadow-sm ${stat.shadow} flex flex-col justify-between`}>
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">{stat.label}</span>
+          <div 
+            key={idx} 
+            onClick={() => setCategoryFilter(stat.cat)}
+            className={`p-4 bg-white dark:bg-gray-800 rounded-2xl border ${categoryFilter === stat.cat ? 'border-orange-500 ring-2 ring-orange-500/20' : 'border-gray-100 dark:border-gray-700/60'} shadow-sm ${stat.shadow} flex flex-col justify-between cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200`}
+          >
+            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{stat.label}</span>
             <div className="flex items-baseline justify-between mt-2">
-              <span className="text-3xl font-extrabold text-gray-900 dark:text-white">{stat.count}</span>
+              <span className="text-2xl font-extrabold text-gray-900 dark:text-white">{stat.count}</span>
               <span className={`w-2.5 h-2.5 rounded-full bg-gradient-to-tr ${stat.color}`} />
             </div>
           </div>
@@ -319,6 +329,8 @@ export const AdminExerciseLibrary: React.FC = () => {
               <option value="Chest">Chest</option>
               <option value="Back">Back</option>
               <option value="Legs">Legs</option>
+              <option value="Shoulder">Shoulder</option>
+              <option value="Arms">Arms</option>
               <option value="Cardio">Cardio</option>
               <option value="Yoga">Yoga</option>
             </select>
@@ -505,6 +517,8 @@ export const AdminExerciseLibrary: React.FC = () => {
                     <option value="Chest">Chest</option>
                     <option value="Back">Back</option>
                     <option value="Legs">Legs</option>
+                    <option value="Shoulder">Shoulder</option>
+                    <option value="Arms">Arms</option>
                     <option value="Cardio">Cardio</option>
                     <option value="Yoga">Yoga</option>
                   </select>

@@ -141,7 +141,7 @@ const CheckInPage: React.FC = () => {
 
               {/* Dropdown results */}
               {filteredClients.length > 0 && !selectedClient && (
-                <div className="border border-gray-200 dark:border-gray-700 rounded-xl max-h-52 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800 shadow-sm bg-white dark:bg-gray-850">
+                <div className="border border-gray-200 dark:border-gray-700 rounded-xl max-h-52 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800 shadow-sm bg-white dark:bg-gray-800">
                   {filteredClients.map(client => (
                     <button
                       key={client._id}
@@ -262,7 +262,7 @@ const CheckInPage: React.FC = () => {
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
-                    <thead className="bg-gray-50 dark:bg-gray-850">
+                    <thead className="bg-gray-50 dark:bg-gray-800">
                       <tr>
                         <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Member</th>
                         <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Check In</th>

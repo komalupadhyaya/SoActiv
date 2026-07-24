@@ -67,9 +67,11 @@ export const FollowUpFormPage: React.FC = () => {
     if (isEditMode && id && followUps.length > 0) {
       const f = followUps.find((item) => item._id === id);
       if (f) {
+        const validTypes = ['enquiry', 'client', 'pt', 'other'];
+        const typeVal = validTypes.includes(f.type) ? (f.type as 'enquiry' | 'client' | 'pt' | 'other') : 'enquiry';
         setFormData({
           assignedTo: f.assignedTo?._id || '',
-          type: f.type || 'enquiry',
+          type: typeVal,
           relatedId: f.relatedId || '',
           relatedName: f.relatedName || '',
           scheduledDate: f.scheduledDate ? new Date(f.scheduledDate).toISOString().split('T')[0] : '',
@@ -180,8 +182,6 @@ export const FollowUpFormPage: React.FC = () => {
       const wordCount = formData.note.trim().split(/\s+/).filter(Boolean).length;
       if (wordCount > 50) {
         newErrors.note = 'Note cannot exceed 50 words';
-      } else if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(formData.note)) {
-        newErrors.note = 'Note can only contain letters, numbers, spaces, and basic punctuation';
       }
     }
 
@@ -250,7 +250,7 @@ export const FollowUpFormPage: React.FC = () => {
             <option value="enquiry">Enquiry</option>
             <option value="client">Client</option>
             <option value="pt">PT Package</option>
-            <option value="other">General / Cleaning Task</option>
+            <option value="other">Cleaning Task</option>
           </select>
           {errors.type && <p className="text-red-500 text-sm mt-1">{errors.type}</p>}
         </div>

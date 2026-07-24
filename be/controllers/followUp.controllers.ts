@@ -17,18 +17,38 @@ const getAdminId = async (req: Request): Promise<string> => {
 
   // If user is Admin or Superadmin, they ARE the admin owner
   if (user.role === 'admin' || user.role === 'superadmin') {
-    return user.id;
+    return (user.adminId || user.id || user._id).toString();
   }
 
   // If user is Staff, find their Admin via createdBy
-  if (user.role === 'staff') {
-    const staffDoc = await Staff.findOne({ userId: user.id }).select('createdBy');
-    if (!staffDoc) throw new Error('Staff record not found for this user');
-    return staffDoc.createdBy.toString();
+  if (user.role === 'staff' || user.role === 'trainer') {
+    if (user.adminId) return user.adminId.toString();
+    const staffDoc = await Staff.findOne({ userId: user.id || user._id }).select('createdBy');
+    if (staffDoc && staffDoc.createdBy) return staffDoc.createdBy.toString();
   }
 
   // Default fallback
-  return user.id;
+  return (user.id || user._id).toString();
+};
+
+/**
+ * Helper: Build tenant query clause for follow-ups matching a gym owner adminId
+ */
+const getFollowUpTenantFilter = async (req: Request): Promise<any> => {
+  const adminIdStr = await getAdminId(req);
+  const adminObjectId = new Types.ObjectId(adminIdStr);
+
+  const gymStaff = await Staff.find({ createdBy: adminObjectId }).select('_id userId');
+  const gymStaffIds = gymStaff.map(s => s._id);
+  const gymStaffUserIds = gymStaff.map(s => s.userId).filter(Boolean);
+
+  return {
+    $or: [
+      { userId: adminObjectId },
+      { userId: { $in: gymStaffUserIds } },
+      { assignedTo: { $in: gymStaffIds } }
+    ]
+  };
 };
 
 /**
@@ -145,9 +165,9 @@ export const createOrUpdateEnquiryFollowUp = async (
       console.error('Failed to notify staff about updated follow-up:', err);
     }
   } else {
-    // Create new follow-up
+    // Create new follow-up - assign to Gym Owner Admin ID for tenant isolation
     const followUp = await FollowUp.create({
-      userId: new Types.ObjectId(userId),
+      userId: new Types.ObjectId(adminId || userId),
       assignedTo: new Types.ObjectId(assignedStaff),
       type: 'enquiry',
       relatedId: new Types.ObjectId(enquiryId),
@@ -258,13 +278,6 @@ export const createFollowUp = async (req: Request, res: Response) => {
       });
     }
 
-    if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(note)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Note can only contain letters, numbers, spaces, and basic punctuation'
-      });
-    }
-
     // DUPLICATE PREVENTION CHECK
     // Check if a pending follow-up already exists for the same staff at the same date/time
     const existingFollowUp = await FollowUp.findOne({
@@ -290,7 +303,7 @@ export const createFollowUp = async (req: Request, res: Response) => {
     }
 
     const followUp = await FollowUp.create({
-      userId: (req as any).user.id, // Fixed: use .id instead of ._id
+      userId: new Types.ObjectId(adminId),
       assignedTo,
       type,
       relatedId,
@@ -385,8 +398,8 @@ export const getAllFollowUps = async (req: Request, res: Response) => {
     const { status, type, assignedTo, date } = req.query;
     const user = (req as any).user;
 
-    // Build filter
-    const filter: any = {};
+    const tenantFilter = await getFollowUpTenantFilter(req);
+    const filter: any = { ...tenantFilter };
 
     if (status) filter.status = status;
     if (type) filter.type = type;
@@ -445,8 +458,9 @@ export const getUpcomingFollowUps = async (req: Request, res: Response) => {
     const nextWeek = new Date(today);
     nextWeek.setDate(nextWeek.getDate() + 7);
 
-    // Build filter
+    const tenantFilter = await getFollowUpTenantFilter(req);
     const filter: any = {
+      ...tenantFilter,
       status: 'pending',
       scheduledDate: { $gte: today, $lte: nextWeek },
     };
@@ -526,16 +540,11 @@ export const updateFollowUp = async (req: Request, res: Response) => {
           message: 'Note cannot exceed 50 words'
         });
       }
-      if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(updates.note)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Note can only contain letters, numbers, spaces, and basic punctuation'
-        });
-      }
     }
 
-    const followUp = await FollowUp.findByIdAndUpdate(
-      id,
+    const tenantFilter = await getFollowUpTenantFilter(req);
+    const followUp = await FollowUp.findOneAndUpdate(
+      { _id: id, ...tenantFilter },
       updates,
       { new: true, runValidators: true }
     )
@@ -636,7 +645,8 @@ export const deleteFollowUp = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const followUp = await FollowUp.findByIdAndDelete(id);
+    const tenantFilter = await getFollowUpTenantFilter(req);
+    const followUp = await FollowUp.findOneAndDelete({ _id: id, ...tenantFilter });
 
     if (!followUp) {
       return res.status(404).json({
@@ -676,8 +686,8 @@ export const getMyFollowUps = async (req: Request, res: Response) => {
     const user = (req as any).user;
     const { status, date } = req.query;
 
-    // Build filter for staff's own follow-ups
-    const filter: any = { assignedTo: user.staffId };
+    const tenantFilter = await getFollowUpTenantFilter(req);
+    const filter: any = { ...tenantFilter, assignedTo: user.staffId };
 
     // If user is a cleaner, only allow general / cleaning tasks ('other')
     if (user.position === 'cleaner') {

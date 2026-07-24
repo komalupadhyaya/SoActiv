@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAttendance } from '../../hooks/useStaffAttendance';
 import { useToast } from '../../contexts/ToastContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface AttendanceRow {
     staffId: string;
@@ -39,9 +40,16 @@ const mergeTimeWithDate = (isoDate: string, timeStr: string): string => {
 };
 
 export const StaffAttendance: React.FC = () => {
+    const { user } = useAuth();
     const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [timezone] = useState<string>(Intl.DateTimeFormat().resolvedOptions().timeZone);
     const [localData, setLocalData] = useState<AttendanceRow[]>([]);
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const isPastDate = date < todayStr;
+    const isFutureDate = date > todayStr;
+    const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+    const isEditable = (!isPastDate || isAdmin) && !isFutureDate;
 
     const {
         getDailyAttendanceSheet,
@@ -76,6 +84,10 @@ export const StaffAttendance: React.FC = () => {
     }, [date, getDailyAttendanceSheet, timezone]);
 
     const handleStatusChange = async (row: AttendanceRow, newStatus: string) => {
+        if (!isEditable) {
+            addToast('Historical attendance records cannot be edited.', 'error');
+            return;
+        }
         const status = newStatus as 'present' | 'absent' | 'late' | 'on-leave' | 'half-day';
         const now = new Date().toISOString();
 
@@ -139,6 +151,10 @@ export const StaffAttendance: React.FC = () => {
     };
 
     const handleCheckInTimeChange = async (row: AttendanceRow, timeStr: string) => {
+        if (!isEditable) {
+            addToast('Historical attendance records cannot be edited.', 'error');
+            return;
+        }
         if (!timeStr || !date) return;
         const isoDateTime = mergeTimeWithDate(date, timeStr);
 
@@ -188,6 +204,10 @@ export const StaffAttendance: React.FC = () => {
     };
 
     const handleCheckOutTimeChange = async (row: AttendanceRow, timeStr: string) => {
+        if (!isEditable) {
+            addToast('Historical attendance records cannot be edited.', 'error');
+            return;
+        }
         if (!row.checkInTime || !timeStr || !date) return;
         const isoDateTime = mergeTimeWithDate(date, timeStr);
 
@@ -211,12 +231,14 @@ export const StaffAttendance: React.FC = () => {
     };
 
     const handleNotesChange = (row: AttendanceRow, notes: string) => {
+        if (!isEditable) return;
         setLocalData((prev) =>
             prev.map((r) => (r.staffId === row.staffId ? { ...r, notes } : r))
         );
     };
 
     const handleNotesBlur = async (row: AttendanceRow) => {
+        if (!isEditable) return;
         try {
             if (row.attendanceId) {
                 await updateAttendance(row.attendanceId, { notes: row.notes });
@@ -238,12 +260,27 @@ export const StaffAttendance: React.FC = () => {
                 <span role="img" aria-label="calendar" className="text-3xl">📝</span> Team Attendance
             </h2>
 
+            {isPastDate && !isAdmin && (
+                <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-amber-800 dark:text-amber-300 text-sm flex items-center gap-2">
+                    <span>🔒</span>
+                    <span>Historical attendance records are read-only for previous dates.</span>
+                </div>
+            )}
+
+            {isFutureDate && (
+                <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-800 dark:text-red-300 text-sm flex items-center gap-2">
+                    <span>🚫</span>
+                    <span>Attendance cannot be marked as Present or checked in for future dates.</span>
+                </div>
+            )}
+
             <div className="mb-6 flex flex-wrap items-center gap-4">
                 <label className="text-gray-700 dark:text-gray-300 font-semibold">
                     Date:
                     <input
                         type="date"
                         value={date}
+                        max={todayStr}
                         onChange={e => setDate(e.target.value)}
                         className="ml-2 px-3 py-1 border border-gray-300 rounded-md dark:bg-gray-800 dark:border-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-400"
                     />
@@ -302,8 +339,9 @@ export const StaffAttendance: React.FC = () => {
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <select
                                                     value={row.status}
+                                                    disabled={!isEditable}
                                                     onChange={(e) => handleStatusChange(row, e.target.value)}
-                                                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300 px-2 py-1 focus:ring-2 focus:ring-orange-400 bg-white dark:bg-gray-900"
+                                                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300 px-2 py-1 focus:ring-2 focus:ring-orange-400 bg-white dark:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-gray-800"
                                                 >
                                                     {STATUS_OPTIONS.map((opt) => (
                                                         <option key={opt} value={opt}>
@@ -317,9 +355,10 @@ export const StaffAttendance: React.FC = () => {
                                                 {showCheckInInput ? (
                                                     <input
                                                         type="time"
+                                                        disabled={!isEditable}
                                                         value={isoToTime(row.checkInTime)}
                                                         onChange={(e) => handleCheckInTimeChange(row, e.target.value)}
-                                                        className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm focus:ring-2 focus:ring-orange-400 bg-white dark:bg-gray-900"
+                                                        className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm focus:ring-2 focus:ring-orange-400 bg-white dark:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-gray-800"
                                                     />
                                                 ) : (
                                                     <span className="text-gray-400 dark:text-gray-600">—</span>
@@ -330,9 +369,10 @@ export const StaffAttendance: React.FC = () => {
                                                 {canEditCheckOut ? (
                                                     <input
                                                         type="time"
+                                                        disabled={!isEditable}
                                                         value={isoToTime(row.checkOutTime)}
                                                         onChange={(e) => handleCheckOutTimeChange(row, e.target.value)}
-                                                        className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm focus:ring-2 focus:ring-orange-400 bg-white dark:bg-gray-900"
+                                                        className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm focus:ring-2 focus:ring-orange-400 bg-white dark:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-gray-800"
                                                     />
                                                 ) : (
                                                     <span className="text-gray-400 dark:text-gray-600">—</span>
@@ -342,10 +382,11 @@ export const StaffAttendance: React.FC = () => {
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <textarea
                                                     value={row.notes}
+                                                    disabled={!isEditable}
                                                     onChange={(e) => handleNotesChange(row, e.target.value)}
                                                     onBlur={() => handleNotesBlur(row)}
                                                     placeholder="Add notes..."
-                                                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300 p-2 min-h-[40px] resize-y focus:ring-2 focus:ring-orange-400 bg-white dark:bg-gray-900"
+                                                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300 p-2 min-h-[40px] resize-y focus:ring-2 focus:ring-orange-400 bg-white dark:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-gray-800"
                                                 />
                                             </td>
                                         </tr>

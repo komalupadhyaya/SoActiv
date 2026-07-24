@@ -18,6 +18,7 @@ import { useNotifications } from '../../hooks/useNotifications';
 import { useClient } from '../../hooks/useClient';
 import { useClientAttendance } from '../../hooks/useClientAttendance';
 import { useSchedule } from '../../hooks/useSchedule';
+import { Avatar } from '../ui/Avatar';
 
 interface MemberTopbarProps {
     onMobileMenuToggle: () => void;
@@ -478,14 +479,16 @@ export const MemberTopbar: React.FC<MemberTopbarProps> = ({
                     <div className="relative">
                         <button
                             onClick={() => setShowProfileMenu(!showProfileMenu)}
-                            className="flex items-center space-x-2 p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                            className="flex items-center space-x-2 p-1 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                             aria-label="User menu"
                         >
-                            <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center shadow-sm">
-                                <span className="text-white text-xs font-bold">
-                                    {user?.name?.charAt(0)?.toUpperCase() || 'M'}
-                                </span>
-                            </div>
+                            <Avatar
+                                src={user?.avatar}
+                                name={user?.name || 'Member'}
+                                userId={user?.id}
+                                size="md"
+                                customColors={user?.avatarSettings}
+                            />
                         </button>
 
                         {showProfileMenu && (

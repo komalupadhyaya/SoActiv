@@ -26,20 +26,23 @@ api.interceptors.request.use(
     }
 );
 
-// Response interceptor - handle 401 errors (session invalidation)
+// Response interceptor - handle 401 & 403 errors (session/gym invalidation)
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response?.status === 401) {
-            // Session invalid/expired - clear everything and redirect to login
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('sessionId');
-            localStorage.removeItem('user');
-            localStorage.removeItem('gym');
-            localStorage.removeItem('role');
+        const status = error.response?.status;
+        if (status === 401 || status === 403) {
+            // Check if current user is superadmin
+            const isSuperAdmin = window.location.pathname.startsWith('/super-admin');
 
-            // Redirect to login page
-            window.location.href = '/login';
+            // Session invalid/expired/deleted - clear all browser storage
+            localStorage.clear();
+
+            // Redirect to appropriate login page if not already there
+            const targetLogin = isSuperAdmin ? '/super-admin/login' : '/login';
+            if (!window.location.pathname.includes('/login')) {
+                window.location.href = targetLogin;
+            }
         }
         return Promise.reject(error);
     }

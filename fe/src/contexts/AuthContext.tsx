@@ -145,7 +145,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+
+    // Periodic & focus session verification for active users
+    const verifySession = async () => {
+      const token = localStorage.getItem('accessToken');
+      const savedRole = localStorage.getItem('role');
+      if (token && savedRole && savedRole !== 'superadmin') {
+        await refreshUser();
+      }
+    };
+
+    const intervalId = setInterval(verifySession, 15000);
+    window.addEventListener('focus', verifySession);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('focus', verifySession);
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   const login = async (email: string, password: string) => {

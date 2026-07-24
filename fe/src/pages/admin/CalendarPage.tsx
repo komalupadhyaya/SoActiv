@@ -67,7 +67,9 @@ export const CalendarPage: React.FC = () => {
   const filteredEvents = schedules.filter(event => {
     // Type Filter
     if (filterType !== 'all') {
-      if (filterType === 'expiry') {
+      if (filterType === 'followup') {
+        if (event.type !== 'followup' && !event.relatedFollowUp) return false;
+      } else if (filterType === 'expiry') {
         if (!['pt_expiry', 'membership_expiry'].includes(event.type)) return false;
       } else if (filterType === 'tasks') {
         if (!['task', 'admin_task', 'manager_task'].includes(event.type)) return false;
@@ -163,9 +165,10 @@ export const CalendarPage: React.FC = () => {
             className="px-3 py-2 border rounded-md bg-white dark:bg-gray-900 text-sm"
           >
             <option value="all">All Events</option>
-            <option value="expiry">Expiries Only</option>
-            <option value="tasks">Tasks Only</option>
+            <option value="followup">Follow-up Only</option>
             <option value="holidays">Holidays Only</option>
+            <option value="tasks">Tasks Only</option>
+            <option value="expiry">Expiries Only</option>
           </select>
 
           <label className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">

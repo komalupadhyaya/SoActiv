@@ -55,8 +55,8 @@ export default function EditPlanModal({ isOpen, onClose, onSuccess, plan }: Edit
         price: '0',
         currency: 'INR',
         billingCycle: 'monthly',
-        maxMembers: '50',
-        maxStaff: '3',
+        maxMembers: '0',
+        maxStaff: '0',
         isUnlimitedMembers: false,
         isUnlimitedStaff: false,
         features: {
@@ -81,8 +81,8 @@ export default function EditPlanModal({ isOpen, onClose, onSuccess, plan }: Edit
                 price: plan.price.toString(),
                 currency: plan.currency,
                 billingCycle: plan.billingCycle,
-                maxMembers: plan.maxMembers === 0 ? '50' : plan.maxMembers.toString(),
-                maxStaff: plan.maxStaff === 0 ? '3' : plan.maxStaff.toString(),
+                maxMembers: plan.maxMembers === 0 ? '0' : plan.maxMembers.toString(),
+                maxStaff: plan.maxStaff === 0 ? '0' : plan.maxStaff.toString(),
                 isUnlimitedMembers: plan.maxMembers === 0,
                 isUnlimitedStaff: plan.maxStaff === 0,
                 features: plan.features,
@@ -108,13 +108,13 @@ export default function EditPlanModal({ isOpen, onClose, onSuccess, plan }: Edit
             return;
         }
 
-        if (!formData.isUnlimitedMembers && parseInt(formData.maxMembers) <= 0) {
-            setError('Max Members must be greater than 0 or set to Unlimited');
+        if (!formData.isUnlimitedMembers && parseInt(formData.maxMembers) < 0) {
+            setError('Max Members cannot be negative');
             return;
         }
 
-        if (!formData.isUnlimitedStaff && parseInt(formData.maxStaff) <= 0) {
-            setError('Max Staff must be greater than 0 or set to Unlimited');
+        if (!formData.isUnlimitedStaff && parseInt(formData.maxStaff) < 0) {
+            setError('Max Staff cannot be negative');
             return;
         }
 
@@ -301,17 +301,34 @@ export default function EditPlanModal({ isOpen, onClose, onSuccess, plan }: Edit
                                         </label>
                                         <input
                                             type="number"
-                                            value={formData.maxMembers}
+                                            value={formData.isUnlimitedMembers ? '' : formData.maxMembers}
                                             onChange={(e) => setFormData({ ...formData, maxMembers: e.target.value })}
+                                            onFocus={() => {
+                                                if (formData.maxMembers === '0') {
+                                                    setFormData(prev => ({ ...prev, maxMembers: '' }));
+                                                }
+                                            }}
+                                            onBlur={(e) => {
+                                                const val = e.target.value === '' ? '0' : e.target.value;
+                                                setFormData(prev => ({ ...prev, maxMembers: val }));
+                                            }}
                                             disabled={formData.isUnlimitedMembers}
-                                            min="1"
+                                            placeholder={formData.isUnlimitedMembers ? 'Unlimited' : '0'}
+                                            min="0"
                                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                                         />
                                         <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mt-2 cursor-pointer select-none">
                                             <input
                                                 type="checkbox"
                                                 checked={formData.isUnlimitedMembers}
-                                                onChange={(e) => setFormData({ ...formData, isUnlimitedMembers: e.target.checked })}
+                                                onChange={(e) => {
+                                                    const checked = e.target.checked;
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        isUnlimitedMembers: checked,
+                                                        maxMembers: checked ? '' : (prev.maxMembers || '0')
+                                                    }));
+                                                }}
                                                 className="rounded"
                                             />
                                             Unlimited
@@ -324,17 +341,34 @@ export default function EditPlanModal({ isOpen, onClose, onSuccess, plan }: Edit
                                         </label>
                                         <input
                                             type="number"
-                                            value={formData.maxStaff}
+                                            value={formData.isUnlimitedStaff ? '' : formData.maxStaff}
                                             onChange={(e) => setFormData({ ...formData, maxStaff: e.target.value })}
+                                            onFocus={() => {
+                                                if (formData.maxStaff === '0') {
+                                                    setFormData(prev => ({ ...prev, maxStaff: '' }));
+                                                }
+                                            }}
+                                            onBlur={(e) => {
+                                                const val = e.target.value === '' ? '0' : e.target.value;
+                                                setFormData(prev => ({ ...prev, maxStaff: val }));
+                                            }}
                                             disabled={formData.isUnlimitedStaff}
-                                            min="1"
+                                            placeholder={formData.isUnlimitedStaff ? 'Unlimited' : '0'}
+                                            min="0"
                                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                                         />
                                         <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mt-2 cursor-pointer select-none">
                                             <input
                                                 type="checkbox"
                                                 checked={formData.isUnlimitedStaff}
-                                                onChange={(e) => setFormData({ ...formData, isUnlimitedStaff: e.target.checked })}
+                                                onChange={(e) => {
+                                                    const checked = e.target.checked;
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        isUnlimitedStaff: checked,
+                                                        maxStaff: checked ? '' : (prev.maxStaff || '0')
+                                                    }));
+                                                }}
                                                 className="rounded"
                                             />
                                             Unlimited

@@ -178,7 +178,7 @@ export const CleaningChecklistPage: React.FC = () => {
 
           {/* Interactive Checklist list */}
           <Card className="shadow-lg border border-gray-150 dark:border-gray-800 bg-white/85 dark:bg-gray-900/85 backdrop-blur-md rounded-3xl overflow-hidden">
-            <div className="p-5 border-b border-gray-150 dark:border-gray-850 flex justify-between items-center bg-gray-50/50 dark:bg-gray-850/30">
+            <div className="p-5 border-b border-gray-150 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/40">
               <h2 className="font-bold text-gray-800 dark:text-white flex items-center gap-2">
                 <Sparkles className="text-orange-500 w-5 h-5" />
                 Tasks Checklist ({completedTasks}/{totalTasks})
@@ -202,8 +202,8 @@ export const CleaningChecklistPage: React.FC = () => {
                     onClick={() => !loading && handleToggle(item._id, item.completed)}
                     className={`group flex items-center justify-between p-4 border rounded-2xl cursor-pointer select-none transition-all duration-300 transform active:scale-[0.99] ${
                       item.completed
-                        ? 'bg-emerald-50/30 dark:bg-emerald-950/10 border-emerald-200 dark:border-emerald-950/30 text-gray-500'
-                        : 'bg-white hover:bg-orange-50/10 dark:bg-gray-950/40 dark:hover:bg-gray-900/40 border-gray-200 dark:border-gray-850 text-gray-800 dark:text-gray-200 hover:border-orange-200'
+                        ? 'bg-emerald-50/30 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40 text-gray-500 dark:text-gray-400'
+                        : 'bg-white hover:bg-orange-50/10 dark:bg-gray-800 dark:hover:bg-gray-700/60 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100 hover:border-orange-200'
                     }`}
                   >
                     <div className="flex items-center gap-3.5">

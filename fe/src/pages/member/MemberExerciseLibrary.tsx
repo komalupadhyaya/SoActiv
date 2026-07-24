@@ -5,11 +5,8 @@ import {
   Video, 
   Dumbbell, 
   Compass, 
-  SlidersHorizontal,
   ChevronDown,
   ChevronUp,
-  Bookmark,
-  ExternalLink,
   Flame,
   Zap,
   Play,
@@ -21,7 +18,7 @@ import api from '../../utils/api';
 interface Exercise {
   _id: string;
   title: string;
-  category: 'Chest' | 'Back' | 'Legs' | 'Cardio' | 'Yoga';
+  category: 'Chest' | 'Back' | 'Legs' | 'Cardio' | 'Yoga' | 'Shoulder' | 'Arms';
   muscleTargeting: string;
   difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
   videoUrl: string;
@@ -125,7 +122,19 @@ export const MemberExerciseLibrary: React.FC = () => {
     return matchesSearch && matchesCategory && matchesDifficulty;
   });
 
-  const categories = ['All', 'Chest', 'Back', 'Legs', 'Cardio', 'Yoga'];
+  const categories = ['All', 'Chest', 'Back', 'Legs', 'Shoulder', 'Arms', 'Cardio', 'Yoga'];
+
+  // Calculate quick stats for all exercise video categories
+  const stats = {
+    total: exercises.length,
+    chest: exercises.filter(e => e.category === 'Chest').length,
+    back: exercises.filter(e => e.category === 'Back').length,
+    legs: exercises.filter(e => e.category === 'Legs').length,
+    shoulder: exercises.filter(e => e.category === 'Shoulder').length,
+    arms: exercises.filter(e => e.category === 'Arms').length,
+    cardio: exercises.filter(e => e.category === 'Cardio').length,
+    yoga: exercises.filter(e => e.category === 'Yoga').length,
+  };
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-300">
@@ -150,6 +159,32 @@ export const MemberExerciseLibrary: React.FC = () => {
             Perfect your form with premium HD tutorials, targeted muscle analytics, step-by-step guides, and curated plans designed directly by your personal trainer.
           </p>
         </div>
+      </div>
+
+      {/* Stats Board for All Categories */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 xl:grid-cols-8 gap-4">
+        {[
+          { label: 'Total Exercises', count: stats.total, color: 'from-blue-500 to-indigo-500', shadow: 'shadow-blue-500/10', cat: 'All' },
+          { label: 'Chest Videos', count: stats.chest, color: 'from-red-500 to-rose-500', shadow: 'shadow-red-500/10', cat: 'Chest' },
+          { label: 'Back Videos', count: stats.back, color: 'from-emerald-500 to-teal-500', shadow: 'shadow-emerald-500/10', cat: 'Back' },
+          { label: 'Legs Videos', count: stats.legs, color: 'from-amber-500 to-orange-500', shadow: 'shadow-amber-500/10', cat: 'Legs' },
+          { label: 'Shoulder Videos', count: stats.shoulder, color: 'from-sky-500 to-blue-500', shadow: 'shadow-sky-500/10', cat: 'Shoulder' },
+          { label: 'Arms Videos', count: stats.arms, color: 'from-cyan-500 to-teal-500', shadow: 'shadow-cyan-500/10', cat: 'Arms' },
+          { label: 'Cardio Videos', count: stats.cardio, color: 'from-pink-500 to-rose-500', shadow: 'shadow-pink-500/10', cat: 'Cardio' },
+          { label: 'Yoga Videos', count: stats.yoga, color: 'from-purple-500 to-fuchsia-500', shadow: 'shadow-purple-500/10', cat: 'Yoga' },
+        ].map((stat, idx) => (
+          <div 
+            key={idx} 
+            onClick={() => setActiveCategory(stat.cat)}
+            className={`p-4 bg-white dark:bg-gray-800 rounded-2xl border ${activeCategory === stat.cat ? 'border-orange-500 ring-2 ring-orange-500/20' : 'border-gray-100 dark:border-gray-700/60'} shadow-sm ${stat.shadow} flex flex-col justify-between cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200`}
+          >
+            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{stat.label}</span>
+            <div className="flex items-baseline justify-between mt-2">
+              <span className="text-2xl font-extrabold text-gray-900 dark:text-white">{stat.count}</span>
+              <span className={`w-2.5 h-2.5 rounded-full bg-gradient-to-tr ${stat.color}`} />
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Control bar: Search and Filter Tabs */}

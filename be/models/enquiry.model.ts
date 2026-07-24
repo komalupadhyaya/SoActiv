@@ -14,6 +14,7 @@ type EnquirySource =
 // Interface for the Enquiry document (single record)
 export interface IEnquiry extends Document {
   userId: Types.ObjectId; // Reference to User (optional: if linked to logged-in user who created it)
+  adminId?: Types.ObjectId; // Reference to Gym Owner Admin ID for tenant isolation
   name: string;
   phone: string;
   email: string;
@@ -45,6 +46,12 @@ const EnquirySchema = new Schema<IEnquiry, IEnquiryModel>(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: false,
+    },
+    adminId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: false,
+      index: true,
     },
     name: {
       type: String,

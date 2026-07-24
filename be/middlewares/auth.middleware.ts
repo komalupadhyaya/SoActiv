@@ -79,10 +79,12 @@ export const authMiddleware = asyncHandler(
       reqUser.gym = decoded.gym || user.gym?.toString(); // Ensure gym string is set
 
       if (user.role !== 'superadmin' && user.gym) {
-        const gym = await Gym.findById(user.gym).select('features');
-        if (gym) {
-          reqUser.gymFeatures = gym.features;
+        const gym = await Gym.findById(user.gym).select('features status deletedAt');
+        if (!gym || gym.deletedAt) {
+          console.warn(`⚠️ Auth: Gym not found or deleted for user ID: ${user._id}`);
+          throw new ApiError(HttpStatusCode.UNAUTHORIZED, "Gym account has been deleted. Session invalidated.");
         }
+        reqUser.gymFeatures = gym.features;
       }
 
       // --- Normalize Position ---

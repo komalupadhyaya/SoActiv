@@ -176,50 +176,46 @@ export function SuperAdminHeader({ onMobileMenuToggle }: SuperAdminHeaderProps) 
                                 name={user?.name || 'Super Admin'}
                                 userId={user?.id}
                                 className="w-8 h-8"
-                                forceInitials={true}
                                 customColors={user?.avatarSettings}
                             />
                         </button>
 
                         {showProfileMenu && (
-                            <>
-                                <div
-                                    className="fixed inset-0 z-10"
-                                    onClick={() => setShowProfileMenu(false)}
-                                ></div>
-                                <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-20">
-                                    <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 mb-2">
-                                        <div className="font-semibold text-gray-900 dark:text-gray-100 truncate">
-                                            {user?.name || 'Super Admin'}
-                                        </div>
-                                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
-                                            {user?.email}
-                                        </div>
-                                        <span className="inline-block mt-2 px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 rounded-full">
-                                            {user?.role === 'superadmin' ? 'Super Admin' : user?.role}
-                                        </span>
+                            <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-2 z-50">
+                                <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 mb-2">
+                                    <div className="font-semibold text-gray-900 dark:text-gray-100 truncate">
+                                        {user?.name || 'Super Admin'}
                                     </div>
-
-                                    <button
-                                        onClick={() => {
-                                            navigate('/super-admin/profile');
-                                            setShowProfileMenu(false);
-                                        }}
-                                        className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors"
-                                    >
-                                        <User className="w-4 h-4" />
-                                        My Profile
-                                    </button>
-
-                                    <button
-                                        onClick={handleLogout}
-                                        className="w-full text-left px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 transition-colors border-t border-gray-100 dark:border-gray-700 mt-2 pt-2"
-                                    >
-                                        <LogOut className="w-4 h-4" />
-                                        Logout
-                                    </button>
+                                    <div className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                                        {user?.email}
+                                    </div>
+                                    <span className="inline-block mt-2 px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 rounded-full">
+                                        {user?.role === 'superadmin' ? 'Super Admin' : user?.role}
+                                    </span>
                                 </div>
-                            </>
+
+                                <button
+                                    onClick={() => {
+                                        setShowProfileMenu(false);
+                                        navigate('/super-admin/profile');
+                                    }}
+                                    className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors cursor-pointer"
+                                >
+                                    <User className="w-4 h-4" />
+                                    My Profile
+                                </button>
+
+                                <button
+                                    onClick={async () => {
+                                        setShowProfileMenu(false);
+                                        await handleLogout();
+                                    }}
+                                    className="w-full text-left px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 transition-colors border-t border-gray-100 dark:border-gray-700 mt-2 pt-2 cursor-pointer"
+                                >
+                                    <LogOut className="w-4 h-4" />
+                                    Logout
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>

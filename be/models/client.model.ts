@@ -92,9 +92,22 @@ const clientSchema = new Schema<IClient>(
     memberManager: { type: mongoose.Schema.Types.ObjectId, ref: 'Staff' },
     trainer: { type: mongoose.Schema.Types.ObjectId, ref: 'Staff' },
 
-    attendanceId: { type: String },
-    clubId: String,
-    gstNo: { type: String, uppercase: true },
+    attendanceId: {
+      type: String,
+      trim: true,
+      set: (v: any) => (typeof v === 'string' && v.trim() !== '' ? v.trim() : undefined)
+    },
+    clubId: {
+      type: String,
+      trim: true,
+      set: (v: any) => (typeof v === 'string' && v.trim() !== '' ? v.trim() : undefined)
+    },
+    gstNo: {
+      type: String,
+      uppercase: true,
+      trim: true,
+      set: (v: any) => (typeof v === 'string' && v.trim() !== '' ? v.trim() : undefined)
+    },
 
     startDate: { type: Date, required: true },
     endDate: { type: Date, required: true },
@@ -186,3 +199,8 @@ clientSchema.pre('findOneAndUpdate', function (next) {
 });
 
 export const Client = model<IClient>('Client', clientSchema);
+
+// Safely drop legacy unique attendanceId_1 index from MongoDB collection if present
+Client.collection.dropIndex('attendanceId_1').catch(() => {
+  // Silently ignore if index does not exist
+});
