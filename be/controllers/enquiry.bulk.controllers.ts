@@ -3,6 +3,10 @@ import type { Request, Response } from 'express';
 import { Types } from 'mongoose';
 import Papa from 'papaparse';
 import Enquiry, { type IEnquiry } from '../models/enquiry.model';
+import {
+  resolveEnquiryTenantContext,
+  getEnquiryTenantFilter,
+} from './enquiry.controllers';
 
 /* -------------------- Interfaces -------------------- */
 interface BulkUploadResult {
@@ -140,11 +144,18 @@ const parseXML = (fileContent: string): Promise<ParsedEnquiryData[]> =>
 /* -------------------- Controller -------------------- */
 export const bulkUploadEnquiries = async (req: Request, res: Response): Promise<any> => {
   try {
-    const userId = (req as any).user?._id || (req as any).user?.id;
+    const reqUser = (req as any).user;
+    const userId = reqUser?._id || reqUser?.id;
 
     if (!userId) {
       return res.status(401).json({ success: false, message: 'Unauthorized: User not authenticated' });
     }
+
+    const tenant = await resolveEnquiryTenantContext(reqUser);
+    if (!tenant.gymObjectId && reqUser?.role !== 'superadmin') {
+      return res.status(400).json({ success: false, message: 'No gym associated with this account' });
+    }
+    const tenantFilter = await getEnquiryTenantFilter(reqUser, tenant);
 
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No file uploaded. Please upload a CSV or XML file.' });
@@ -176,7 +187,7 @@ export const bulkUploadEnquiries = async (req: Request, res: Response): Promise<
 
     const existingEmails = new Set<string>();
     if (emails.length > 0) {
-      const found = await Enquiry.find({ userId, email: { $in: emails } }).select('email');
+      const found = await Enquiry.find({ ...tenantFilter, email: { $in: emails } }).select('email');
       found.forEach((f) => f.email && existingEmails.add(f.email.toLowerCase()));
     }
 
@@ -209,6 +220,8 @@ export const bulkUploadEnquiries = async (req: Request, res: Response): Promise<
       try {
         const enquiry: Partial<IEnquiry> = {
           userId: new Types.ObjectId(userId),
+          adminId: tenant.adminObjectId || new Types.ObjectId(userId),
+          ...(tenant.gymObjectId ? { gymId: tenant.gymObjectId } : {}),
           name: entry.name.trim(),
           phone: entry.phone.trim(),
           email: entry.email?.trim() || '',

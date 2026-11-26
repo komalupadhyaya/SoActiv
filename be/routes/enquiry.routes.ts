@@ -102,6 +102,7 @@ enquiryRouter.put('/:id/extend-expiry', authMiddleware, asyncHandler(extendEnqui
  * @access  Private
  */
 enquiryRouter.patch('/:id/assign', authMiddleware, assignStaffToEnquiry);
+enquiryRouter.put('/:id/assign', authMiddleware, assignStaffToEnquiry);
 
 /**
  * @route   GET /api/enquiries/:id
