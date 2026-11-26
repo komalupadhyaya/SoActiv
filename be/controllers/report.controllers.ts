@@ -5,7 +5,6 @@ import { Schedule } from '../models/schedule.model';
 import { User } from '../models/user.model';
 import { Gym } from '../models/gym.model';
 import { getOwnerId } from './client.controllers';
-import { getEnquiryTenantFilter } from './enquiry.controllers';
 
 /**
  * Controller to generate DSR (Daily Sales Report) for a given Month and Year
@@ -25,9 +24,10 @@ export const getDsrReport = async (req: Request, res: Response) => {
     // Fetch all clients belonging to the owner
     const clients = await Client.find({ userId: ownerId }).lean();
 
-    // Fetch all enquiries belonging to the gym
-    const enquiryTenantFilter = await getEnquiryTenantFilter((req as any).user);
-    const enquiries = await Enquiry.find(enquiryTenantFilter).lean();
+    // Fetch all enquiries belonging to the owner
+    const enquiries = await Enquiry.find({
+      $or: [{ userId: ownerId }, { adminId: ownerId }]
+    }).lean();
 
     // Fetch schedules belonging to owner
     const schedules = await Schedule.find({ adminId: ownerId }).lean();

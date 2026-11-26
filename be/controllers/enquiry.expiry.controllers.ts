@@ -1,5 +1,4 @@
 import type { Request, Response } from 'express';
-import { Types } from 'mongoose';
 import Enquiry from '../models/enquiry.model';
 import { getEnquiryTenantFilter } from './enquiry.controllers';
 
@@ -76,13 +75,6 @@ export const extendEnquiryExpiry = async (req: Request, res: Response) => {
     const { id } = req.params;
     const { additionalDays } = req.body;
 
-    if (!id || !Types.ObjectId.isValid(id)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid enquiry ID'
-      });
-    }
-
     if (!additionalDays || additionalDays < 1) {
       return res.status(400).json({
         success: false,
@@ -125,20 +117,7 @@ export const extendEnquiryExpiry = async (req: Request, res: Response) => {
  */
 export const updateEnquiryExpiryStatus = async (req: Request, res: Response) => {
   try {
-    const reqUser = (req as any).user;
-    if (!reqUser || (reqUser.role !== 'admin' && reqUser.role !== 'superadmin')) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied: Admin privileges required'
-      });
-    }
-
-    const queryFilter =
-      reqUser.role === 'superadmin' && !reqUser.gym
-        ? {}
-        : await getEnquiryTenantFilter(reqUser);
-
-    const enquiries = await Enquiry.find(queryFilter);
+    const enquiries = await Enquiry.find();
     const today = new Date();
     let updatedCount = 0;
 

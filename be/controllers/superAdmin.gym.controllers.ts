@@ -375,13 +375,7 @@ export const deleteGym = asyncHandler(async (req: Request, res: Response) => {
         Staff.deleteMany({ $or: [{ createdBy: ownerId }, { gym: gym._id }] }),
         Client.deleteMany({ userId: ownerId }),
         Subscription.deleteMany({ gymId: gym._id }),
-        Enquiry.deleteMany({
-            $or: [
-                { gymId: gym._id },
-                ...(ownerId ? [{ adminId: ownerId }, { userId: ownerId }] : []),
-                ...(allUserIdsToDelete.length > 0 ? [{ userId: { $in: allUserIdsToDelete } }] : []),
-            ]
-        }),
+        Enquiry.deleteMany({ $or: [{ adminId: ownerId }, { userId: ownerId }] }),
         FollowUp.deleteMany({ userId: ownerId }),
         Schedule.deleteMany({ $or: [{ adminId: ownerId }, { createdBy: ownerId }] }),
         Gym.findByIdAndDelete(id)

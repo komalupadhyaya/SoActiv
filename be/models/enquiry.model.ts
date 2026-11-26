@@ -9,7 +9,6 @@ type EnquirySource = string;
 export interface IEnquiry extends Document {
   userId: Types.ObjectId; // Reference to User (optional: if linked to logged-in user who created it)
   adminId?: Types.ObjectId; // Reference to Gym Owner Admin ID for tenant isolation
-  gymId?: Types.ObjectId | null; // Reference to Gym ID for strict tenant isolation
   name: string;
   phone: string;
   email: string;
@@ -63,13 +62,6 @@ const EnquirySchema = new Schema<IEnquiry, IEnquiryModel>(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: false,
-      index: true,
-    },
-    gymId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Gym',
-      required: false,
-      default: null,
       index: true,
     },
     name: {
@@ -245,8 +237,6 @@ EnquirySchema.pre('save', function (next) {
 });
 
 // Optional: Add indexes
-EnquirySchema.index({ gymId: 1, createdAt: -1 });
-EnquirySchema.index({ gymId: 1, status: 1 });
 EnquirySchema.index({ status: 1 });
 EnquirySchema.index({ assignedStaff: 1 });
 EnquirySchema.index({ createdAt: -1 });

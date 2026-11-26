@@ -1,239 +1,47 @@
 import type { Request, Response } from 'express';
 import Enquiry, { type IEnquiry } from '../models/enquiry.model';
 import { Staff } from '../models/staff.model';
-import { Gym } from '../models/gym.model';
-import { User } from '../models/user.model';
 import { Types } from 'mongoose';
 import { createNotification } from '../utils/notification.helper';
 import { createOrUpdateEnquiryFollowUp } from './followUp.controllers';
 
-export interface EnquiryTenantContext {
-  gymObjectId: Types.ObjectId | null;
-  gymIdStr: string | null;
-  adminObjectId: Types.ObjectId | null;
-  adminIdStr: string | null;
-  gymStaffIds: Types.ObjectId[];
-  gymUserIds: Types.ObjectId[];
-}
-
-/**
- * Helper: Resolve full tenant context (gymId + owner adminId + members/staff of that gym)
- * so one gym's enquiries can never match another gym's queries.
- */
-export const resolveEnquiryTenantContext = async (reqUser: any): Promise<EnquiryTenantContext> => {
-  if (!reqUser) throw new Error('Unauthorized');
-
-  const rawUserId = reqUser.id || reqUser._id;
-  const userObjectId =
-    rawUserId && Types.ObjectId.isValid(rawUserId.toString())
-      ? new Types.ObjectId(rawUserId.toString())
-      : null;
-
-  let gymObjectId: Types.ObjectId | null =
-    reqUser.gym && Types.ObjectId.isValid(reqUser.gym.toString())
-      ? new Types.ObjectId(reqUser.gym.toString())
-      : null;
-
-  let adminObjectId: Types.ObjectId | null =
-    reqUser.adminId && Types.ObjectId.isValid(reqUser.adminId.toString())
-      ? new Types.ObjectId(reqUser.adminId.toString())
-      : null;
-
-  if (reqUser.role === 'staff' || reqUser.role === 'trainer') {
-    const staffQuery = reqUser.staffId && Types.ObjectId.isValid(reqUser.staffId.toString())
-      ? { _id: new Types.ObjectId(reqUser.staffId.toString()) }
-      : userObjectId
-        ? { userId: userObjectId, ...(gymObjectId ? { gym: gymObjectId } : {}) }
-        : null;
-
-    if (staffQuery && (!gymObjectId || !adminObjectId)) {
-      const staffDoc = await Staff.findOne(staffQuery).select('createdBy gym');
-      if (staffDoc) {
-        if (!gymObjectId && staffDoc.gym) gymObjectId = staffDoc.gym as Types.ObjectId;
-        if (!adminObjectId && staffDoc.createdBy) adminObjectId = staffDoc.createdBy as Types.ObjectId;
-      }
-    }
-  } else if (reqUser.role === 'admin') {
-    if (!adminObjectId && userObjectId) {
-      adminObjectId = userObjectId;
-    }
-    if (!gymObjectId && userObjectId) {
-      const ownedGym = await Gym.findOne({ owner: userObjectId, deletedAt: null }).select('_id');
-      if (ownedGym) gymObjectId = ownedGym._id as Types.ObjectId;
-    }
-  } else if (reqUser.role === 'superadmin') {
-    if (!adminObjectId && userObjectId) {
-      adminObjectId = userObjectId;
-    }
-  } else if (!adminObjectId && userObjectId) {
-    adminObjectId = userObjectId;
-  }
-
-  let gymStaffIds: Types.ObjectId[] = [];
-  let gymUserIds: Types.ObjectId[] = [];
-
-  if (gymObjectId) {
-    const [gymDoc, gymStaff, gymUsers] = await Promise.all([
-      Gym.findById(gymObjectId).select('owner'),
-      Staff.find({ gym: gymObjectId }).select('_id userId'),
-      User.find({ gym: gymObjectId }).select('_id'),
-    ]);
-
-    if (gymDoc?.owner && !adminObjectId) {
-      adminObjectId = gymDoc.owner as Types.ObjectId;
-    }
-
-    gymStaffIds = gymStaff.map((s) => s._id as Types.ObjectId);
-
-    const userIdSet = new Map<string, Types.ObjectId>();
-    const addUserId = (id?: Types.ObjectId | null) => {
-      if (id) userIdSet.set(id.toString(), id);
-    };
-    addUserId(gymDoc?.owner as Types.ObjectId | undefined);
-    addUserId(adminObjectId);
-    gymUsers.forEach((u) => addUserId(u._id as Types.ObjectId));
-    gymStaff.forEach((s) => addUserId(s.userId as Types.ObjectId | undefined));
-    gymUserIds = Array.from(userIdSet.values());
-  } else if (adminObjectId) {
-    const gymStaff = await Staff.find({ createdBy: adminObjectId }).select('_id userId');
-    gymStaffIds = gymStaff.map((s) => s._id as Types.ObjectId);
-    const userIdSet = new Map<string, Types.ObjectId>();
-    userIdSet.set(adminObjectId.toString(), adminObjectId);
-    gymStaff.forEach((s) => {
-      if (s.userId) userIdSet.set(s.userId.toString(), s.userId as Types.ObjectId);
-    });
-    gymUserIds = Array.from(userIdSet.values());
-  }
-
-  return {
-    gymObjectId,
-    gymIdStr: gymObjectId ? gymObjectId.toString() : null,
-    adminObjectId,
-    adminIdStr: adminObjectId ? adminObjectId.toString() : null,
-    gymStaffIds,
-    gymUserIds,
-  };
-};
 
 /**
  * Helper: Resolve Gym Admin Owner ID for any user (admin or staff)
  */
 export const getGymOwnerAdminId = async (reqUser: any): Promise<string> => {
-  const tenant = await resolveEnquiryTenantContext(reqUser);
-  if (tenant.adminIdStr) return tenant.adminIdStr;
+  if (!reqUser) throw new Error('Unauthorized');
+  if (reqUser.role === 'admin' || reqUser.role === 'superadmin') {
+    return (reqUser.adminId || reqUser.id || reqUser._id).toString();
+  }
+  if (reqUser.role === 'staff' || reqUser.role === 'trainer') {
+    if (reqUser.adminId) return reqUser.adminId.toString();
+    const staffDoc = await Staff.findOne({ userId: reqUser.id || reqUser._id }).select('createdBy');
+    if (staffDoc && staffDoc.createdBy) return staffDoc.createdBy.toString();
+  }
   return (reqUser.id || reqUser._id).toString();
 };
 
 /**
- * Helper: Build strict tenant query clause for enquiries belonging strictly to the user's gym.
+ * Helper: Build tenant query clause for enquiries matching a gym owner adminId
  */
-export const getEnquiryTenantFilter = async (
-  reqUser: any,
-  precomputedTenant?: EnquiryTenantContext
-): Promise<any> => {
-  const tenant = precomputedTenant || (await resolveEnquiryTenantContext(reqUser));
+export const getEnquiryTenantFilter = async (reqUser: any): Promise<any> => {
+  const adminIdStr = await getGymOwnerAdminId(reqUser);
+  const adminObjectId = new Types.ObjectId(adminIdStr);
 
-  if (tenant.gymObjectId) {
-    const legacyMatchClauses: any[] = [];
-    if (tenant.gymUserIds.length > 0) {
-      legacyMatchClauses.push({ adminId: { $in: tenant.gymUserIds } });
-    }
-
-    const legacyCreatorOrAssigneeClauses: any[] = [];
-    if (tenant.gymUserIds.length > 0) {
-      legacyCreatorOrAssigneeClauses.push({ userId: { $in: tenant.gymUserIds } });
-    }
-    if (tenant.gymStaffIds.length > 0) {
-      legacyCreatorOrAssigneeClauses.push({ assignedStaff: { $in: tenant.gymStaffIds } });
-    }
-
-    if (legacyCreatorOrAssigneeClauses.length > 0) {
-      // Only match legacy userId/assignedStaff if adminId is ALSO missing or belongs to this gym
-      legacyMatchClauses.push({
-        $and: [
-          {
-            $or: [
-              { adminId: { $exists: false } },
-              { adminId: null },
-              ...(tenant.gymUserIds.length > 0 ? [{ adminId: { $in: tenant.gymUserIds } }] : []),
-            ],
-          },
-          { $or: legacyCreatorOrAssigneeClauses },
-        ],
-      });
-    }
-
-    const orClauses: any[] = [{ gymId: tenant.gymObjectId }];
-    if (legacyMatchClauses.length > 0) {
-      orClauses.push({
-        $and: [
-          { $or: [{ gymId: { $exists: false } }, { gymId: null }] },
-          { $or: legacyMatchClauses },
-        ],
-      });
-    }
-
-    return { $or: orClauses };
-  }
-
-  // Fallback when user has no gymId (e.g. non-impersonating superadmin or unlinked account)
-  const fallbackClauses: any[] = [];
-  if (tenant.adminObjectId) {
-    fallbackClauses.push({ adminId: tenant.adminObjectId }, { userId: tenant.adminObjectId });
-  }
-  if (reqUser.role !== 'superadmin') {
-    if (tenant.gymUserIds.length > 0) {
-      fallbackClauses.push({ userId: { $in: tenant.gymUserIds } });
-    }
-    if (tenant.gymStaffIds.length > 0) {
-      fallbackClauses.push({ assignedStaff: { $in: tenant.gymStaffIds } });
-    }
-  }
-
-  if (fallbackClauses.length === 0) {
-    return { _id: null };
-  }
+  // Find all staff belonging to this gym
+  const gymStaff = await Staff.find({ createdBy: adminObjectId }).select('_id userId');
+  const gymStaffIds = gymStaff.map(s => s._id);
+  const gymStaffUserIds = gymStaff.map(s => s.userId).filter(Boolean);
 
   return {
-    $and: [
-      { $or: [{ gymId: { $exists: false } }, { gymId: null }] },
-      { $or: fallbackClauses },
-    ],
+    $or: [
+      { adminId: adminObjectId },
+      { userId: adminObjectId },
+      { userId: { $in: gymStaffUserIds } },
+      { assignedStaff: { $in: gymStaffIds } }
+    ]
   };
-};
-
-/**
- * Helper: Verify that a referenced Staff document belongs to the caller's gym.
- */
-const ensureStaffInTenantGym = async (
-  staffIdValue: any,
-  tenant: EnquiryTenantContext
-): Promise<{ valid: boolean; objectId: Types.ObjectId | null; message?: string }> => {
-  if (!staffIdValue) {
-    return { valid: true, objectId: null };
-  }
-  if (typeof staffIdValue !== 'string' || !Types.ObjectId.isValid(staffIdValue)) {
-    return { valid: false, objectId: null, message: 'Invalid staff ID format.' };
-  }
-
-  const staffObjectId = new Types.ObjectId(staffIdValue);
-  const staffFilter: any = { _id: staffObjectId };
-  if (tenant.gymObjectId) {
-    staffFilter.gym = tenant.gymObjectId;
-  } else if (tenant.adminObjectId) {
-    staffFilter.createdBy = tenant.adminObjectId;
-  }
-
-  const staffDoc = await Staff.findOne(staffFilter).select('_id');
-  if (!staffDoc) {
-    return {
-      valid: false,
-      objectId: null,
-      message: 'Selected staff member does not belong to your gym.',
-    };
-  }
-
-  return { valid: true, objectId: staffObjectId };
 };
 
 // POST: Create a new enquiry (user-based)
@@ -278,14 +86,7 @@ export const createEnquiry = async (req: Request, res: Response): Promise<any> =
       });
     }
 
-    const tenant = await resolveEnquiryTenantContext(req.user);
-
-    if (!tenant.gymObjectId && req.user?.role !== 'superadmin') {
-      return res.status(400).json({
-        success: false,
-        message: 'No gym associated with this account.',
-      });
-    }
+    const adminOwnerId = await getGymOwnerAdminId(req.user);
 
     // Validate required fields
     if (!name || !name.trim()) {
@@ -309,23 +110,13 @@ export const createEnquiry = async (req: Request, res: Response): Promise<any> =
       });
     }
 
-    const assignedStaffCheck = await ensureStaffInTenantGym(assignedStaff || followUpStaff, tenant);
-    if (!assignedStaffCheck.valid) {
-      return res.status(400).json({
-        success: false,
-        message: assignedStaffCheck.message,
-      });
-    }
-    const cleanAssignedStaff = assignedStaffCheck.objectId;
+    const cleanAssignedStaff = (assignedStaff || followUpStaff) && typeof (assignedStaff || followUpStaff) === 'string' && Types.ObjectId.isValid(assignedStaff || followUpStaff)
+      ? new Types.ObjectId(assignedStaff || followUpStaff)
+      : null;
 
-    const trialStaffCheck = await ensureStaffInTenantGym(trialStaff, tenant);
-    if (!trialStaffCheck.valid) {
-      return res.status(400).json({
-        success: false,
-        message: trialStaffCheck.message,
-      });
-    }
-    const cleanTrialStaff = trialStaffCheck.objectId;
+    const cleanTrialStaff = trialStaff && typeof trialStaff === 'string' && Types.ObjectId.isValid(trialStaff)
+      ? new Types.ObjectId(trialStaff)
+      : null;
 
     const parseDate = (d: any) => {
       if (!d) return null;
@@ -336,8 +127,7 @@ export const createEnquiry = async (req: Request, res: Response): Promise<any> =
     // Build the enquiry object
     const enquiryData: Partial<IEnquiry> = {
       userId: new Types.ObjectId(userId),
-      adminId: tenant.adminObjectId || new Types.ObjectId(userId),
-      ...(tenant.gymObjectId ? { gymId: tenant.gymObjectId } : {}),
+      adminId: new Types.ObjectId(adminOwnerId),
       name: name.trim(),
       phone: phone.trim(),
       email: email ? email.trim() : '',
@@ -370,10 +160,10 @@ export const createEnquiry = async (req: Request, res: Response): Promise<any> =
     const savedEnquiry = await enquiry.save();
 
     // Auto-create or schedule follow-up if assignedStaff and followUpDate are set
-    const effectiveStaff = cleanAssignedStaff ? cleanAssignedStaff.toString() : null;
+    const effectiveStaff = assignedStaff || followUpStaff;
     const effectiveFollowUpDate = followUpDateTime || followUpDate;
     if (effectiveStaff && effectiveFollowUpDate) {
-      const adminId = tenant.adminIdStr || userId;
+      let adminId = adminOwnerId;
       await createOrUpdateEnquiryFollowUp(
         (savedEnquiry._id as any).toString(),
         name,
@@ -390,7 +180,6 @@ export const createEnquiry = async (req: Request, res: Response): Promise<any> =
       await createNotification({
         recipientId: userId,
         recipientRole: 'admin',
-        ...(tenant.gymIdStr ? { gymId: tenant.gymIdStr } : {}),
         type: 'new_enquiry',
         title: '📋 New Enquiry',
         message: `New enquiry from ${name} (${phone})`,
@@ -434,36 +223,13 @@ export const createEnquiry = async (req: Request, res: Response): Promise<any> =
 // POST: Create a new enquiry from public website
 export const createPublicEnquiry = async (req: Request, res: Response): Promise<any> => {
   try {
-    const { name, phone, email, interests, comments, gymId } = req.body;
+    const { name, phone, email, interests, comments } = req.body;
 
     if (!name || !phone) {
       return res.status(400).json({
         success: false,
         message: 'Name and phone are required fields.',
       });
-    }
-
-    let resolvedGymId: Types.ObjectId | null = null;
-    let resolvedAdminId: Types.ObjectId | undefined = undefined;
-
-    if (gymId) {
-      if (typeof gymId !== 'string' || !Types.ObjectId.isValid(gymId)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid gym ID.',
-        });
-      }
-      const gymDoc = await Gym.findOne({ _id: gymId, deletedAt: null }).select('_id owner');
-      if (!gymDoc) {
-        return res.status(404).json({
-          success: false,
-          message: 'Gym not found.',
-        });
-      }
-      resolvedGymId = gymDoc._id as Types.ObjectId;
-      if (gymDoc.owner) {
-        resolvedAdminId = gymDoc.owner as Types.ObjectId;
-      }
     }
 
     const enquiryData: Partial<IEnquiry> = {
@@ -475,8 +241,6 @@ export const createPublicEnquiry = async (req: Request, res: Response): Promise<
       interests: interests || '',
       comments: comments || '',
       assignedStaff: null,
-      gymId: resolvedGymId,
-      adminId: resolvedAdminId,
       userId: undefined, // Explicitly no user ID for public
     };
 
@@ -515,8 +279,7 @@ export const getEnquiries = async (req: Request, res: Response): Promise<any> =>
       });
     }
 
-    const tenant = await resolveEnquiryTenantContext(currentUser);
-    const tenantFilter = await getEnquiryTenantFilter(currentUser, tenant);
+    const tenantFilter = await getEnquiryTenantFilter(currentUser);
     const filter: any = { ...tenantFilter };
 
     // 🔒 Access Control Logic
@@ -524,10 +287,7 @@ export const getEnquiries = async (req: Request, res: Response): Promise<any> =>
       // Admins see all enquiries in their gym (tenantFilter applied)
     } else if (currentUser.role === 'staff' || currentUser.role === 'trainer') {
       // Staff see only assigned enquiries unless manager or receptionist
-      const staff = await Staff.findOne({
-        ...(currentUser.staffId ? { _id: currentUser.staffId } : { userId: currentUser.id }),
-        ...(tenant.gymObjectId ? { gym: tenant.gymObjectId } : {}),
-      });
+      const staff = await Staff.findOne({ userId: currentUser.id });
       if (!staff) {
         return res.status(403).json({ success: false, message: 'Staff profile not found' });
       }
@@ -706,16 +466,8 @@ export const updateEnquiry = async (req: Request, res: Response): Promise<any> =
     const updateData: Partial<IEnquiry> = {};
 
     const currentUser = req.user;
-    const tenant = await resolveEnquiryTenantContext(currentUser);
-    const tenantFilter = await getEnquiryTenantFilter(currentUser, tenant);
-
     const isStaff = currentUser?.role === 'staff' || currentUser?.role === 'trainer';
-    const staffProfile = isStaff
-      ? await Staff.findOne({
-          ...(currentUser?.staffId ? { _id: currentUser.staffId } : { userId: currentUser?.id }),
-          ...(tenant.gymObjectId ? { gym: tenant.gymObjectId } : {}),
-        })
-      : null;
+    const staffProfile = isStaff ? await Staff.findOne({ userId: currentUser?.id }) : null;
 
     // Role-based field access:
     //  - Sales/Trainer staff: can ONLY update status + comments
@@ -727,8 +479,8 @@ export const updateEnquiry = async (req: Request, res: Response): Promise<any> =
       if (status) updateData.status = status;
       if (comments) updateData.comments = comments;
     } else if (isStaff && position === 'receptionist') {
-      // Receptionist: can only edit walk-in leads — fetch current enquiry within caller's gym tenant
-      const existingEnquiry = await Enquiry.findOne({ _id: id, ...tenantFilter }).select('source enquiryType');
+      // Receptionist: can only edit walk-in leads — fetch current enquiry to check source or enquiryType
+      const existingEnquiry = await Enquiry.findById(id).select('source enquiryType');
       if (!existingEnquiry) {
         return res.status(404).json({ success: false, message: 'Enquiry not found.' });
       }
@@ -754,11 +506,7 @@ export const updateEnquiry = async (req: Request, res: Response): Promise<any> =
       if (trialDateTime !== undefined) updateData.trialDateTime = trialDateTime ? new Date(trialDateTime) : null;
       if (trialService !== undefined) updateData.trialService = trialService;
       if (trialStaff !== undefined) {
-        const trialStaffCheck = await ensureStaffInTenantGym(trialStaff, tenant);
-        if (!trialStaffCheck.valid) {
-          return res.status(400).json({ success: false, message: trialStaffCheck.message });
-        }
-        updateData.trialStaff = trialStaffCheck.objectId;
+        updateData.trialStaff = trialStaff && Types.ObjectId.isValid(trialStaff) ? new Types.ObjectId(trialStaff) : null;
       }
       if (trialClassDate !== undefined) updateData.trialClassDate = trialClassDate ? new Date(trialClassDate) : null;
       if (trialClass !== undefined) updateData.trialClass = trialClass;
@@ -781,11 +529,7 @@ export const updateEnquiry = async (req: Request, res: Response): Promise<any> =
       if (trialDateTime !== undefined) updateData.trialDateTime = trialDateTime ? new Date(trialDateTime) : null;
       if (trialService !== undefined) updateData.trialService = trialService;
       if (trialStaff !== undefined) {
-        const trialStaffCheck = await ensureStaffInTenantGym(trialStaff, tenant);
-        if (!trialStaffCheck.valid) {
-          return res.status(400).json({ success: false, message: trialStaffCheck.message });
-        }
-        updateData.trialStaff = trialStaffCheck.objectId;
+        updateData.trialStaff = trialStaff && Types.ObjectId.isValid(trialStaff) ? new Types.ObjectId(trialStaff) : null;
       }
       if (trialClassDate !== undefined) updateData.trialClassDate = trialClassDate ? new Date(trialClassDate) : null;
       if (trialClass !== undefined) updateData.trialClass = trialClass;
@@ -806,14 +550,16 @@ export const updateEnquiry = async (req: Request, res: Response): Promise<any> =
 
     const staffToAssign = assignedStaff !== undefined ? assignedStaff : followUpStaff;
     if (staffToAssign !== undefined) {
-      const assignedCheck = await ensureStaffInTenantGym(staffToAssign, tenant);
-      if (!assignedCheck.valid) {
+      if (!staffToAssign) {
+        updateData.assignedStaff = null;
+      } else if (Types.ObjectId.isValid(staffToAssign)) {
+        updateData.assignedStaff = new Types.ObjectId(staffToAssign);
+      } else {
         return res.status(400).json({
           success: false,
-          message: assignedCheck.message,
+          message: 'Invalid staff ID format.',
         });
       }
-      updateData.assignedStaff = assignedCheck.objectId;
     }
 
     const effectiveDate = followUpDateTime || followUpDate;
@@ -828,10 +574,7 @@ export const updateEnquiry = async (req: Request, res: Response): Promise<any> =
       updateData.followUpDate = date;
     }
 
-    if (tenant.gymObjectId) {
-      updateData.gymId = tenant.gymObjectId;
-    }
-
+    const tenantFilter = await getEnquiryTenantFilter(req.user);
     const updatedEnquiry = await Enquiry.findOneAndUpdate(
       { _id: id, ...tenantFilter },
       updateData,
@@ -848,7 +591,13 @@ export const updateEnquiry = async (req: Request, res: Response): Promise<any> =
     }
 
     // Sync follow-up task
-    const adminId = tenant.adminIdStr || currentUser?.id || '';
+    let adminId = currentUser?.id || '';
+    if (currentUser?.role === 'staff') {
+      const creatorDoc = await Staff.findOne({ userId: currentUser.id }).select('createdBy');
+      if (creatorDoc) {
+        adminId = creatorDoc.createdBy.toString();
+      }
+    }
 
     // Format a rich note that includes the lead status so it's visible on follow-up views
     const leadStatus = updatedEnquiry.status;
@@ -953,7 +702,7 @@ export const getEnquiriesByUser = async (req: Request, res: Response): Promise<a
     }
 
     const tenantFilter = await getEnquiryTenantFilter(req.user);
-    const enquiries = await Enquiry.find({ $and: [tenantFilter, { userId: new Types.ObjectId(userId) }] })
+    const enquiries = await Enquiry.find({ userId: new Types.ObjectId(userId), ...tenantFilter })
       .populate('assignedStaff', 'name email')
       .sort({ createdAt: -1 });
 
@@ -998,22 +747,10 @@ export const assignStaffToEnquiry = async (req: Request, res: Response): Promise
       });
     }
 
-    const tenant = await resolveEnquiryTenantContext(req.user);
-    const staffCheck = await ensureStaffInTenantGym(staffId, tenant);
-    if (!staffCheck.valid || !staffCheck.objectId) {
-      return res.status(400).json({
-        success: false,
-        message: staffCheck.message || 'Selected staff member does not belong to your gym.',
-      });
-    }
-
-    const tenantFilter = await getEnquiryTenantFilter(req.user, tenant);
+    const tenantFilter = await getEnquiryTenantFilter(req.user);
     const enquiry = await Enquiry.findOneAndUpdate(
       { _id: id, ...tenantFilter },
-      {
-        assignedStaff: staffCheck.objectId,
-        ...(tenant.gymObjectId ? { gymId: tenant.gymObjectId } : {}),
-      },
+      { assignedStaff: new Types.ObjectId(staffId) },
       { new: true, runValidators: true }
     ).populate('assignedStaff', 'name email role');
 
@@ -1035,79 +772,5 @@ export const assignStaffToEnquiry = async (req: Request, res: Response): Promise
       success: false,
       message: 'Server error. Could not assign staff.',
     });
-  }
-};
-
-/**
- * Idempotent startup helper: Backfill missing gymId on legacy Enquiry documents
- * based on their adminId, creator userId, or assignedStaff so strict gymId isolation applies to older records too.
- */
-export const backfillEnquiryGymIds = async (): Promise<void> => {
-  try {
-    const legacyEnquiries = await Enquiry.find({
-      $and: [
-        { $or: [{ gymId: { $exists: false } }, { gymId: null }] },
-        {
-          $or: [
-            { adminId: { $exists: true, $ne: null } },
-            { userId: { $exists: true, $ne: null } },
-            { assignedStaff: { $exists: true, $ne: null } },
-          ],
-        },
-      ],
-    }).select('_id adminId userId assignedStaff');
-
-    if (legacyEnquiries.length === 0) return;
-
-    let updated = 0;
-    for (const enq of legacyEnquiries) {
-      let resolvedGymId: Types.ObjectId | null = null;
-      let resolvedAdminId: Types.ObjectId | null = (enq.adminId as Types.ObjectId | undefined) || null;
-
-      if (enq.adminId) {
-        const adminUser = await User.findById(enq.adminId).select('gym');
-        if (adminUser?.gym) {
-          resolvedGymId = adminUser.gym as Types.ObjectId;
-        } else {
-          const gymDoc = await Gym.findOne({ owner: enq.adminId }).select('_id');
-          if (gymDoc) resolvedGymId = gymDoc._id as Types.ObjectId;
-        }
-      }
-
-      if (!resolvedGymId && enq.userId) {
-        const creator = await User.findById(enq.userId).select('gym role');
-        if (creator?.gym) {
-          resolvedGymId = creator.gym as Types.ObjectId;
-        }
-      }
-
-      if (!resolvedGymId && enq.assignedStaff) {
-        const staffDoc = await Staff.findById(enq.assignedStaff).select('gym createdBy');
-        if (staffDoc?.gym) {
-          resolvedGymId = staffDoc.gym as Types.ObjectId;
-        }
-        if (!resolvedAdminId && staffDoc?.createdBy) {
-          resolvedAdminId = staffDoc.createdBy as Types.ObjectId;
-        }
-      }
-
-      if (resolvedGymId) {
-        const updateSet: any = { gymId: resolvedGymId };
-        if (!enq.adminId && resolvedAdminId) {
-          updateSet.adminId = resolvedAdminId;
-        }
-        await Enquiry.updateOne(
-          { _id: enq._id, $or: [{ gymId: { $exists: false } }, { gymId: null }] },
-          { $set: updateSet }
-        );
-        updated++;
-      }
-    }
-
-    if (updated > 0) {
-      console.log(`✅ Backfilled gymId on ${updated} legacy enquiry record(s)`);
-    }
-  } catch (err) {
-    console.error('⚠️ Error backfilling enquiry gymIds:', err);
   }
 };

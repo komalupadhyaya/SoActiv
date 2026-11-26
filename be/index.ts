@@ -33,7 +33,6 @@ import dietPlanRouter from "./routes/dietPlan.routes";
 import exerciseRouter from "./routes/exercise.routes";
 import notificationRouter from "./routes/notification.routes";
 import Enquiry from './models/enquiry.model';
-import { backfillEnquiryGymIds } from './controllers/enquiry.controllers';
 import Contact from './models/contact.model';
 import { Notification } from './models/notification.model';
 import cleaningRouter from "./routes/cleaning.routes";
@@ -140,8 +139,6 @@ connectDB()
       BiometricUser.syncIndexes(),
       BiometricEventLog.syncIndexes(),
     ]);
-
-    await backfillEnquiryGymIds();
 
     const server = http.createServer(app);
     const io = new IOServer(server, {

@@ -1,7 +1,6 @@
 // src/hooks/useEnquiry.ts
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '../contexts/ToastContext';
-import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 
 export interface IEnquiry {
@@ -78,15 +77,27 @@ export interface BulkUploadResult {
   };
 }
 
+// Extract user role from wherever it's stored (e.g., auth context, or localStorage)
+// In real app, this should come from auth context or JWT
+const getCurrentUserRole = (): string => {
+  const user = localStorage.getItem('user');
+  if (!user) return 'user';
+  try {
+    const parsed = JSON.parse(user);
+    return parsed.role || 'user';
+  } catch {
+    return 'user';
+  }
+};
+
 export const useEnquiry = () => {
   const [enquiries, setEnquiries] = useState<IEnquiry[]>([]);
   const [myEnquiries, setMyEnquiries] = useState<IEnquiry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { addToast } = useToast();
-  const { user } = useAuth();
 
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = getCurrentUserRole() === 'admin';
 
   // Fetch all enquiries
   const refreshEnquiries = useCallback(async () => {
@@ -330,18 +341,12 @@ export const useEnquiry = () => {
 
 
   useEffect(() => {
-    if (!user?.id) {
-      setEnquiries([]);
-      setMyEnquiries([]);
-      return;
-    }
-
     if (isAdmin) {
       refreshEnquiries();
     } else {
       fetchMyEnquiries();
     }
-  }, [user?.id, user?.gym, isAdmin, refreshEnquiries, fetchMyEnquiries]);
+  }, [isAdmin, refreshEnquiries, fetchMyEnquiries]);
 
   return {
     enquiries,
