@@ -1,7 +1,13 @@
 import { useState, useCallback } from 'react';
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+const baseApi = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+const API_BASE_URL = baseApi.endsWith('/api/v1') ? baseApi : `${baseApi}/api/v1`;
+
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
 export interface ServiceVariation {
   _id: string;
@@ -62,14 +68,13 @@ export const useServices = () => {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
       const params: Record<string, string | boolean> = {};
       if (search) params.search = search;
       if (activeOnly) params.activeOnly = true;
 
       const response = await axios.get(`${API_BASE_URL}/services`, {
         params,
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: getAuthHeaders(),
         withCredentials: true,
       });
 
@@ -86,9 +91,8 @@ export const useServices = () => {
 
   const getServiceById = async (id: string) => {
     try {
-      const token = localStorage.getItem('token');
       const response = await axios.get(`${API_BASE_URL}/services/${id}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: getAuthHeaders(),
         withCredentials: true,
       });
       if (response.data.success) {
@@ -102,9 +106,8 @@ export const useServices = () => {
 
   const createService = async (data: Partial<ServiceItem>) => {
     try {
-      const token = localStorage.getItem('token');
       const response = await axios.post(`${API_BASE_URL}/services`, data, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: getAuthHeaders(),
         withCredentials: true,
       });
       if (response.data.success) {
@@ -118,9 +121,8 @@ export const useServices = () => {
 
   const updateService = async (id: string, data: Partial<ServiceItem>) => {
     try {
-      const token = localStorage.getItem('token');
       const response = await axios.put(`${API_BASE_URL}/services/${id}`, data, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: getAuthHeaders(),
         withCredentials: true,
       });
       if (response.data.success) {
@@ -134,9 +136,8 @@ export const useServices = () => {
 
   const deleteService = async (id: string) => {
     try {
-      const token = localStorage.getItem('token');
       const response = await axios.delete(`${API_BASE_URL}/services/${id}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: getAuthHeaders(),
         withCredentials: true,
       });
       if (response.data.success) {
@@ -156,9 +157,8 @@ export const useServices = () => {
         prev.map((s) => (s._id === id ? { ...s, promote: !s.promote } : s))
       );
 
-      const token = localStorage.getItem('token');
       await axios.patch(`${API_BASE_URL}/services/${id}/toggle-promote`, {}, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: getAuthHeaders(),
         withCredentials: true,
       });
       return { success: true };
@@ -175,9 +175,8 @@ export const useServices = () => {
         prev.map((s) => (s._id === id ? { ...s, status: !s.status } : s))
       );
 
-      const token = localStorage.getItem('token');
       await axios.patch(`${API_BASE_URL}/services/${id}/toggle-status`, {}, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: getAuthHeaders(),
         withCredentials: true,
       });
       return { success: true };
@@ -189,9 +188,8 @@ export const useServices = () => {
 
   const addVariation = async (serviceId: string, data: Partial<ServiceVariation>) => {
     try {
-      const token = localStorage.getItem('token');
       const response = await axios.post(`${API_BASE_URL}/services/${serviceId}/variations`, data, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: getAuthHeaders(),
         withCredentials: true,
       });
       if (response.data.success) {
@@ -206,12 +204,11 @@ export const useServices = () => {
 
   const toggleVariationStatus = async (serviceId: string, variationId: string) => {
     try {
-      const token = localStorage.getItem('token');
       const response = await axios.patch(
         `${API_BASE_URL}/services/${serviceId}/variations/${variationId}/toggle-status`,
         {},
         {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          headers: getAuthHeaders(),
           withCredentials: true,
         }
       );
@@ -227,9 +224,8 @@ export const useServices = () => {
 
   const deleteVariation = async (serviceId: string, variationId: string) => {
     try {
-      const token = localStorage.getItem('token');
       const response = await axios.delete(`${API_BASE_URL}/services/${serviceId}/variations/${variationId}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: getAuthHeaders(),
         withCredentials: true,
       });
       if (response.data.success) {

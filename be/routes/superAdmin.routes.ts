@@ -65,7 +65,12 @@ router.post("/auth/login", asyncHandler(async (req, res) => {
     }
 
     // Find user
-    const user = await User.findOne({ email });
+    const normalizedEmail = String(email).trim().toLowerCase();
+    let user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+        const escapedEmail = normalizedEmail.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        user = await User.findOne({ email: { $regex: `^${escapedEmail}$`, $options: "i" } });
+    }
     if (!user) {
         throw new ApiError(HttpStatusCode.UNAUTHORIZED, "Invalid credentials");
     }

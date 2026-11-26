@@ -26,8 +26,10 @@ export const createGym = asyncHandler(async (req: Request, res: Response) => {
         throw new ApiError(HttpStatusCode.BAD_REQUEST, "Name, owner email, owner name, and password are required");
     }
 
+    const normalizedOwnerEmail = String(ownerEmail).trim().toLowerCase();
+
     // Check if owner email already exists
-    const existingUser = await User.findOne({ email: ownerEmail });
+    const existingUser = await User.findOne({ email: normalizedOwnerEmail });
     if (existingUser) {
         throw new ApiError(HttpStatusCode.CONFLICT, "User with this email already exists");
     }
@@ -41,7 +43,7 @@ export const createGym = asyncHandler(async (req: Request, res: Response) => {
         const gymOwner = await User.create({
             _id: ownerId,
             fullname: ownerName,
-            email: ownerEmail,
+            email: normalizedOwnerEmail,
             password: ownerPassword,
             role: "admin",
             avatar: "default-avatar.png",

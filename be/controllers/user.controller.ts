@@ -54,8 +54,10 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
     throw new apiError(HttpStatusCode.BAD_REQUEST, "Gym name is required for registration");
   }
 
+  const normalizedEmail = String(email).trim().toLowerCase();
+
   // Check if user already exists
-  const existedUser = await User.findOne({ email });
+  const existedUser = await User.findOne({ email: normalizedEmail });
   if (existedUser) {
     throw new apiError(HttpStatusCode.CONFLICT, "Email already in use");
   }
@@ -89,7 +91,7 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
     const user = await User.create({
       _id: userId,
       fullname,
-      email,
+      email: normalizedEmail,
       phone,
       password,
       avatar: fullname.charAt(0).toUpperCase(),
@@ -145,7 +147,12 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
     throw new apiError(HttpStatusCode.BAD_REQUEST, "Email and password are required");
   }
 
-  const user = await User.findOne({ email });
+  const normalizedEmail = String(email).trim().toLowerCase();
+  let user = await User.findOne({ email: normalizedEmail });
+  if (!user) {
+    const escapedEmail = normalizedEmail.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    user = await User.findOne({ email: { $regex: `^${escapedEmail}$`, $options: "i" } });
+  }
   if (!user) {
     throw new apiError(HttpStatusCode.UNAUTHORIZED, "Invalid credentials");
   }
@@ -232,7 +239,8 @@ const googleSignIn = asyncHandler(async (req: Request, res: Response) => {
     throw new apiError(HttpStatusCode.UNAUTHORIZED, "Invalid Google user data");
   }
 
-  let user = await User.findOne({ email });
+  const normalizedEmail = String(email).trim().toLowerCase();
+  let user = await User.findOne({ email: normalizedEmail });
   if (!user) {
     if (!gymId) {
       throw new apiError(HttpStatusCode.BAD_REQUEST, "gymId required for new Google users");
@@ -240,7 +248,7 @@ const googleSignIn = asyncHandler(async (req: Request, res: Response) => {
 
     user = await User.create({
       fullname: name,
-      email,
+      email: normalizedEmail,
       avatar: picture || name.charAt(0).toUpperCase(),
       role: "user",
       gym: new Types.ObjectId(gymId),
@@ -356,12 +364,15 @@ const updateUserProfile = asyncHandler(async (req: Request, res: Response) => {
     };
   }
 
-  if (email && email !== user.email) {
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      throw new apiError(HttpStatusCode.CONFLICT, "Email already in use");
+  if (email) {
+    const normalizedEmail = String(email).trim().toLowerCase();
+    if (normalizedEmail !== user.email) {
+      const existingUser = await User.findOne({ email: normalizedEmail });
+      if (existingUser) {
+        throw new apiError(HttpStatusCode.CONFLICT, "Email already in use");
+      }
+      user.email = normalizedEmail;
     }
-    user.email = email;
   }
 
   await user.save();

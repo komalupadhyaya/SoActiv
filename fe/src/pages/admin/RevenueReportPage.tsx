@@ -38,8 +38,10 @@ export const RevenueReportPage: React.FC = () => {
   // Fetch from API with fallback to client-side computation from valid database records
   const fetchRevenueData = async () => {
     setLoading(true);
-    const baseApi = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
-    const token = localStorage.getItem('token');
+    const baseApi = (import.meta.env.VITE_API_URL || 'http://localhost:8000')
+      .replace(/\/$/, '')
+      .replace(/\/api\/v1$/, '');
+    const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
     try {

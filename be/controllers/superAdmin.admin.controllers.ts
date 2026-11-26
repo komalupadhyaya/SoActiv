@@ -19,8 +19,10 @@ export const createAdmin = asyncHandler(async (req: Request, res: Response) => {
         throw new ApiError(HttpStatusCode.BAD_REQUEST, "Name, email, password, and gym ID are required");
     }
 
+    const normalizedEmail = String(email).trim().toLowerCase();
+
     // Check if email already exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
         throw new ApiError(HttpStatusCode.CONFLICT, "User with this email already exists");
     }
@@ -68,7 +70,7 @@ export const createAdmin = asyncHandler(async (req: Request, res: Response) => {
     // Create admin user
     const admin = await User.create({
         fullname,
-        email,
+        email: normalizedEmail,
         password,
         phone,
         role: "admin",
@@ -176,12 +178,13 @@ export const updateAdmin = asyncHandler(async (req: Request, res: Response) => {
     if (fullname) admin.fullname = fullname;
     if (phone !== undefined) admin.phone = phone;
     if (email) {
+        const normalizedUpdateEmail = String(email).trim().toLowerCase();
         // Check if new email already exists
-        const existingUser = await User.findOne({ email, _id: { $ne: id } });
+        const existingUser = await User.findOne({ email: normalizedUpdateEmail, _id: { $ne: id } });
         if (existingUser) {
             throw new ApiError(HttpStatusCode.CONFLICT, "Email already in use");
         }
-        admin.email = email;
+        admin.email = normalizedUpdateEmail;
     }
 
     await admin.save();
