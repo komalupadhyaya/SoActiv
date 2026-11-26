@@ -1,7 +1,9 @@
 // server.ts
 import dns from "dns";
-// Bypass router DNS lookup failures for MongoDB Atlas SRV records
-dns.setServers(["8.8.8.8", "8.8.4.4"]);
+// Bypass router DNS lookup failures for MongoDB Atlas SRV records in local dev
+if (process.env.NODE_ENV !== "production" || process.env.FORCE_PUBLIC_DNS === "true") {
+  dns.setServers(["8.8.8.8", "8.8.4.4"]);
+}
 
 import express from "express";
 import path from "path";
@@ -40,25 +42,72 @@ import gymClassRouter from "./routes/gymClass.routes";
 import classSessionRouter from "./routes/classSession.routes";
 import classBookingRouter from "./routes/classBooking.routes";
 import classAttendanceRouter from "./routes/classAttendance.routes";
+import serviceRouter from "./routes/service.routes";
+import staffTargetRouter from "./routes/staffTarget.routes";
+import biometricRouter from "./biometric/biometric.routes";
+import reportRouter from "./routes/report.routes";
+import esslRouter from "./biometric/essl.routes";
 import { GymClass } from "./models/gymClass.model";
 import { ClassSession } from "./models/classSession.model";
 import { ClassBooking } from "./models/classBooking.model";
+import { Service } from "./models/service.model";
 import { ClassAttendance } from "./models/classAttendance.model";
+import { BiometricDevice } from "./models/biometricDevice.model";
+import { BiometricUser } from "./models/biometricUser.model";
+import { BiometricEventLog } from "./models/biometricEventLog.model";
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 8000;
 
+app.set("trust proxy", 1);
+app.disable("x-powered-by");
+
+const configuredOrigins = (process.env.CORS_ORIGIN || "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+const devOrigins =
+  process.env.NODE_ENV !== "production"
+    ? ["http://localhost:5173", "http://localhost:3000"]
+    : [];
+
+const allowedOrigins = Array.from(new Set([...configuredOrigins, ...devOrigins]));
+
+const isOriginAllowed = (origin?: string): boolean => {
+  if (!origin) return true; // Health checks, curl, biometric devices, server-to-server
+  if (allowedOrigins.includes(origin)) return true;
+  if (process.env.NODE_ENV !== "production" && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+    return true;
+  }
+  return false;
+};
+
+// Security headers
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  next();
+});
+
 // Middleware
-app.use(express.json({ limit: "20kb" }));
-app.use(express.urlencoded({ extended: true, limit: "20kb" }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Serve uploaded files statically
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || `http://localhost:5173`,
+    origin: (origin, callback) => {
+      if (isOriginAllowed(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${origin} not allowed by CORS`));
+      }
+    },
     credentials: true,
   })
 );
@@ -85,12 +134,22 @@ connectDB()
       ClassSession.syncIndexes(),
       ClassBooking.syncIndexes(),
       ClassAttendance.syncIndexes(),
+      Service.syncIndexes(),
+      BiometricDevice.syncIndexes(),
+      BiometricUser.syncIndexes(),
+      BiometricEventLog.syncIndexes(),
     ]);
 
     const server = http.createServer(app);
     const io = new IOServer(server, {
       cors: {
-        origin: process.env.CORS_ORIGIN || `http://localhost:5173`,
+        origin: (origin, callback) => {
+          if (isOriginAllowed(origin)) {
+            callback(null, true);
+          } else {
+            callback(new Error(`Origin ${origin} not allowed by CORS`));
+          }
+        },
         methods: ["GET", "POST"],
         credentials: true,
       },
@@ -107,6 +166,7 @@ connectDB()
     app.use("/api/v1/user", userRouter);
     app.use("/api/v1/staff", staffRouter);
     app.use("/api/v1/enquiry", enquiry_router);
+    app.use("/api/v1/enquiries", enquiry_router);
     app.use("/api/v1/client", clientRouter);
     app.use("/api/v1/staff-attendance", staffAttendance_router);
     app.use("/api/v1/follow-up", followUpRouter);
@@ -126,6 +186,15 @@ connectDB()
     app.use("/api/v1/class-sessions", classSessionRouter);
     app.use("/api/v1/class-bookings", classBookingRouter);
     app.use("/api/v1/class-attendance", classAttendanceRouter);
+    app.use("/api/v1/services", serviceRouter);
+    app.use("/api/v1/staff-targets", staffTargetRouter);
+    app.use("/api/v1/biometric", biometricRouter);
+    app.use("/api/v1/reports", reportRouter);
+
+    // ── eSSL ADMS Push Protocol ──────────────────────────────────────────────
+    // Device ADMS/Cloud setting: Server URL = http://<server-ip>:<PORT>/iclock/cdata
+    // The device pushes attendance data here. No auth required (device-initiated).
+    app.use("/iclock", esslRouter);
 
     // Global Error Handler
     app.use(

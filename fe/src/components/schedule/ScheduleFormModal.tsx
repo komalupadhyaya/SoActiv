@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../contexts/AuthContext';
@@ -48,52 +48,57 @@ export const ScheduleFormModal: React.FC<ScheduleFormModalProps> = ({
     const [submitting, setSubmitting] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [holidayBlock, setHolidayBlock] = useState<{ blocked: boolean; message?: string; type?: string; startTime?: string; endTime?: string }>({ blocked: false });
+    const prevIsOpenRef = useRef(false);
 
     const isEditMode = !!initialData;
     const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
     const isManager = user?.position === 'manager';
 
-    // Fetch staff and populate form
+    // Fetch staff and populate form only when modal opens or initialData changes
     useEffect(() => {
-        if (isOpen && user) {
-            fetchAllStaff();
+        if (isOpen) {
+            const isOpening = !prevIsOpenRef.current;
+            if (isOpening || initialData) {
+                fetchAllStaff();
 
-            if (initialData) {
-                // Populate form for editing
-                let assignedIds: string[] = [];
-                if (initialData.assignedTo) {
-                    assignedIds = initialData.assignedTo.map(s => s._id);
+                if (initialData) {
+                    // Populate form for editing
+                    let assignedIds: string[] = [];
+                    if (initialData.assignedTo) {
+                        assignedIds = initialData.assignedTo.map(s => s._id);
+                    }
+
+                    setFormData({
+                        title: initialData.title || '',
+                        description: initialData.description || '',
+                        scheduledDate: initialData.scheduledDate ? new Date(initialData.scheduledDate).toISOString().split('T')[0] : '',
+                        startTime: initialData.startTime || initialData.scheduledTime || '',
+                        endTime: initialData.endTime || '',
+                        scheduledTime: initialData.scheduledTime || '',
+                        type: initialData.type,
+                        holidayType: (initialData as any).holidayType || 'full_day',
+                        assignedTo: assignedIds,
+                    });
+                } else {
+                    // Reset for creation (with defaultDate if available)
+                    setFormData({
+                        title: '',
+                        description: '',
+                        scheduledDate: defaultDate || '',
+                        startTime: '',
+                        endTime: '',
+                        scheduledTime: '',
+                        type: 'task',
+                        holidayType: 'full_day',
+                        assignedTo: [],
+                    });
                 }
-
-                setFormData({
-                    title: initialData.title || '',
-                    description: initialData.description || '',
-                    scheduledDate: initialData.scheduledDate ? new Date(initialData.scheduledDate).toISOString().split('T')[0] : '',
-                    startTime: initialData.startTime || initialData.scheduledTime || '',
-                    endTime: initialData.endTime || '',
-                    scheduledTime: initialData.scheduledTime || '',
-                    type: initialData.type,
-                    holidayType: (initialData as any).holidayType || 'full_day',
-                    assignedTo: assignedIds,
-                });
-            } else {
-                // Reset for creation (with defaultDate if available)
-                setFormData({
-                    title: '',
-                    description: '',
-                    scheduledDate: defaultDate || '',
-                    startTime: '',
-                    endTime: '',
-                    scheduledTime: '',
-                    type: 'task',
-                    holidayType: 'full_day',
-                    assignedTo: [],
-                });
+                setErrors({});
+                setHolidayBlock({ blocked: false });
             }
-            setErrors({});
-            setHolidayBlock({ blocked: false });
         }
-    }, [isOpen, user, initialData, defaultDate]);
+        prevIsOpenRef.current = isOpen;
+    }, [isOpen, initialData, defaultDate]);
 
     // Check for holiday conflicts when date changes (and user is creating a NON-holiday event)
     // Check for holiday conflicts when date changes (and user is creating a NON-holiday event)

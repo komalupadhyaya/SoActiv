@@ -34,6 +34,14 @@ const CATEGORY_LABELS: Record<string, string> = {
   other: 'Other Inquiry',
 };
 
+const MAX_SUPPORT_WORDS = 100;
+
+const countWords = (text: string): number => {
+  const trimmed = text.trim();
+  if (!trimmed) return 0;
+  return trimmed.split(/\s+/).filter(Boolean).length;
+};
+
 export const MemberSupportPage: React.FC = () => {
   const { user } = useAuth();
   const { sendSupportMessage, fetchMySupportMessages, messages, loading } = useSupport();
@@ -47,6 +55,9 @@ export const MemberSupportPage: React.FC = () => {
     category: 'support',
     message: ''
   });
+
+  const wordCount = useMemo(() => countWords(formData.message), [formData.message]);
+  const isWordLimitExceeded = wordCount > MAX_SUPPORT_WORDS;
 
   useEffect(() => {
     loadData();
@@ -65,10 +76,11 @@ export const MemberSupportPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.message.trim()) return;
+    if (!formData.message.trim() || isWordLimitExceeded) return;
 
     const success = await sendSupportMessage({
       ...formData,
+      message: formData.message.trim(),
       gymId: user?.gym
     });
     if (success) {
@@ -217,15 +229,38 @@ export const MemberSupportPage: React.FC = () => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-700 dark:text-gray-300">Message <span className="text-red-500">*</span></label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-gray-700 dark:text-gray-300">Message <span className="text-red-500">*</span></label>
+                  <span
+                    className={`text-[11px] font-semibold transition-colors ${
+                      isWordLimitExceeded
+                        ? 'text-red-600 dark:text-red-400'
+                        : wordCount >= MAX_SUPPORT_WORDS * 0.8
+                        ? 'text-amber-600 dark:text-amber-400'
+                        : 'text-gray-400 dark:text-gray-500'
+                    }`}
+                  >
+                    {wordCount} / {MAX_SUPPORT_WORDS} words
+                  </span>
+                </div>
                 <textarea
                   rows={4}
-                  className="w-full text-sm border border-gray-300 dark:border-gray-700/80 rounded-xl p-3 bg-transparent text-gray-900 dark:text-white resize-none focus:outline-none focus:ring-2 focus:ring-orange-400/50 transition"
-                  placeholder="Describe your issue or request in detail..."
+                  className={`w-full text-sm border rounded-xl p-3 bg-transparent text-gray-900 dark:text-white resize-none focus:outline-none focus:ring-2 transition ${
+                    isWordLimitExceeded
+                      ? 'border-red-500 dark:border-red-500 focus:ring-red-400/50'
+                      : 'border-gray-300 dark:border-gray-700/80 focus:ring-orange-400/50'
+                  }`}
+                  placeholder={`Describe your issue or request in detail... (Max ${MAX_SUPPORT_WORDS} words)`}
                   value={formData.message}
                   onChange={e => setFormData({ ...formData, message: e.target.value })}
                   required
                 />
+                {isWordLimitExceeded && (
+                  <p className="text-[11px] text-red-600 dark:text-red-400 flex items-center gap-1 font-medium">
+                    <AlertCircle size={12} className="shrink-0" />
+                    Message exceeds the limit by {wordCount - MAX_SUPPORT_WORDS} word{wordCount - MAX_SUPPORT_WORDS === 1 ? '' : 's'}. Max allowed: {MAX_SUPPORT_WORDS} words.
+                  </p>
+                )}
               </div>
 
               <div className="p-3 bg-orange-50 dark:bg-orange-950/20 rounded-xl border border-orange-100 dark:border-orange-900/30 flex items-start gap-2.5">
@@ -235,7 +270,7 @@ export const MemberSupportPage: React.FC = () => {
                 </p>
               </div>
 
-              <Button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold shadow-md flex items-center justify-center gap-1.5">
+              <Button type="submit" disabled={loading || isWordLimitExceeded} className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 Send Support Message
               </Button>

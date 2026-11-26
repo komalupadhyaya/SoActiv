@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Card, CardHeader, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -8,21 +8,52 @@ import { useClient } from '../../hooks/useClient';
 
 export const ClientFormPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { id } = useParams<{ id: string }>();
   const { clients, createClient, updateClient, loading } = useClient();
   const [initialData, setInitialData] = useState<any>(null);
 
   const isEditMode = !!id;
 
-  // Load client data if editing
+  // Load client data if editing or converting from enquiry
   useEffect(() => {
     if (isEditMode && clients.length > 0) {
       const client = clients.find((c) => c._id === id);
       if (client) {
         setInitialData(client);
       }
+    } else if (!isEditMode) {
+      const enquiryState = location.state?.enquiry;
+      if (enquiryState) {
+        setInitialData({
+          fullName: enquiryState.fullName || enquiryState.name || '',
+          contactNumber: enquiryState.contactNumber || enquiryState.phone || '',
+          email: enquiryState.email || '',
+          gender: enquiryState.gender || '',
+          salesRep: enquiryState.salesRep || enquiryState.assignedStaff || '',
+          trainer: enquiryState.trainer || enquiryState.trialStaff || '',
+          address: enquiryState.address || '',
+          emergencyContactName: enquiryState.emergencyContactName || '',
+          emergencyContactNumber: enquiryState.emergencyContactNumber || '',
+          packagePrice: enquiryState.packagePrice || enquiryState.budget || '',
+          timing: enquiryState.timing || '',
+          notes: enquiryState.comments || enquiryState.notes || '',
+        });
+      } else if (searchParams.get('enquiryId') || searchParams.get('name')) {
+        setInitialData({
+          fullName: searchParams.get('name') || '',
+          contactNumber: searchParams.get('phone') || '',
+          email: searchParams.get('email') || '',
+          gender: searchParams.get('gender') || '',
+          salesRep: searchParams.get('salesRep') || searchParams.get('assignedStaff') || '',
+          packagePrice: searchParams.get('budget') || '',
+          timing: searchParams.get('timing') || '',
+          notes: searchParams.get('comments') || '',
+        });
+      }
     }
-  }, [id, clients, isEditMode]);
+  }, [id, clients, isEditMode, location.state, searchParams]);
 
   const handleSubmit = async (formData: any) => {
     let result;
@@ -85,7 +116,7 @@ export const ClientFormPage: React.FC = () => {
           <ClientRegistrationForm
             onClose={handleCancel}
             onSubmit={handleSubmit}
-            initialData={isEditMode ? initialData : undefined}
+            initialData={initialData || undefined}
           />
         </CardContent>
       </Card>

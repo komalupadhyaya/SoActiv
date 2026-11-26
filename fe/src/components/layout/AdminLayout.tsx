@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, Navigate } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Sidebar } from './Sidebar';
+import { ClientSegmentsSidebar } from './ClientSegmentsSidebar';
+import { ReportsSidebar } from './ReportsSidebar';
+import { ExtraSidebar } from './ExtraSidebar';
 import { Header } from './Header';
 import { useClient } from '../../hooks/useClient';
 import { useStaff } from '../../hooks/useStaff';
@@ -13,42 +16,26 @@ interface Notification {
 }
 
 export const AdminLayout: React.FC = () => {
+  const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isClientSegmentsOpen, setIsClientSegmentsOpen] = useState(false);
+  const [isReportsSidebarOpen, setIsReportsSidebarOpen] = useState(false);
+  const [isExtraSidebarOpen, setIsExtraSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [dateFilter, setDateFilter] = useState<'monthly' | 'yearly'>('monthly');
+
+  // Close flyout sidebars when location changes
+  useEffect(() => {
+    setIsClientSegmentsOpen(false);
+    setIsReportsSidebarOpen(false);
+    setIsExtraSidebarOpen(false);
+  }, [location.pathname, location.search]);
 
   const { user, role, isLoading, logout } = useAuth();
   const { recentActivities: clientActions } = useClient();
   const { recentStaffActions } = useStaff();
 
-  // ===== HARD ROLE GUARD (PREVENT ROLE MUTATION) =====
-  // ONLY run guard AFTER auth initialization completes
-  useEffect(() => {
-    if (!isLoading && role !== 'admin') {
-      // Role mismatch detected - another role logged in
-      // AuthContext handles storage clearing
-      logout();
-      window.location.href = '/login'; // Hard redirect to login
-    }
-  }, [isLoading, role, logout]);
-
-  // ===== WAIT FOR AUTH INITIALIZATION =====
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // ===== BLOCK RENDER ON ROLE MISMATCH =====
-  if (!user || role !== 'admin') {
-    return null; // Prevent any rendering until role is correct
-  }
-
+  // Notifications aggregation
   useEffect(() => {
     const now = new Date();
     const currentYear = now.getFullYear();
@@ -100,25 +87,81 @@ export const AdminLayout: React.FC = () => {
     console.log('Notifications marked as seen');
   };
 
+  // ===== HARD ROLE GUARD (PREVENT ROLE MUTATION) =====
+  // ONLY run guard AFTER auth initialization completes
+  useEffect(() => {
+    if (!isLoading && role !== 'admin') {
+      // Role mismatch detected - another role logged in
+      // AuthContext handles storage clearing
+      logout();
+      window.location.href = '/login'; // Hard redirect to login
+    }
+  }, [isLoading, role, logout]);
+
+  // ===== WAIT FOR AUTH INITIALIZATION =====
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
+        </div>
       </div>
     );
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
+  // ===== BLOCK RENDER ON ROLE MISMATCH =====
+  if (!user || role !== 'admin') {
+    return null; // Prevent any rendering until role is correct
   }
 
   return (
-    <div className="">
-      {/* Sidebar: shown always for xl, toggled for smaller screens */}
-      <Sidebar isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
+    <div>
+      {/* Primary Collapsed Sidebar */}
+      <Sidebar
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+        isCollapsed={true}
+        isClientSegmentsOpen={isClientSegmentsOpen}
+        onToggleClientSegments={() => {
+          setIsReportsSidebarOpen(false);
+          setIsExtraSidebarOpen(false);
+          setIsClientSegmentsOpen((prev) => !prev);
+        }}
+        isReportsSidebarOpen={isReportsSidebarOpen}
+        onToggleReportsSidebar={() => {
+          setIsClientSegmentsOpen(false);
+          setIsExtraSidebarOpen(false);
+          setIsReportsSidebarOpen((prev) => !prev);
+        }}
+        isExtraSidebarOpen={isExtraSidebarOpen}
+        onToggleExtraSidebar={() => {
+          setIsClientSegmentsOpen(false);
+          setIsReportsSidebarOpen(false);
+          setIsExtraSidebarOpen((prev) => !prev);
+        }}
+      />
 
+      {/* Secondary Client Segments Flyout Sidebar */}
+      <ClientSegmentsSidebar
+        isOpen={isClientSegmentsOpen}
+        onClose={() => setIsClientSegmentsOpen(false)}
+      />
 
-      <div className="flex-1 xl:pl-64 flex flex-col">
+      {/* Reports Flyout Sidebar */}
+      <ReportsSidebar
+        isOpen={isReportsSidebarOpen}
+        onClose={() => setIsReportsSidebarOpen(false)}
+      />
+
+      {/* Extra Modules Flyout Sidebar */}
+      <ExtraSidebar
+        isOpen={isExtraSidebarOpen}
+        onClose={() => setIsExtraSidebarOpen(false)}
+      />
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col transition-all duration-300 ease-in-out xl:pl-24">
         <Header
           onMobileMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           isMobileMenuOpen={isMobileMenuOpen}
@@ -132,7 +175,7 @@ export const AdminLayout: React.FC = () => {
         </main>
       </div>
 
-      {/* Optional: close sidebar if overlay clicked outside sidebar */}
+      {/* Mobile Backdrop */}
       {isMobileMenuOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 xl:hidden"
@@ -142,3 +185,4 @@ export const AdminLayout: React.FC = () => {
     </div>
   );
 };
+

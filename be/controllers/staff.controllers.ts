@@ -11,7 +11,41 @@ import { generateSecurePassword } from '../utils/password.util';
 import { sendStaffWelcomeEmail, sendAdminStaffCopyEmail } from '../utils/emailSender';
 import { getVisibleStaffIds } from '../utils/staffPermissions.util';
 import { createNotification } from '../utils/notification.helper';
+import { Client } from '../models/client.model';
 import { Server as IOServer } from 'socket.io';
+
+const escapeRegex = (string: string) => {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+};
+
+const generateUniqueAttendanceId = async (ownerId: string): Promise<string> => {
+  let candidate = '';
+  let exists = true;
+  let attempts = 0;
+
+  while (exists && attempts < 100) {
+    attempts++;
+    const randomNum = Math.floor(10000 + Math.random() * 90000).toString();
+    candidate = randomNum;
+
+    const [staffCount, clientCount] = await Promise.all([
+      Staff.countDocuments({
+        createdBy: ownerId,
+        attendanceId: { $regex: new RegExp(`^${candidate}$`, 'i') },
+      }),
+      Client.countDocuments({
+        userId: ownerId,
+        attendanceId: { $regex: new RegExp(`^${candidate}$`, 'i') },
+      }),
+    ]);
+
+    if (staffCount === 0 && clientCount === 0) {
+      exists = false;
+    }
+  }
+
+  return candidate;
+};
 
 const emitToUserRoom = (req: Request, ownerId: string, event: string, data: any) => {
   const io = (req as any).io as IOServer;
@@ -53,7 +87,45 @@ export const createStaff = async (req: Request, res: Response): Promise<void> =>
       }
     }
 
-    const { fullName, email, position, contactNumber, joiningDate, salary, status, notifications } = req.body;
+    const {
+      fullName,
+      email,
+      position,
+      contactNumber,
+      joiningDate,
+      salary,
+      status,
+      notifications,
+      adminRights,
+      jobDesignation,
+      attendanceId,
+      panCard,
+      gstNumber,
+      accountNo,
+      ifsc,
+      hrmsId,
+      gender,
+      vaccinated,
+      employeeCategory,
+      payoutType,
+      grade,
+      avatar,
+      resumeName,
+      dob,
+      anniversary,
+      permissions,
+    } = req.body;
+
+    // Determine effective Admin Rights (prioritize user selection, fallback intelligently by designation/position)
+    const effectiveAdminRights = (adminRights && typeof adminRights === 'string' && adminRights.trim()) || (() => {
+      const p = (position || jobDesignation || '').toLowerCase();
+      if (p.includes('manager') || p.includes('owner') || p.includes('partner') || p.includes('director')) return 'Admin';
+      if (p.includes('sales')) return 'Sales';
+      if (p.includes('clean') || p.includes('house')) return 'Housekeeping';
+      if (p.includes('desk') || p.includes('receptionist') || p.includes('relationship')) return 'Customer Service';
+      if (p.includes('finance') || p.includes('account')) return 'Finance';
+      return 'Training';
+    })();
 
     // --- 1. STRICT VALIDATION (Before any DB writes) ---
     if (!fullName || !fullName.trim()) {
@@ -115,6 +187,40 @@ export const createStaff = async (req: Request, res: Response): Promise<void> =>
       }
     }
 
+    // Validate Attendance ID Uniqueness
+    let cleanAttendanceId = (attendanceId && typeof attendanceId === 'string') ? attendanceId.trim() : '';
+
+    if (cleanAttendanceId) {
+      // Check if another staff member has this attendanceId (scoped to this gym/admin)
+      const existingStaffAtt = await Staff.findOne({
+        createdBy: ownerId,
+        attendanceId: { $regex: new RegExp(`^${escapeRegex(cleanAttendanceId)}$`, 'i') },
+      });
+      if (existingStaffAtt) {
+        res.status(400).json({
+          success: false,
+          message: `Attendance ID "${cleanAttendanceId}" is already assigned to staff member "${existingStaffAtt.fullName}". Every user must have a unique Attendance ID.`,
+        });
+        return;
+      }
+
+      // Check if a client has this attendanceId (scoped to this gym/admin)
+      const existingClientAtt = await Client.findOne({
+        userId: ownerId,
+        attendanceId: { $regex: new RegExp(`^${escapeRegex(cleanAttendanceId)}$`, 'i') },
+      });
+      if (existingClientAtt) {
+        res.status(400).json({
+          success: false,
+          message: `Attendance ID "${cleanAttendanceId}" is already assigned to client "${existingClientAtt.fullName}". Every user must have a unique Attendance ID.`,
+        });
+        return;
+      }
+    } else {
+      // Auto-generate a guaranteed unique Attendance ID
+      cleanAttendanceId = await generateUniqueAttendanceId(ownerId);
+    }
+
     if (isManager) {
       const newStaff = new Staff({
         createdBy: ownerId, // Set to Admin ID even if Manager creates it
@@ -129,6 +235,24 @@ export const createStaff = async (req: Request, res: Response): Promise<void> =>
         approvalStatus: 'pending_create',
         requestedBy: new Types.ObjectId(adminUserId), // Link to manager's user ID
         requestedAt: new Date(),
+        adminRights: effectiveAdminRights,
+        jobDesignation: jobDesignation || '',
+        attendanceId: cleanAttendanceId,
+        panCard: panCard || '',
+        gstNumber: gstNumber || '',
+        accountNo: accountNo || '',
+        ifsc: ifsc || '',
+        hrmsId: hrmsId || '',
+        gender: gender || '',
+        vaccinated: vaccinated || '',
+        employeeCategory: employeeCategory || '',
+        payoutType: payoutType || '',
+        grade: grade || '',
+        avatar: avatar || '',
+        resumeName: resumeName || '',
+        dob: dob || null,
+        anniversary: anniversary || null,
+        permissions: permissions || {},
         notifications: notifications || {
           sms: true,
           email: true,
@@ -176,7 +300,7 @@ export const createStaff = async (req: Request, res: Response): Promise<void> =>
       password: generatedPassword, // Will be hashed by pre-save hook
       role: 'staff',
       gym: adminGymId,
-      avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=ea580c&color=fff`,
+      avatar: avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=ea580c&color=fff`,
     });
 
     const savedUser = await newUser.save();
@@ -196,6 +320,24 @@ export const createStaff = async (req: Request, res: Response): Promise<void> =>
         joiningDate,
         salary,
         status: status || 'active',
+        adminRights: effectiveAdminRights,
+        jobDesignation: jobDesignation || '',
+        attendanceId: cleanAttendanceId,
+        panCard: panCard || '',
+        gstNumber: gstNumber || '',
+        accountNo: accountNo || '',
+        ifsc: ifsc || '',
+        hrmsId: hrmsId || '',
+        gender: gender || '',
+        vaccinated: vaccinated || '',
+        employeeCategory: employeeCategory || '',
+        payoutType: payoutType || '',
+        grade: grade || '',
+        avatar: avatar || '',
+        resumeName: resumeName || '',
+        dob: dob || null,
+        anniversary: anniversary || null,
+        permissions: permissions || {},
         notifications: notifications || {
           sms: true,
           email: true,
@@ -364,12 +506,26 @@ export const getAllStaff = async (req: Request, res: Response): Promise<void> =>
 
     const staff = await Staff.find(query).sort({ createdAt: -1 });
 
+    const staffWithRights = staff.map((s) => {
+      const doc = s.toObject ? s.toObject() : { ...s };
+      if (!doc.adminRights || !doc.adminRights.trim()) {
+        const p = (doc.position || doc.jobDesignation || '').toLowerCase();
+        if (p.includes('manager') || p.includes('owner') || p.includes('partner') || p.includes('director')) doc.adminRights = 'Admin';
+        else if (p.includes('sales')) doc.adminRights = 'Sales';
+        else if (p.includes('clean') || p.includes('house')) doc.adminRights = 'Housekeeping';
+        else if (p.includes('desk') || p.includes('receptionist') || p.includes('relationship')) doc.adminRights = 'Customer Service';
+        else if (p.includes('finance') || p.includes('account')) doc.adminRights = 'Finance';
+        else doc.adminRights = 'Training';
+      }
+      return doc;
+    });
+
     console.log(`✅ Found ${staff.length} staff members`);
 
     res.json({
       success: true,
       count: staff.length,
-      data: staff,
+      data: staffWithRights,
     });
   } catch (error: any) {
     console.error('🚨 Error in getAllStaff:', error);
@@ -416,10 +572,28 @@ export const getStaffById = async (req: Request, res: Response): Promise<void> =
     }
 
     const staff = await Staff.findById(id);
+    if (!staff) {
+      res.status(404).json({
+        success: false,
+        message: 'Staff not found',
+      });
+      return;
+    }
+
+    const doc = staff.toObject ? staff.toObject() : { ...staff };
+    if (!doc.adminRights || !doc.adminRights.trim()) {
+      const p = (doc.position || doc.jobDesignation || '').toLowerCase();
+      if (p.includes('manager') || p.includes('owner') || p.includes('partner') || p.includes('director')) doc.adminRights = 'Admin';
+      else if (p.includes('sales')) doc.adminRights = 'Sales';
+      else if (p.includes('clean') || p.includes('house')) doc.adminRights = 'Housekeeping';
+      else if (p.includes('desk') || p.includes('receptionist') || p.includes('relationship')) doc.adminRights = 'Customer Service';
+      else if (p.includes('finance') || p.includes('account')) doc.adminRights = 'Finance';
+      else doc.adminRights = 'Training';
+    }
 
     res.json({
       success: true,
-      data: staff,
+      data: doc,
     });
   } catch (error: any) {
     if (error.name === 'CastError') {
@@ -522,6 +696,40 @@ export const updateStaffById = async (req: Request, res: Response): Promise<void
       }
     }
 
+    // Validate Attendance ID Uniqueness (Scoped)
+    if (updates.attendanceId !== undefined) {
+      const cleanAttId = typeof updates.attendanceId === 'string' ? updates.attendanceId.trim() : '';
+      if (cleanAttId) {
+        // Check uniqueness among other staff members
+        const existingStaffAtt = await Staff.findOne({
+          createdBy: ownerId,
+          _id: { $ne: id },
+          attendanceId: { $regex: new RegExp(`^${escapeRegex(cleanAttId)}$`, 'i') },
+        });
+        if (existingStaffAtt) {
+          res.status(400).json({
+            success: false,
+            message: `Attendance ID "${cleanAttId}" is already assigned to staff member "${existingStaffAtt.fullName}". Every user must have a unique Attendance ID.`,
+          });
+          return;
+        }
+
+        // Check uniqueness among clients
+        const existingClientAtt = await Client.findOne({
+          userId: ownerId,
+          attendanceId: { $regex: new RegExp(`^${escapeRegex(cleanAttId)}$`, 'i') },
+        });
+        if (existingClientAtt) {
+          res.status(400).json({
+            success: false,
+            message: `Attendance ID "${cleanAttId}" is already assigned to client "${existingClientAtt.fullName}". Every user must have a unique Attendance ID.`,
+          });
+          return;
+        }
+        updates.attendanceId = cleanAttId;
+      }
+    }
+
     if (isManager) {
       const staffDoc = await Staff.findById(id);
       if (!staffDoc) {
@@ -530,7 +738,34 @@ export const updateStaffById = async (req: Request, res: Response): Promise<void
       }
 
       // Sanitise updates: allow only editable fields in pendingUpdates that actually changed
-      const allowedKeys = ['fullName', 'email', 'position', 'contactNumber', 'joiningDate', 'salary', 'status', 'notifications'];
+      const allowedKeys = [
+        'fullName',
+        'email',
+        'position',
+        'contactNumber',
+        'joiningDate',
+        'salary',
+        'status',
+        'notifications',
+        'adminRights',
+        'jobDesignation',
+        'attendanceId',
+        'panCard',
+        'gstNumber',
+        'accountNo',
+        'ifsc',
+        'hrmsId',
+        'gender',
+        'vaccinated',
+        'employeeCategory',
+        'payoutType',
+        'grade',
+        'avatar',
+        'resumeName',
+        'dob',
+        'anniversary',
+        'permissions',
+      ];
 
       const areValuesEqual = (a: any, b: any, key: string) => {
         if (a === b) return true;
@@ -622,8 +857,17 @@ export const updateStaffById = async (req: Request, res: Response): Promise<void
         userUpdates.phone = updates.contactNumber;
       }
 
+      const updateQuery: any = {};
       if (Object.keys(userUpdates).length > 0) {
-        await User.findByIdAndUpdate(updatedStaff.userId, userUpdates);
+        updateQuery.$set = userUpdates;
+      }
+      if (updates.status === 'inactive' || updates.loginAccess === false) {
+        updateQuery.$inc = { tokenVersion: 1 };
+        updateQuery.$unset = { lastActiveAt: 1 };
+      }
+
+      if (Object.keys(updateQuery).length > 0) {
+        await User.findByIdAndUpdate(updatedStaff.userId, updateQuery);
         console.log('✅ Synced updates to User account');
       }
     }
@@ -829,7 +1073,8 @@ export const updateStaffProfile = async (req: Request, res: Response): Promise<v
     // 2. Avatar Update
     if (avatarFile) {
       // Construct URL - assuming served statically from /uploads
-      const baseUrl = process.env.API_URL || 'http://localhost:8000';
+      const requestHost = req.get('host');
+      const baseUrl = process.env.API_URL || (requestHost ? `${req.protocol}://${requestHost}` : '');
       const avatarUrl = (avatarFile.path && (avatarFile.path.startsWith('http://') || avatarFile.path.startsWith('https://')))
         ? avatarFile.path
         : `${baseUrl}/uploads/${avatarFile.filename}`;
@@ -979,8 +1224,16 @@ export const approveStaffRequest = async (req: Request, res: Response): Promise<
           if (updates.contactNumber) {
             userUpdates.phone = updates.contactNumber;
           }
+          const updateQuery: any = {};
           if (Object.keys(userUpdates).length > 0) {
-            await User.findByIdAndUpdate(staffDoc.userId, userUpdates);
+            updateQuery.$set = userUpdates;
+          }
+          if (updates.status === 'inactive' || updates.loginAccess === false) {
+            updateQuery.$inc = { tokenVersion: 1 };
+            updateQuery.$unset = { lastActiveAt: 1 };
+          }
+          if (Object.keys(updateQuery).length > 0) {
+            await User.findByIdAndUpdate(staffDoc.userId, updateQuery);
             console.log('✅ Synced updates to User account upon approval');
           }
         }

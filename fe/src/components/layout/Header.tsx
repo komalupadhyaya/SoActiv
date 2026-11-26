@@ -83,8 +83,8 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm">
-      <div className="flex items-center justify-between py-[0.87rem] mx-auto max-w-screen-xl w-full">
+    <header className="h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm flex items-center px-4 xl:px-6">
+      <div className="flex items-center justify-between w-full">
         {/* Left side: Mobile Menu Toggle and Logo */}
         <div className="flex items-center space-x-2 xl:space-x-4">
           {/* Mobile Menu Toggle (only on mobile) */}
@@ -135,7 +135,7 @@ export const Header: React.FC<HeaderProps> = ({
                   </button>
                   <button
                     onClick={() => {
-                      navigate('/admin/staff-form');
+                      navigate('/admin/staff?action=add');
                       setShowCreateMenu(false);
                     }}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -349,7 +349,7 @@ export const Header: React.FC<HeaderProps> = ({
                       setShowCreateMenu(false);
                       setShowProfileMenu(false);
                       setIsNotificationOpen(false);
-                      navigate('/admin/staff-form');
+                      navigate('/admin/staff?action=add');
                     }}
                     className="flex items-center w-full text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded px-2 py-1"
                   >

@@ -8,6 +8,39 @@ import { format, startOfMonth, endOfMonth, isToday } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../contexts/ToastContext';
 
+const isValidDate = (d: any): d is Date => {
+    return d instanceof Date && !isNaN(d.getTime());
+};
+
+const parseMonthInput = (val: string): Date => {
+    if (!val) return new Date();
+    const parts = val.split('-').map(Number);
+    if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) return new Date();
+    return new Date(parts[0], parts[1] - 1, 1);
+};
+
+const safeFormatDate = (dateVal: any, formatStr: string, fallback = '-'): string => {
+    if (!dateVal) return fallback;
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return fallback;
+    try {
+        return format(d, formatStr);
+    } catch {
+        return fallback;
+    }
+};
+
+const safeIsToday = (dateVal: any): boolean => {
+    if (!dateVal) return false;
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return false;
+    try {
+        return isToday(d);
+    } catch {
+        return false;
+    }
+};
+
 export const Attendance: React.FC = () => {
     const { user } = useAuth();
     const { getAttendanceByStaff, markAttendance, updateAttendance, loading } = useAttendance();
@@ -21,12 +54,14 @@ export const Attendance: React.FC = () => {
     // ====== ROLE / POSITION CHECKS ======
     const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
     const isManagerStaff = user?.role === 'staff' && user?.position === 'manager';
-    const canViewTeamAttendance = isAdmin || isManagerStaff;
+    const isReceptionistStaff = user?.role === 'staff' && user?.position === 'receptionist';
+    const canViewTeamAttendance = isAdmin || isManagerStaff || isReceptionistStaff;
 
+    const validMonth = isValidDate(currentMonth) ? currentMonth : new Date();
     const now = new Date();
     const isCurrentMonth =
-        currentMonth.getMonth() === now.getMonth() &&
-        currentMonth.getFullYear() === now.getFullYear();
+        validMonth.getMonth() === now.getMonth() &&
+        validMonth.getFullYear() === now.getFullYear();
 
     // 1. Fetch Today's Record (remains accurate regardless of month selection)
     useEffect(() => {
@@ -54,15 +89,21 @@ export const Attendance: React.FC = () => {
         const fetchHistory = async () => {
             if (!user?.staffId) return;
 
-            const start = startOfMonth(currentMonth).toISOString().split('T')[0];
-            const end = endOfMonth(currentMonth).toISOString().split('T')[0];
+            const targetMonth = isValidDate(currentMonth) ? currentMonth : new Date();
+            const start = startOfMonth(targetMonth).toISOString().split('T')[0];
+            const end = endOfMonth(targetMonth).toISOString().split('T')[0];
 
             try {
                 const res = await getAttendanceByStaff(user.staffId, start, end);
                 if (res.records) {
                     const uniqueRecords = res.records.reduce((acc: AttendanceRecord[], current: AttendanceRecord) => {
-                        const dateKey = new Date(current.date).toISOString().split('T')[0];
-                        if (!acc.some(r => new Date(r.date).toISOString().split('T')[0] === dateKey)) {
+                        const d = new Date(current.date);
+                        const dateKey = !isNaN(d.getTime()) ? d.toISOString().split('T')[0] : String(current.date);
+                        if (!acc.some(r => {
+                            const rd = new Date(r.date);
+                            const rKey = !isNaN(rd.getTime()) ? rd.toISOString().split('T')[0] : String(r.date);
+                            return rKey === dateKey;
+                        })) {
                             acc.push(current);
                         }
                         return acc;
@@ -189,12 +230,12 @@ export const Attendance: React.FC = () => {
                     <CardHeader>
                         <div className="flex items-center justify-between">
                             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                                History - {format(currentMonth, 'MMMM yyyy')}
+                                History - {safeFormatDate(validMonth, 'MMMM yyyy')}
                             </h2>
                             <input
                                 type="month"
-                                value={format(currentMonth, 'yyyy-MM')}
-                                onChange={(e) => setCurrentMonth(new Date(e.target.value))}
+                                value={safeFormatDate(validMonth, 'yyyy-MM')}
+                                onChange={(e) => setCurrentMonth(parseMonthInput(e.target.value))}
                                 className="border border-gray-300 rounded px-2 py-1 text-sm dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300"
                             />
                         </div>
@@ -235,14 +276,14 @@ export const Attendance: React.FC = () => {
                                         <tr
                                             key={record._id}
                                             className={
-                                                isToday(new Date(record.date))
+                                                safeIsToday(record.date)
                                                     ? 'bg-orange-50 dark:bg-orange-900/10'
                                                     : ''
                                             }
                                         >
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                                                {format(new Date(record.date), 'MMM d, yyyy')}{' '}
-                                                {isToday(new Date(record.date)) && (
+                                                {safeFormatDate(record.date, 'MMM d, yyyy')}{' '}
+                                                {safeIsToday(record.date) && (
                                                     <span className="ml-2 text-xs text-orange-600 font-medium">
                                                         (Today)
                                                     </span>
@@ -264,14 +305,10 @@ export const Attendance: React.FC = () => {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                                {record.checkInTime
-                                                    ? format(new Date(record.checkInTime), 'h:mm a')
-                                                    : '-'}
+                                                {safeFormatDate(record.checkInTime, 'h:mm a')}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                                {record.checkOutTime
-                                                    ? format(new Date(record.checkOutTime), 'h:mm a')
-                                                    : '-'}
+                                                {safeFormatDate(record.checkOutTime, 'h:mm a')}
                                             </td>
 
                                             {/* Notes: give more width and wrap on small screens */}

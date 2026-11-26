@@ -18,6 +18,7 @@ export const useFollowUp = () => {
     type?: string;
     assignedTo?: string;
     date?: string;
+    relatedId?: string;
   }) => {
     setLoading(true);
     setError(null);
@@ -27,6 +28,7 @@ export const useFollowUp = () => {
       if (filters?.type) queryParams.append('type', filters.type);
       if (filters?.assignedTo) queryParams.append('assignedTo', filters.assignedTo);
       if (filters?.date) queryParams.append('date', filters.date);
+      if (filters?.relatedId) queryParams.append('relatedId', filters.relatedId);
 
       const res = await fetch(`${API_URL}/follow-up?${queryParams.toString()}`, {
         credentials: 'include',
@@ -35,15 +37,18 @@ export const useFollowUp = () => {
 
       if (res.ok && data.success) {
         setFollowUps(data.data);
+        return data.data;
       } else {
         const msg = data.message || 'Failed to fetch follow-ups';
         setError(msg);
         addToast(msg, 'error');
+        return [];
       }
     } catch (err: any) {
       const msg = err.message || 'Network error';
       setError(msg);
       addToast(msg, 'error');
+      return [];
     } finally {
       setLoading(false);
     }
@@ -78,12 +83,18 @@ export const useFollowUp = () => {
   // Create a new follow-up
   const createFollowUp = async (followUpData: {
     assignedTo: string;
-    type: 'enquiry' | 'client' | 'pt';
+    type: 'enquiry' | 'client' | 'pt' | 'call' | 'message' | 'visit' | 'other';
     relatedId: string;
     relatedName: string;
     scheduledDate: string;
     scheduledTime: string;
     note: string;
+    status?: 'pending' | 'completed' | 'failed' | 'rescheduled' | 'cancelled';
+    scheduledBy?: string;
+    callStatus?: string;
+    callTag?: string;
+    leadSource?: string;
+    completionNotes?: string;
   }) => {
     setLoading(true);
     setError(null);

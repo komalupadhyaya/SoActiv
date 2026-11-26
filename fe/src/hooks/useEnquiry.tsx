@@ -9,6 +9,18 @@ export interface IEnquiry {
   name: string;
   phone: string;
   email?: string;
+  gender?: 'male' | 'female' | 'other';
+  enquiryDate?: string | Date;
+  serviceName?: string;
+  enquiryType?: string;
+  trialType?: string;
+  trialDateTime?: string | Date | null;
+  trialService?: string;
+  trialStaff?: string | { _id: string; fullName: string } | null;
+  trialClassDate?: string | Date | null;
+  trialClass?: string;
+  trialSessionDate?: string | Date | null;
+  trialSession?: string;
   source: string;
   status: 'new' | 'contacted' | 'interested' | 'converted' | 'lost';
   assignedStaff?:
@@ -16,9 +28,14 @@ export interface IEnquiry {
   | string
   | null;
   followUpDate?: string | null;
+  followUpDateTime?: string | Date | null;
+  callTag?: 'cold' | 'warm' | 'hot' | '';
+  followUpMessage?: string;
   comments?: string;
   interests?: string;
   budget?: string;
+  dateOfBirth?: string | Date | null;
+  countryCode?: string;
   createdAt: string;
   updatedAt: string;
 }

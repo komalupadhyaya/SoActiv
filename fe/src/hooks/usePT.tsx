@@ -44,6 +44,13 @@ export interface PTAssignment {
     }>;
 }
 
+export function getEffectivePTStatus(assignment: PTAssignment): 'active' | 'expired' | 'completed' | 'cancelled' {
+    if (assignment.status === 'cancelled') return 'cancelled';
+    if (assignment.usedSessions >= assignment.totalSessions) return 'completed';
+    if (assignment.expiryDate && new Date(assignment.expiryDate).getTime() < Date.now()) return 'expired';
+    return assignment.status;
+}
+
 export const usePT = () => {
     const [plans, setPlans] = useState<PTPlan[]>([]);
     const [assignments, setAssignments] = useState<PTAssignment[]>([]);
@@ -162,7 +169,11 @@ export const usePT = () => {
             const res = await fetch(`${API_URL}/pt/assignments?${params.toString()}`, { credentials: 'include' });
             const data = await res.json();
             if (res.ok && data.success) {
-                setAssignments(data.data);
+                const mapped = (data.data || []).map((a: PTAssignment) => ({
+                    ...a,
+                    status: getEffectivePTStatus(a)
+                }));
+                setAssignments(mapped);
             } else {
                 throw new Error(data.message || 'Failed to fetch assignments');
             }

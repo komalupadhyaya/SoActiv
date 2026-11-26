@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -24,6 +24,7 @@ export const ProfileEdit: React.FC = () => {
     const navigate = useNavigate();
     const { updateProfile } = useStaff();
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+    const initializedUserId = useRef<string | null>(null);
 
     // Default values will be reset when user data loads
     const { register, handleSubmit, watch, reset, formState: { errors, isSubmitting } } = useForm<ProfileFormOutputs>();
@@ -44,7 +45,11 @@ export const ProfileEdit: React.FC = () => {
             return;
         }
 
-        // 3. Load Data
+        // 3. Prevent overwriting unsaved form edits during background session refresh
+        if (initializedUserId.current === currentUserId) return;
+        initializedUserId.current = currentUserId;
+
+        // Load Data
         reset({
             fullName: user.name || '',
             phone: user.phone || '',

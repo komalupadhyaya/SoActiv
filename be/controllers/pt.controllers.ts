@@ -1,8 +1,77 @@
 import type { Request, Response, NextFunction } from 'express';
 import { PTPlan } from '../models/ptPlan.model';
 import { PTAssignment } from '../models/ptAssignment.model';
+import { FollowUp } from '../models/followUp.model';
+import { Staff } from '../models/staff.model';
 import ApiError from '../lib/ApiError';
 import { HttpStatusCode } from '../lib/const';
+
+/**
+ * Automatically check for PT plans expiring within 2 days and generate a single follow-up task for Sales and Receptionist
+ */
+export const checkAndGeneratePTExpiryFollowUps = async (adminId?: any) => {
+    try {
+        const now = new Date();
+        const twoDaysFromNow = new Date(now);
+        twoDaysFromNow.setDate(twoDaysFromNow.getDate() + 2);
+        twoDaysFromNow.setHours(23, 59, 59, 999);
+
+        const query: any = {
+            status: 'active',
+            expiryDate: { $gte: now, $lte: twoDaysFromNow }
+        };
+        if (adminId) {
+            query.adminId = adminId;
+        }
+
+        const expiringAssignments = await PTAssignment.find(query)
+            .populate('memberId', 'fullName email contactNumber')
+            .populate('planId', 'name totalSessions');
+
+        for (const assignment of expiringAssignments) {
+            // Check if a follow-up for this PT assignment already exists
+            const existingFollowUp = await FollowUp.findOne({
+                type: 'pt',
+                relatedId: assignment._id,
+                status: { $in: ['pending', 'rescheduled', 'reschedule_pending'] }
+            });
+
+            if (!existingFollowUp) {
+                // Find a staff member (Sales or Receptionist or any active staff) under this admin to set as primary assignedTo reference
+                const staffDoc = await Staff.findOne({
+                    createdBy: assignment.adminId,
+                    position: { $in: ['sales', 'receptionist'] },
+                    status: 'active'
+                }) || await Staff.findOne({ createdBy: assignment.adminId, status: 'active' });
+
+                if (staffDoc) {
+                    const memberName = (assignment.memberId as any)?.fullName || 'Member';
+                    const planName = (assignment.planId as any)?.name || 'PT Plan';
+                    const expiryStr = new Date(assignment.expiryDate).toLocaleDateString('en-IN', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                    });
+
+                    await FollowUp.create({
+                        userId: assignment.adminId,
+                        assignedTo: staffDoc._id,
+                        targetRoles: ['sales', 'receptionist'],
+                        type: 'pt',
+                        relatedId: assignment._id,
+                        relatedName: memberName,
+                        scheduledDate: now,
+                        scheduledTime: '10:00',
+                        note: `Reminder for PT Plan upgradation: ${memberName}'s ${planName} expires on ${expiryStr}. Contact member for PT plan upgrade/renewal.`,
+                        status: 'pending'
+                    });
+                }
+            }
+        }
+    } catch (err) {
+        console.error('Error generating PT expiry follow-ups:', err);
+    }
+};
 
 /**
  * ==============================================================================
@@ -226,9 +295,10 @@ export const assignPT = async (req: Request, res: Response, next: NextFunction) 
 
         // 2. Validate Trainer belongs to this admin? (Ideally yes)
 
-        // 3. Calculate Expiry
+        // 3. Calculate Expiry (End of day)
         const expiry = new Date(start);
         expiry.setDate(expiry.getDate() + plan.validityDays);
+        expiry.setHours(23, 59, 59, 999);
 
         // 4. Create Assignment
         const assignment = await PTAssignment.create({
@@ -261,6 +331,31 @@ export const getPTAssignments = async (req: Request, res: Response, next: NextFu
     try {
         const user = (req as any).user;
         const adminId = user.adminId || user.id || user._id;
+
+        const now = new Date();
+
+        // 1. Auto-expire assignments whose expiryDate has passed
+        await PTAssignment.updateMany(
+            {
+                adminId,
+                status: 'active',
+                expiryDate: { $lt: now }
+            },
+            { $set: { status: 'expired' } }
+        );
+
+        // 2. Auto-complete assignments whose sessions are exhausted
+        await PTAssignment.updateMany(
+            {
+                adminId,
+                status: 'active',
+                $expr: { $gte: ['$usedSessions', '$totalSessions'] }
+            },
+            { $set: { status: 'completed' } }
+        );
+
+        // 3. Auto-generate 2-day PT expiry follow-ups for Sales & Receptionist
+        await checkAndGeneratePTExpiryFollowUps(adminId);
 
         let query: any = { adminId };
 

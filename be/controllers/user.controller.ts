@@ -12,6 +12,27 @@ import admin from "../firebase/admin";
 import { Subscription } from "../models/subscription.model.js"; // 👈 NEW import
 
 /**
+ * Ensure staff/trainer users are active and permitted to log in.
+ */
+const ensureActiveStaffAccess = async (user: any) => {
+  if (user.role !== 'staff' && user.role !== 'trainer') {
+    return null;
+  }
+  const { Staff } = await import("../models/staff.model.js");
+  const staffRecord =
+    (await Staff.findOne({ userId: user._id })) ||
+    (user.email ? await Staff.findOne({ email: user.email.toLowerCase(), gym: user.gym }) : null);
+
+  if (staffRecord?.status === 'inactive') {
+    throw new apiError(HttpStatusCode.FORBIDDEN, "Your staff account is inactive. Please contact your administrator.");
+  }
+  if (staffRecord?.loginAccess === false) {
+    throw new apiError(HttpStatusCode.FORBIDDEN, "Login access has been disabled for your account. Please contact your administrator.");
+  }
+  return staffRecord;
+};
+
+/**
  * REGISTER USER (Admin or Staff)
  * - If role = admin → create a new Gym + link user to it
  * - If role != admin → link user to an existing gym (gymId must be provided)
@@ -134,6 +155,8 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
     throw new apiError(HttpStatusCode.UNAUTHORIZED, "Invalid credentials");
   }
 
+  const staffRecord = await ensureActiveStaffAccess(user);
+
   // ===== BROWSER-SCOPED SESSION TRACKING =====
   // Generate session ID for logging/analytics (not used for validation)
   const sessionId = uuidv4();
@@ -162,13 +185,13 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
   }
 
   if (safeUser.role === 'staff') {
-    // Import Staff model at top or here (dynamic import might be safer if not top-level)
-    const { Staff } = await import("../models/staff.model.js");
-    const staffRecord = await Staff.findOne({ userId: user._id });
     safeUser.position = staffRecord ? staffRecord.position : 'unknown';
     safeUser.staffId = staffRecord ? staffRecord._id : undefined; // Expose Staff ID
   } else if (safeUser.role === 'trainer') {
     safeUser.position = 'trainer';
+    if (staffRecord) {
+      safeUser.staffId = staffRecord._id;
+    }
   } else if (safeUser.role === 'admin' || safeUser.role === 'superadmin') {
     safeUser.position = safeUser.role;
   } else {
@@ -224,6 +247,8 @@ const googleSignIn = asyncHandler(async (req: Request, res: Response) => {
       password: Math.random().toString(36).slice(-8), // random temp password
     });
   }
+
+  await ensureActiveStaffAccess(user);
 
   const token = user.generateAccessToken();
   const safeUser = user.toFrontendUser() as any;

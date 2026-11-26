@@ -1,10 +1,13 @@
 import React, { useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Calendar, TrendingUp, Users, Activity } from 'lucide-react';
 import { Card, CardHeader, CardContent } from '../../components/ui/Card';
 import { Select } from '../../components/ui/Select';
 import { StatsCard } from '../../components/dashboard/StatsCard';
 import { useClient } from '../../hooks/useClient';
 import { useStaff } from '../../hooks/useStaff';
+import { DSRReportPage } from './DSRReportPage';
+import { RevenueReportPage } from './RevenueReportPage';
 
 interface TrainerStats {
   [trainerId: string]: {
@@ -17,6 +20,17 @@ const timeSlotKeys = ['earlyMorning', 'morning', 'midday', 'evening', 'night'] a
 type TimeSlotKey = (typeof timeSlotKeys)[number];
 
 export const ReportsPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const reportType = searchParams.get('type');
+
+  if (reportType === 'dsr-report' || reportType === 'dsr') {
+    return <DSRReportPage />;
+  }
+
+  if (reportType === 'revenue' || reportType === 'revenue-report') {
+    return <RevenueReportPage />;
+  }
+
   const { clients, loading: clientsLoading } = useClient();
   const { staff, loading: staffLoading } = useStaff();
 
@@ -91,6 +105,9 @@ export const ReportsPage: React.FC = () => {
     const newJoins = filteredClients.length;
 
     const renewals = filteredClients.filter((c) => {
+      if ((c as any).isRenewal) return true;
+      if ((c as any).renewedAt) return true;
+      if (c.invoices && c.invoices.length > 1) return true;
       const startDate = c.startDate ? new Date(c.startDate) : null;
       const createdAt = c.createdAt ? new Date(c.createdAt) : null;
       if (!startDate || !createdAt || isNaN(startDate.getTime()) || isNaN(createdAt.getTime()))

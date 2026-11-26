@@ -68,8 +68,8 @@ export const SuperAdminAnnouncementsPage: React.FC = () => {
             formErrors.title = 'Title is required';
         } else {
             const wordCount = titleTrimmed.split(/\s+/).filter(Boolean).length;
-            if (wordCount > 15) {
-                formErrors.title = 'Title cannot exceed 15 words';
+            if (wordCount > 25) {
+                formErrors.title = 'Title cannot exceed 25 words';
             } else if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(titleTrimmed)) {
                 formErrors.title = 'Title can only contain letters, numbers, spaces, and basic punctuation';
             }
@@ -97,15 +97,24 @@ export const SuperAdminAnnouncementsPage: React.FC = () => {
             return;
         }
 
-        // Super Admin announcements target admins platform-wide
+        // Expiry at end of day (23:59:59.999)
+        let expiry: Date;
+        if (formData.expiresAt) {
+            const [year, month, day] = formData.expiresAt.split('-').map(Number);
+            expiry = (year && month && day)
+                ? new Date(year, month - 1, day, 23, 59, 59, 999)
+                : new Date(formData.expiresAt);
+        } else {
+            expiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+            expiry.setHours(23, 59, 59, 999);
+        }
+
         const data = {
             title: formData.title,
             message: formData.message,
             priority: formData.priority as 'normal' | 'urgent',
             targetAudience: 'admin' as const,
-            expiresAt: formData.expiresAt 
-                ? new Date(formData.expiresAt).toISOString() 
-                : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // Default 7 days
+            expiresAt: expiry.toISOString()
         };
 
         let success = false;
@@ -125,7 +134,7 @@ export const SuperAdminAnnouncementsPage: React.FC = () => {
                 expiresAt: ''
             });
             setErrors({});
-            fetchAnnouncements(); // Refresh list to get updated items
+            fetchAnnouncements();
         }
     };
 
@@ -137,10 +146,13 @@ export const SuperAdminAnnouncementsPage: React.FC = () => {
         })) {
             const success = await deleteAnnouncement(id);
             if (success) {
-                fetchAnnouncements(); // Refresh list
+                fetchAnnouncements();
             }
         }
     };
+
+    const titleWordCount = formData.title.trim() ? formData.title.trim().split(/\s+/).filter(Boolean).length : 0;
+    const messageWordCount = formData.message.trim() ? formData.message.trim().split(/\s+/).filter(Boolean).length : 0;
 
     return (
         <div className="p-6 max-w-7xl mx-auto space-y-8">
@@ -148,89 +160,94 @@ export const SuperAdminAnnouncementsPage: React.FC = () => {
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 bg-gradient-to-r from-indigo-950/40 to-purple-950/30 p-6 rounded-2xl border border-indigo-500/20 shadow-sm backdrop-blur-sm">
                 <div>
                     <h1 className="text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-500 flex items-center gap-3">
-                        <Megaphone className="text-indigo-400 animate-pulse" size={32} /> Platform Announcements
+                        <Megaphone className="h-8 w-8 text-indigo-400 animate-pulse" /> Platform Announcements
                     </h1>
-                    <p className="text-indigo-950/70 dark:text-indigo-200/80 mt-2 text-sm max-w-xl font-medium">
-                        Create and publish platform-wide alerts and updates (such as scheduled maintenance). These are delivered directly to all Gym Admins and do not broadcast to regular members.
-                    </p>
+                    <p className="text-gray-400 text-sm mt-1">Broadcast announcements globally to all Gym Admins on the platform.</p>
                 </div>
-                <button
+                <Button 
                     onClick={handleNewClick}
-                    className="sm:self-center flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl font-semibold shadow-lg shadow-indigo-500/20 transition-all hover:-translate-y-0.5 active:translate-y-0"
+                    className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-500/25 border-none h-11 px-5 rounded-xl font-medium flex items-center gap-2"
                 >
-                    <Plus size={20} />
+                    <Plus size={18} />
                     New Announcement
-                </button>
+                </Button>
             </div>
 
-            {/* List */}
-            <div className="space-y-4">
+            {/* Announcements Grid */}
+            <div className="grid gap-5">
                 {announcements.map((ann) => (
                     <Card 
                         key={ann._id} 
-                        className={`overflow-hidden border-l-4 shadow-sm hover:shadow-md transition-all duration-300 bg-white dark:bg-gray-800 ${
+                        className={`overflow-hidden border transition-all duration-300 hover:shadow-md ${
                             ann.priority === 'urgent' 
-                                ? 'border-l-rose-500 border border-gray-100 dark:border-rose-950/20' 
-                                : 'border-l-indigo-500 border border-gray-100 dark:border-indigo-950/20'
+                                ? 'border-red-500/30 bg-red-950/10 dark:bg-red-950/20' 
+                                : 'border-indigo-500/20 bg-card/60 backdrop-blur-sm'
                         }`}
                     >
-                        <CardContent className="p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                            <div className="flex-1 space-y-2">
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <h3 className="font-bold text-lg text-gray-900 dark:text-white">{ann.title}</h3>
-                                    {ann.priority === 'urgent' && (
-                                        <Badge className="bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-400 flex items-center gap-1 border border-rose-200 dark:border-rose-900/30">
-                                            <AlertTriangle size={12} /> Urgent
+                        <CardContent className="p-6">
+                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                                <div className="space-y-3 flex-1">
+                                    <div className="flex flex-wrap items-center gap-2.5">
+                                        <h3 className="text-lg font-bold text-gray-900 dark:text-white tracking-tight">
+                                            {ann.title}
+                                        </h3>
+                                        {ann.priority === 'urgent' && (
+                                            <Badge className="bg-red-500/10 text-red-500 border border-red-500/30 flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-semibold rounded-full">
+                                                <AlertTriangle size={13} />
+                                                Urgent Priority
+                                            </Badge>
+                                        )}
+                                        <Badge className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 px-2.5 py-0.5 text-xs font-medium rounded-full">
+                                            Platform Wide
                                         </Badge>
-                                    )}
-                                    <Badge className="bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400 flex items-center gap-1 border border-indigo-100 dark:border-indigo-900/30">
-                                        <ShieldAlert size={12} /> Platform Wide
-                                    </Badge>
+                                    </div>
+
+                                    <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">
+                                        {ann.message}
+                                    </p>
+
+                                    <div className="flex flex-wrap items-center gap-4 text-xs text-gray-400 pt-2 border-t border-gray-100 dark:border-gray-800">
+                                        <div className="flex items-center gap-1">
+                                            <Calendar size={13} className="text-gray-500" />
+                                            <span>Posted: {new Date(ann.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <Clock size={13} className="text-gray-500" />
+                                            <span>Expires: {new Date(ann.expiresAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <p className="text-gray-600 dark:text-gray-300 text-sm whitespace-pre-wrap leading-relaxed">{ann.message}</p>
-                                <div className="flex flex-wrap gap-4 text-xs text-gray-400 pt-1">
-                                    <span className="flex items-center gap-1">
-                                        <Calendar size={13} /> Posted: {new Date(ann.createdAt).toLocaleDateString()}
-                                    </span>
-                                    <span className="flex items-center gap-1">
-                                        <Clock size={13} /> Expires: {new Date(ann.expiresAt).toLocaleDateString()}
-                                    </span>
+
+                                {/* Actions */}
+                                <div className="flex items-center gap-1.5 self-end sm:self-start border-t sm:border-t-0 pt-3 sm:pt-0 w-full sm:w-auto justify-end">
+                                    <Button 
+                                        size="sm" 
+                                        variant="ghost" 
+                                        className="h-9 w-9 p-0 rounded-lg text-gray-400 hover:text-indigo-400 hover:bg-indigo-500/10"
+                                        onClick={() => handleEditClick(ann)}
+                                        title="Edit Announcement"
+                                    >
+                                        <Edit size={16} />
+                                    </Button>
+                                    <Button 
+                                        size="sm" 
+                                        variant="ghost" 
+                                        className="h-9 w-9 p-0 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10"
+                                        onClick={() => handleDelete(ann._id)}
+                                        title="Delete Announcement"
+                                    >
+                                        <Trash2 size={16} />
+                                    </Button>
                                 </div>
-                            </div>
-                            <div className="flex self-end md:self-center gap-2">
-                                <Button 
-                                    size="sm" 
-                                    variant="ghost" 
-                                    className="text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 border border-transparent hover:border-indigo-200 dark:hover:border-indigo-900/30 rounded-lg p-2"
-                                    onClick={() => handleEditClick(ann)}
-                                    title="Edit Announcement"
-                                >
-                                    <Edit size={18} />
-                                </Button>
-                                <Button 
-                                    size="sm" 
-                                    variant="ghost" 
-                                    className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 border border-transparent hover:border-red-200 dark:hover:border-red-900/30 rounded-lg p-2"
-                                    onClick={() => handleDelete(ann._id)}
-                                    title="Delete Announcement"
-                                >
-                                    <Trash2 size={18} />
-                                </Button>
                             </div>
                         </CardContent>
                     </Card>
                 ))}
 
-                {loading && announcements.length === 0 && (
-                    <div className="flex justify-center items-center py-12">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
-                    </div>
-                )}
-
                 {!loading && announcements.length === 0 && (
-                    <div className="text-center py-16 bg-gray-50 dark:bg-gray-900/20 rounded-2xl border border-dashed border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400">
-                        <Megaphone className="mx-auto mb-3 opacity-30 text-gray-400" size={48} />
-                        <p className="font-semibold text-lg">No platform announcements</p>
+                    <div className="text-center py-16 px-4 rounded-2xl border border-dashed border-gray-700/50 bg-gray-900/20 text-gray-400">
+                        <Megaphone className="mx-auto h-12 w-12 text-gray-600 mb-3 opacity-50" />
+                        <h3 className="text-base font-semibold text-gray-300">No active platform announcements</h3>
                         <p className="text-sm opacity-80 mt-1">Announcements you post will appear here and reach all Gym Admins.</p>
                     </div>
                 )}
@@ -241,26 +258,38 @@ export const SuperAdminAnnouncementsPage: React.FC = () => {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 title={editingAnnouncement ? 'Edit Platform Announcement' : 'Create Platform Announcement'}
+                closeOnOutsideClick={false}
             >
                 <form onSubmit={handleSubmit} className="space-y-5">
-                    <Input
-                        label="Title"
-                        value={formData.title}
-                        onChange={e => {
-                            setFormData({ ...formData, title: e.target.value });
-                            if (errors.title) {
-                                setErrors(prev => {
-                                    const next = { ...prev };
-                                    delete next.title;
-                                    return next;
-                                });
-                            }
-                        }}
-                        required
-                        placeholder="e.g., Scheduled Maintenance Notification"
-                        className="w-full"
-                        error={errors.title}
-                    />
+                    <div>
+                        <Input
+                            label="Title"
+                            value={formData.title}
+                            onChange={e => {
+                                setFormData({ ...formData, title: e.target.value });
+                                if (errors.title) {
+                                    setErrors(prev => {
+                                        const next = { ...prev };
+                                        delete next.title;
+                                        return next;
+                                    });
+                                }
+                            }}
+                            required
+                            placeholder="e.g., Scheduled Maintenance Notification"
+                            className="w-full"
+                            error={errors.title}
+                        />
+                        <div className="flex justify-end mt-1">
+                            <span className={`text-xs ${
+                                titleWordCount > 25 
+                                    ? 'text-red-500 font-semibold' 
+                                    : 'text-gray-400 dark:text-gray-500'
+                            }`}>
+                                {titleWordCount}/25 words
+                            </span>
+                        </div>
+                    </div>
 
                     <div className="flex flex-col gap-1.5">
                         <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Message Content</label>

@@ -194,6 +194,6 @@ ScheduleSchema.pre('findOneAndUpdate', function (next) {
   next();
 });
 
-const Schedule = mongoose.model<ISchedule>('Schedule', ScheduleSchema);
+export const Schedule = mongoose.model<ISchedule>('Schedule', ScheduleSchema);
 
 export default Schedule;

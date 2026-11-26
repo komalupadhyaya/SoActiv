@@ -3,10 +3,22 @@ import { useState, useEffect } from 'react';
 import { SuperAdminSidebar } from './SuperAdminSidebar';
 import { SuperAdminHeader } from './SuperAdminHeader';
 import { useAuth } from '../../contexts/AuthContext';
+import { clsx } from 'clsx';
 
 export function SuperAdminLayout() {
     const navigate = useNavigate();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+        return localStorage.getItem('sidebar_collapsed') === 'true';
+    });
+
+    const toggleSidebarCollapse = () => {
+        setIsSidebarCollapsed((prev) => {
+            const next = !prev;
+            localStorage.setItem('sidebar_collapsed', String(next));
+            return next;
+        });
+    };
 
     // ===== USE AUTHCONTEXT (SINGLE SOURCE OF TRUTH) =====
     const { user, role, isLoading, logout } = useAuth();
@@ -53,10 +65,12 @@ export function SuperAdminLayout() {
                 onClose={() => setIsMobileMenuOpen(false)}
                 onLogout={handleLogout}
                 user={user || {}}
+                isCollapsed={isSidebarCollapsed}
+                onToggleCollapse={toggleSidebarCollapse}
             />
 
             {/* Main Content Wrapper */}
-            <div className="xl:pl-64 flex flex-col min-h-screen transition-all duration-300">
+            <div className={clsx("flex flex-col min-h-screen transition-all duration-300 ease-in-out", isSidebarCollapsed ? "xl:pl-24" : "xl:pl-64")}>
                 {/* Header Component */}
                 <SuperAdminHeader
                     onMobileMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}

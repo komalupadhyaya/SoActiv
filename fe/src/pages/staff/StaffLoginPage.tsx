@@ -43,8 +43,8 @@ export const StaffLoginPage: React.FC = () => {
             } else {
                 navigate('/');
             }
-        } catch (err) {
-            setError('Invalid credentials. Please check your email and password.');
+        } catch (err: any) {
+            setError(err?.message || 'Invalid credentials. Please check your email and password.');
         } finally {
             setIsLoading(false);
         }

@@ -35,8 +35,8 @@ export function SuperAdminHeader({ onMobileMenuToggle }: SuperAdminHeaderProps) 
     };
 
     return (
-        <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30">
-            <div className="px-4 py-3 flex items-center justify-between">
+        <header className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30 flex items-center px-4">
+            <div className="w-full flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     {/* Mobile Toggle */}
                     <button

@@ -25,6 +25,25 @@ export interface IStaff extends Document {
     whatsapp: boolean;
   };
   avatar?: string;
+  countryCode?: string;
+  gender?: string;
+  vaccinated?: string;
+  loginAccess?: boolean;
+  resumeUrl?: string;
+  employeeCategory?: string;
+  payoutType?: string;
+  grade?: string;
+  dob?: Date;
+  anniversary?: Date;
+  jobDesignation?: string;
+  adminRights?: string;
+  attendanceId?: string;
+  panCard?: string;
+  gstNumber?: string;
+  accountNo?: string;
+  ifsc?: string;
+  hrmsId?: string;
+  permissions?: Record<string, boolean>;
   approvalStatus: 'approved' | 'pending_create' | 'pending_update' | 'pending_delete';
   pendingUpdates?: Record<string, any> | null;
   requestedBy?: Types.ObjectId | null;
@@ -41,7 +60,7 @@ const staffSchema = new Schema<IStaff>(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: false, // Relaxed requirement for pending creations
+      required: false, // Made optional for pending creations
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -57,6 +76,78 @@ const staffSchema = new Schema<IStaff>(
       type: String,
       default: '',
     },
+    countryCode: {
+      type: String,
+      default: '+91',
+    },
+    gender: {
+      type: String,
+      default: '',
+    },
+    vaccinated: {
+      type: String,
+      default: '',
+    },
+    loginAccess: {
+      type: Boolean,
+      default: true,
+    },
+    resumeUrl: {
+      type: String,
+      default: '',
+    },
+    employeeCategory: {
+      type: String,
+      default: '',
+    },
+    payoutType: {
+      type: String,
+      default: '',
+    },
+    grade: {
+      type: String,
+      default: '',
+    },
+    dob: {
+      type: Date,
+      default: null,
+    },
+    anniversary: {
+      type: Date,
+      default: null,
+    },
+    jobDesignation: {
+      type: String,
+      default: '',
+    },
+    adminRights: {
+      type: String,
+      default: '',
+    },
+    attendanceId: {
+      type: String,
+      default: '',
+    },
+    panCard: {
+      type: String,
+      default: '',
+    },
+    gstNumber: {
+      type: String,
+      default: '',
+    },
+    accountNo: {
+      type: String,
+      default: '',
+    },
+    ifsc: {
+      type: String,
+      default: '',
+    },
+    hrmsId: {
+      type: String,
+      default: '',
+    },
     fullName: {
       type: String,
       required: [true, 'Full name is required'],
@@ -66,11 +157,8 @@ const staffSchema = new Schema<IStaff>(
     position: {
       type: String,
       required: [true, 'Position is required'],
-      enum: {
-        values: ["manager", "receptionist", "cleaner", "sales", "maintenance", "trainer"],
-        message: 'Position must be either "manager", "receptionist", "cleaner", "sales", "maintenance", or "trainer"',
-      },
       trim: true,
+      default: 'trainer',
     },
     email: {
       type: String,
@@ -87,11 +175,11 @@ const staffSchema = new Schema<IStaff>(
     },
     joiningDate: {
       type: Date,
-      required: [true, 'Joining date is required'],
+      default: Date.now,
     },
     salary: {
       type: Number,
-      required: [true, 'Salary is required'],
+      default: 0,
       min: [0, 'Salary cannot be negative'],
     },
     status: {
@@ -137,6 +225,10 @@ const staffSchema = new Schema<IStaff>(
         type: Boolean,
         default: true,
       },
+    },
+    permissions: {
+      type: Schema.Types.Mixed,
+      default: {},
     },
   },
   {

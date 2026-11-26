@@ -51,10 +51,26 @@ export const createEnquiry = async (req: Request, res: Response): Promise<any> =
       name,
       phone,
       email,
+      gender,
+      enquiryDate,
+      serviceName,
+      enquiryType,
+      trialType,
+      trialDateTime,
+      trialService,
+      trialStaff,
+      trialClassDate,
+      trialClass,
+      trialSessionDate,
+      trialSession,
       source,
       status,
       assignedStaff,
       followUpDate,
+      followUpDateTime,
+      followUpStaff,
+      callTag,
+      followUpMessage,
       comments,
       interests,
       budget,
@@ -72,74 +88,71 @@ export const createEnquiry = async (req: Request, res: Response): Promise<any> =
 
     const adminOwnerId = await getGymOwnerAdminId(req.user);
 
-    // Validate required fields (additional runtime check beyond Mongoose)
-    if (!name || !phone || !source || !email || !assignedStaff || !followUpDate || !interests || !budget) {
+    // Validate required fields
+    if (!name || !name.trim()) {
       return res.status(400).json({
         success: false,
-        message: 'All fields are required: name, phone, source, email, assignedStaff, followUpDate, interests, and budget.',
+        message: 'Customer name is required.',
       });
     }
 
-    if (!/^[a-zA-Z\s]+$/.test(name)) {
+    if (!phone || !phone.trim()) {
       return res.status(400).json({
         success: false,
-        message: 'Name must contain only alphabetical characters and spaces.',
+        message: 'Phone number is required.',
       });
     }
 
-    if (interests && !/^[a-zA-Z\s.,\-()]*$/.test(interests)) {
+    if (email && typeof email === 'string' && email.trim() && !/^\S+@\S+\.\S+$/.test(email.trim())) {
       return res.status(400).json({
         success: false,
-        message: 'Areas of Interest can only contain letters, spaces, and basic punctuation.',
+        message: 'Please enter a valid email address.',
       });
     }
 
-    const budgetNum = Number(budget);
-    if (isNaN(budgetNum) || budgetNum < 100 || budgetNum > 100000) {
-      return res.status(400).json({
-        success: false,
-        message: 'Budget must be a valid number between 100 and 100,000.',
-      });
-    }
+    const cleanAssignedStaff = (assignedStaff || followUpStaff) && typeof (assignedStaff || followUpStaff) === 'string' && Types.ObjectId.isValid(assignedStaff || followUpStaff)
+      ? new Types.ObjectId(assignedStaff || followUpStaff)
+      : null;
 
-    // Optional: Validate ObjectId format for assignedStaff if provided
-    if (assignedStaff && !Types.ObjectId.isValid(assignedStaff)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid staff ID format.',
-      });
-    }
+    const cleanTrialStaff = trialStaff && typeof trialStaff === 'string' && Types.ObjectId.isValid(trialStaff)
+      ? new Types.ObjectId(trialStaff)
+      : null;
 
-    if (comments) {
-      const commentWords = comments.trim().split(/\s+/).filter(Boolean).length;
-      if (commentWords > 50) {
-        return res.status(400).json({
-          success: false,
-          message: 'Comments cannot exceed 50 words.',
-        });
-      }
-      if (!/^[a-zA-Z\s.,\-()]*$/.test(comments)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Comments can only contain alphabetical characters, spaces, and basic punctuation.',
-        });
-      }
-    }
+    const parseDate = (d: any) => {
+      if (!d) return null;
+      const parsed = new Date(d);
+      return isNaN(parsed.getTime()) ? null : parsed;
+    };
 
     // Build the enquiry object
     const enquiryData: Partial<IEnquiry> = {
       userId: new Types.ObjectId(userId),
       adminId: new Types.ObjectId(adminOwnerId),
-      name,
-      phone,
-      email,
-      source,
+      name: name.trim(),
+      phone: phone.trim(),
+      email: email ? email.trim() : '',
+      gender: gender || undefined,
+      enquiryDate: parseDate(enquiryDate) || new Date(),
+      serviceName: serviceName || '',
+      enquiryType: enquiryType || '',
+      trialType: trialType || 'no-trial',
+      trialDateTime: parseDate(trialDateTime),
+      trialService: trialService || '',
+      trialStaff: cleanTrialStaff,
+      trialClassDate: parseDate(trialClassDate),
+      trialClass: trialClass || '',
+      trialSessionDate: parseDate(trialSessionDate),
+      trialSession: trialSession || '',
+      source: source || 'walk-in',
       status: status || 'new', // default to 'new' if not provided
-      assignedStaff: assignedStaff ? new Types.ObjectId(assignedStaff) : null,
-      followUpDate: followUpDate ? new Date(followUpDate) : null,
+      assignedStaff: cleanAssignedStaff,
+      followUpDate: parseDate(followUpDateTime) || parseDate(followUpDate),
+      followUpDateTime: parseDate(followUpDateTime),
+      callTag: callTag || '',
+      followUpMessage: followUpMessage || '',
       comments: comments || '',
       interests: interests || '',
-      budget: budget || '',
+      budget: budget ? String(budget) : '',
     };
 
     // Create new enquiry
@@ -147,16 +160,18 @@ export const createEnquiry = async (req: Request, res: Response): Promise<any> =
     const savedEnquiry = await enquiry.save();
 
     // Auto-create or schedule follow-up if assignedStaff and followUpDate are set
-    if (assignedStaff && followUpDate) {
+    const effectiveStaff = assignedStaff || followUpStaff;
+    const effectiveFollowUpDate = followUpDateTime || followUpDate;
+    if (effectiveStaff && effectiveFollowUpDate) {
       let adminId = adminOwnerId;
       await createOrUpdateEnquiryFollowUp(
         (savedEnquiry._id as any).toString(),
         name,
-        assignedStaff,
-        followUpDate,
+        effectiveStaff,
+        effectiveFollowUpDate,
         userId,
         adminId,
-        comments || 'Follow-up scheduled'
+        followUpMessage || comments || 'Follow-up scheduled'
       );
     }
 
@@ -251,9 +266,10 @@ export const createPublicEnquiry = async (req: Request, res: Response): Promise<
 // Even admins can only see their own
 export const getEnquiries = async (req: Request, res: Response): Promise<any> => {
   try {
-    const { page = 1, limit = 10, status, source } = req.query;
-    const pageNum = Math.max(1, parseInt(page as string, 10));
-    const limitNum = Math.min(100, parseInt(limit as string, 10)); // Cap limit at 100
+    const { page, limit, status, source } = req.query;
+    const hasPagination = page !== undefined || limit !== undefined;
+    const pageNum = page ? Math.max(1, parseInt(page as string, 10)) : 1;
+    const limitNum = limit ? Math.max(1, parseInt(limit as string, 10)) : 0;
     const currentUser = req.user;
 
     if (!currentUser || !currentUser.id) {
@@ -290,14 +306,17 @@ export const getEnquiries = async (req: Request, res: Response): Promise<any> =>
     if (status) filter.status = status;
     if (source) filter.source = source;
 
-    const [enquiries, total] = await Promise.all([
-      Enquiry.find(filter)
-        .populate('userId', 'fullname email')
-        .populate('assignedStaff', 'fullName email position')
-        .sort({ createdAt: -1 })
-        .skip((pageNum - 1) * limitNum)
-        .limit(limitNum),
+    let enquiryQuery = Enquiry.find(filter)
+      .populate('userId', 'fullname email')
+      .populate('assignedStaff', 'fullName email position')
+      .sort({ createdAt: -1 });
 
+    if (hasPagination && limitNum > 0) {
+      enquiryQuery = enquiryQuery.skip((pageNum - 1) * limitNum).limit(limitNum);
+    }
+
+    const [enquiries, total] = await Promise.all([
+      enquiryQuery,
       Enquiry.countDocuments(filter),
     ]);
 
@@ -307,10 +326,10 @@ export const getEnquiries = async (req: Request, res: Response): Promise<any> =>
       data: enquiries,
       pagination: {
         currentPage: pageNum,
-        totalPages: Math.ceil(total / limitNum),
+        totalPages: hasPagination && limitNum > 0 ? Math.ceil(total / limitNum) : 1,
         totalItems: total,
-        hasNext: pageNum * limitNum < total,
-        hasPrev: pageNum > 1,
+        hasNext: hasPagination && limitNum > 0 ? pageNum * limitNum < total : false,
+        hasPrev: hasPagination && limitNum > 0 ? pageNum > 1 : false,
       },
     });
   } catch (error: any) {
@@ -382,13 +401,31 @@ export const updateEnquiry = async (req: Request, res: Response): Promise<any> =
       name,
       phone,
       email,
+      gender,
+      enquiryDate,
+      serviceName,
+      enquiryType,
+      trialType,
+      trialDateTime,
+      trialService,
+      trialStaff,
+      trialClassDate,
+      trialClass,
+      trialSessionDate,
+      trialSession,
       source,
       status,
       assignedStaff,
       followUpDate,
+      followUpDateTime,
+      followUpStaff,
+      callTag,
+      followUpMessage,
       comments,
       interests,
       budget,
+      dateOfBirth,
+      countryCode,
     } = req.body;
 
     if (!id) {
@@ -405,63 +442,24 @@ export const updateEnquiry = async (req: Request, res: Response): Promise<any> =
       });
     }
 
-    if (name !== undefined && name !== null) {
-      if (!/^[a-zA-Z\s]+$/.test(name)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Name must contain only alphabetical characters and spaces.',
-        });
-      }
-    }
-
-    if (interests !== undefined && interests !== null) {
-      if (!/^[a-zA-Z\s.,\-()]*$/.test(interests)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Areas of Interest can only contain letters, spaces, and basic punctuation.',
-        });
-      }
-    }
-
-    if (budget !== undefined && budget !== null) {
-      const budgetNum = Number(budget);
-      if (isNaN(budgetNum) || budgetNum < 100 || budgetNum > 100000) {
-        return res.status(400).json({
-          success: false,
-          message: 'Budget must be a valid number between 100 and 100,000.',
-        });
-      }
-    }
-
-    if (comments !== undefined && comments !== null) {
-      const commentWords = comments.trim().split(/\s+/).filter(Boolean).length;
-      if (commentWords > 50) {
-        return res.status(400).json({
-          success: false,
-          message: 'Comments cannot exceed 50 words.',
-        });
-      }
-      if (!/^[a-zA-Z\s.,\-()]*$/.test(comments)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Comments can only contain alphabetical characters, spaces, and basic punctuation.',
-        });
-      }
-    }
-
-    if (
-      name === '' ||
-      phone === '' ||
-      source === '' ||
-      email === '' ||
-      assignedStaff === '' ||
-      followUpDate === '' ||
-      interests === '' ||
-      budget === ''
-    ) {
+    if (name !== undefined && name !== null && typeof name === 'string' && !name.trim()) {
       return res.status(400).json({
         success: false,
-        message: 'Required fields cannot be empty.',
+        message: 'Name cannot be empty.',
+      });
+    }
+
+    if (phone !== undefined && phone !== null && typeof phone === 'string' && !phone.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number cannot be empty.',
+      });
+    }
+
+    if (email && typeof email === 'string' && email.trim() && !/^\S+@\S+\.\S+$/.test(email.trim())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please enter a valid email address.',
       });
     }
 
@@ -481,12 +479,16 @@ export const updateEnquiry = async (req: Request, res: Response): Promise<any> =
       if (status) updateData.status = status;
       if (comments) updateData.comments = comments;
     } else if (isStaff && position === 'receptionist') {
-      // Receptionist: can only edit walk-in leads — fetch current enquiry to check source
-      const existingEnquiry = await Enquiry.findById(id).select('source');
+      // Receptionist: can only edit walk-in leads — fetch current enquiry to check source or enquiryType
+      const existingEnquiry = await Enquiry.findById(id).select('source enquiryType');
       if (!existingEnquiry) {
         return res.status(404).json({ success: false, message: 'Enquiry not found.' });
       }
-      if (existingEnquiry.source !== 'walk-in') {
+      const isWalkIn = 
+        existingEnquiry.source?.toLowerCase() === 'walk-in' || 
+        existingEnquiry.enquiryType?.toLowerCase() === 'walk-in';
+
+      if (!isWalkIn) {
         return res.status(403).json({
           success: false,
           message: 'Receptionist can only edit walk-in leads.',
@@ -496,6 +498,20 @@ export const updateEnquiry = async (req: Request, res: Response): Promise<any> =
       if (name) updateData.name = name;
       if (phone) updateData.phone = phone;
       if (email !== undefined) updateData.email = email;
+      if (gender !== undefined) updateData.gender = gender;
+      if (enquiryDate !== undefined) updateData.enquiryDate = new Date(enquiryDate);
+      if (serviceName !== undefined) updateData.serviceName = serviceName;
+      if (enquiryType !== undefined) updateData.enquiryType = enquiryType;
+      if (trialType !== undefined) updateData.trialType = trialType;
+      if (trialDateTime !== undefined) updateData.trialDateTime = trialDateTime ? new Date(trialDateTime) : null;
+      if (trialService !== undefined) updateData.trialService = trialService;
+      if (trialStaff !== undefined) {
+        updateData.trialStaff = trialStaff && Types.ObjectId.isValid(trialStaff) ? new Types.ObjectId(trialStaff) : null;
+      }
+      if (trialClassDate !== undefined) updateData.trialClassDate = trialClassDate ? new Date(trialClassDate) : null;
+      if (trialClass !== undefined) updateData.trialClass = trialClass;
+      if (trialSessionDate !== undefined) updateData.trialSessionDate = trialSessionDate ? new Date(trialSessionDate) : null;
+      if (trialSession !== undefined) updateData.trialSession = trialSession;
       if (source) updateData.source = source;
       if (interests) updateData.interests = interests;
       if (budget) updateData.budget = budget;
@@ -505,19 +521,39 @@ export const updateEnquiry = async (req: Request, res: Response): Promise<any> =
       if (name) updateData.name = name;
       if (phone) updateData.phone = phone;
       if (email !== undefined) updateData.email = email;
+      if (gender !== undefined) updateData.gender = gender;
+      if (enquiryDate !== undefined) updateData.enquiryDate = new Date(enquiryDate);
+      if (serviceName !== undefined) updateData.serviceName = serviceName;
+      if (enquiryType !== undefined) updateData.enquiryType = enquiryType;
+      if (trialType !== undefined) updateData.trialType = trialType;
+      if (trialDateTime !== undefined) updateData.trialDateTime = trialDateTime ? new Date(trialDateTime) : null;
+      if (trialService !== undefined) updateData.trialService = trialService;
+      if (trialStaff !== undefined) {
+        updateData.trialStaff = trialStaff && Types.ObjectId.isValid(trialStaff) ? new Types.ObjectId(trialStaff) : null;
+      }
+      if (trialClassDate !== undefined) updateData.trialClassDate = trialClassDate ? new Date(trialClassDate) : null;
+      if (trialClass !== undefined) updateData.trialClass = trialClass;
+      if (trialSessionDate !== undefined) updateData.trialSessionDate = trialSessionDate ? new Date(trialSessionDate) : null;
+      if (trialSession !== undefined) updateData.trialSession = trialSession;
+      if (followUpDateTime !== undefined) updateData.followUpDateTime = followUpDateTime ? new Date(followUpDateTime) : null;
+      if (callTag !== undefined) updateData.callTag = callTag;
+      if (followUpMessage !== undefined) updateData.followUpMessage = followUpMessage;
       if (source) updateData.source = source;
       if (status) updateData.status = status;
       if (comments) updateData.comments = comments;
       if (interests) updateData.interests = interests;
       if (budget) updateData.budget = budget;
+      if (dateOfBirth !== undefined) (updateData as any).dateOfBirth = dateOfBirth ? new Date(dateOfBirth) : null;
+      if (countryCode !== undefined) (updateData as any).countryCode = countryCode;
     }
 
 
-    if (assignedStaff !== undefined) {
-      if (!assignedStaff) {
+    const staffToAssign = assignedStaff !== undefined ? assignedStaff : followUpStaff;
+    if (staffToAssign !== undefined) {
+      if (!staffToAssign) {
         updateData.assignedStaff = null;
-      } else if (Types.ObjectId.isValid(assignedStaff)) {
-        updateData.assignedStaff = new Types.ObjectId(assignedStaff);
+      } else if (Types.ObjectId.isValid(staffToAssign)) {
+        updateData.assignedStaff = new Types.ObjectId(staffToAssign);
       } else {
         return res.status(400).json({
           success: false,
@@ -526,8 +562,9 @@ export const updateEnquiry = async (req: Request, res: Response): Promise<any> =
       }
     }
 
-    if (followUpDate) {
-      const date = new Date(followUpDate);
+    const effectiveDate = followUpDateTime || followUpDate;
+    if (effectiveDate) {
+      const date = new Date(effectiveDate);
       if (isNaN(date.getTime())) {
         return res.status(400).json({
           success: false,

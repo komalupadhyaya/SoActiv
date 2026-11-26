@@ -13,15 +13,17 @@ export interface Client {
   contactNumber: string;
   address?: string;
 
+  profileImage?: string;
+
   // Emergency Contact
   emergencyContactName?: string;
   emergencyContactNumber?: string;
   emergencyContactRelation?: 'parent' | 'spouse' | 'sibling' | 'friend' | 'child' | 'other';
 
   // Staff Assignment
-  salesRep?: string;
-  memberManager?: string;
-  trainer?: string;
+  salesRep?: any;
+  memberManager?: any;
+  trainer?: any;
 
   // Club & Membership
   attendanceId?: string;
@@ -32,12 +34,12 @@ export interface Client {
   startDate: string;
   endDate: string;
   remainingDays?: number;
-  status: 'active' | 'expired' | 'pending';
+  status: 'active' | 'expired' | 'pending' | 'inactive';
 
   // Package & Add-ons
   packagePrice: number;
   hasPersonalTraining: boolean;
-  personalTrainer?: string;
+  personalTrainer?: any;
   personalTrainingDurationWeeks?: number;
   personalTrainingPrice?: number;
 
@@ -47,13 +49,15 @@ export interface Client {
   // Timing
   timing: string;
 
-  // Notifications
-  notifications?: {
-    sms: boolean;
-    email: boolean;
-    push: boolean;
-    whatsapp: boolean;
-  };
+  // Invoice & History
+  invoice?: any;
+  invoices?: any[];
+  freezes?: any[];
+  freezeInfo?: any;
+  dateChanges?: any[];
+  transfersSent?: any[];
+  transfersReceived?: any[];
+  paymentMode?: string;
 
   createdAt: string;
   updatedAt: string;
@@ -62,8 +66,10 @@ export interface Client {
 // === Type for creating a client ===
 export type CreateClientData = Omit<
   Client,
-  '_id' | 'userId' | 'createdAt' | 'updatedAt' | 'status'
->;
+  '_id' | 'userId' | 'createdAt' | 'updatedAt'
+> & {
+  status?: 'active' | 'expired' | 'pending';
+};
 
 // === Activity Type ===
 export interface ClientActivity {
@@ -348,13 +354,46 @@ export const useClient = () => {
         addToast(res.data.message || 'Failed to forward renewal', 'error');
         return false;
       }
-    } catch (err: any) {
-      addToast(err.response?.data?.message || err.message || 'Failed to forward renewal', 'error');
-      return false;
     } finally {
       setLoading(false);
     }
   };
+
+  const unarchiveClient = async (clientData: Client): Promise<boolean> => {
+    try {
+      const res = await API.post('/', clientData);
+      if (res.data.success && res.data.data) {
+        setClients((prev) => [res.data.data, ...prev.filter((c) => c._id !== clientData._id)]);
+        return true;
+      }
+    } catch {
+      setClients((prev) => [clientData, ...prev.filter((c) => c._id !== clientData._id)]);
+      return true;
+    }
+    setClients((prev) => [clientData, ...prev.filter((c) => c._id !== clientData._id)]);
+    return true;
+  };
+
+  const getClientById = useCallback(async (id: string): Promise<Client | null> => {
+    try {
+      const res = await API.get(`/${id}`);
+      if (res.data.success && res.data.data) {
+        setClients((prev) => {
+          const idx = prev.findIndex((c) => c._id === id);
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = res.data.data;
+            return next;
+          }
+          return [res.data.data, ...prev];
+        });
+        return res.data.data;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }, []);
 
   return {
     clients,
@@ -362,9 +401,11 @@ export const useClient = () => {
     error,
     createClient,
     updateClient,
+    getClientById,
     bulkUpload,
     deleteClient,
     rejectDelete,
+    unarchiveClient,
     refresh: fetchClients,
     fetchClients,
     recentActivities,

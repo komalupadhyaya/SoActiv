@@ -2,6 +2,8 @@ export interface User {
   _id: string;
   id: string;
   name: string;
+  fullname?: string;
+  fullName?: string;
   email: string;
   phone: string;
   role: 'admin' | 'superadmin' | 'trainer' | 'staff' | 'member';
@@ -55,17 +57,23 @@ export interface Client {
     whatsapp: boolean;
   };
   avatar?: string;
-  status: 'active' | 'expired' | 'pending';
+  status: 'active' | 'expired' | 'pending' | 'inactive';
   createdAt: string;
 }
 
 export interface Staff {
   id: string;
   name: string;
+  fullName?: string;
   designation: string;
+  position?: string;
   phone: string;
+  contactNumber?: string;
   email: string;
   joiningDate: string;
+  dateOfJoining?: string;
+  dob?: string | Date;
+  anniversary?: string | Date;
   salary: number;
   role: string;
   avatar?: string;
@@ -116,6 +124,14 @@ export interface FollowUp {
     fullName: string;
   } | null;
   completionNotes?: string | null;
+  scheduledBy?: {
+    _id: string;
+    fullName: string;
+    position?: string;
+  } | null;
+  callStatus?: string | null;
+  callTag?: string | null;
+  leadSource?: string | null;
   proposedDate?: string | null;
   proposedTime?: string | null;
   rescheduleReason?: string | null;

@@ -14,6 +14,7 @@ export type FollowUpStatus = 'pending' | 'completed' | 'failed' | 'rescheduled' 
 export interface IFollowUp extends Document {
   userId: Types.ObjectId; // Reference to Admin/Owner who created the follow-up
   assignedTo: Types.ObjectId; // Reference to Staff assigned to this follow-up
+  targetRoles?: string[]; // Roles that can view/manage this follow-up (e.g. ['sales', 'receptionist'])
   type: FollowUpType; // Type of follow-up
   relatedId: Types.ObjectId; // ID of the related enquiry, client, or PT package
   relatedName: string; // Name of the person/entity for quick reference
@@ -28,6 +29,10 @@ export interface IFollowUp extends Document {
   completedAt: Date | null; // When the follow-up was completed
   completedBy: Types.ObjectId | null; // Staff who completed the follow-up
   completionNotes: string | null; // Notes added upon completion/failure
+  scheduledBy?: Types.ObjectId | null; // Staff who scheduled this call
+  callStatus?: string | null; // Specific call status (e.g. Enquiry follow-up, Sale, Interested, No answer)
+  callTag?: string | null; // Call tag (hot, warm, cold)
+  leadSource?: string | null; // Lead source
   createdAt: Date;
   updatedAt: Date;
 }
@@ -54,6 +59,11 @@ const FollowUpSchema = new Schema<IFollowUp, IFollowUpModel>(
       type: Schema.Types.ObjectId,
       ref: 'Staff',
       required: [true, 'Assigned staff is required'],
+      index: true,
+    },
+    targetRoles: {
+      type: [String],
+      default: [],
       index: true,
     },
     type: {
@@ -130,6 +140,23 @@ const FollowUpSchema = new Schema<IFollowUp, IFollowUpModel>(
       type: String,
       trim: true,
       maxlength: [500, 'Completion notes cannot exceed 500 characters'],
+      default: null,
+    },
+    scheduledBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'Staff',
+      default: null,
+    },
+    callStatus: {
+      type: String,
+      default: null,
+    },
+    callTag: {
+      type: String,
+      default: null,
+    },
+    leadSource: {
+      type: String,
       default: null,
     },
   },

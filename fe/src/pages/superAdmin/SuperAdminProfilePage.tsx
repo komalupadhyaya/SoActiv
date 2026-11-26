@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
@@ -44,6 +44,8 @@ export const SuperAdminProfilePage = () => {
         gradientEnd: '#8B5CF6'
     });
 
+    const initializedUserId = useRef<string | null>(null);
+
     const {
         register,
         handleSubmit,
@@ -54,6 +56,12 @@ export const SuperAdminProfilePage = () => {
 
     useEffect(() => {
         if (!user) return;
+        const currentUserId = user.id || user._id;
+        if (!currentUserId) return;
+
+        // If this user's data was already loaded into the form, avoid resetting active unsaved edits during background session refresh
+        if (initializedUserId.current === currentUserId) return;
+        initializedUserId.current = currentUserId;
 
         reset({
             fullname: user.name || '',

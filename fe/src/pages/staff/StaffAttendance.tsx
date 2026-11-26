@@ -59,6 +59,8 @@ export const StaffAttendance: React.FC = () => {
     } = useAttendance();
     const { addToast } = useToast();
 
+    const isReceptionist = user?.position === 'receptionist';
+
     useEffect(() => {
         const fetchSheet = async () => {
             if (!date) return;
@@ -66,9 +68,14 @@ export const StaffAttendance: React.FC = () => {
             try {
                 const data = await getDailyAttendanceSheet(date, timezone);
                 if (Array.isArray(data?.report)) {
-                    // Filter out managers and admins
+                    // Exclude managers, admins, and (for Receptionist portal) receptionists themselves
+                    const excludedPositions = ['manager', 'admin', 'superadmin'];
+                    if (isReceptionist) {
+                        excludedPositions.push('receptionist');
+                    }
+
                     const staffOnly = data.report.filter(item =>
-                        !['manager', 'admin', 'superadmin'].includes(item.position)
+                        !excludedPositions.includes(item.position)
                     );
                     setLocalData(staffOnly);
                 } else {
@@ -81,11 +88,15 @@ export const StaffAttendance: React.FC = () => {
         };
 
         fetchSheet();
-    }, [date, getDailyAttendanceSheet, timezone]);
+    }, [date, getDailyAttendanceSheet, timezone, isReceptionist]);
 
     const handleStatusChange = async (row: AttendanceRow, newStatus: string) => {
         if (!isEditable) {
             addToast('Historical attendance records cannot be edited.', 'error');
+            return;
+        }
+        if (row.checkInTime && row.checkOutTime) {
+            addToast('Attendance record with completed check-in and check-out cannot be modified.', 'error');
             return;
         }
         const status = newStatus as 'present' | 'absent' | 'late' | 'on-leave' | 'half-day';
@@ -155,6 +166,10 @@ export const StaffAttendance: React.FC = () => {
             addToast('Historical attendance records cannot be edited.', 'error');
             return;
         }
+        if (row.checkInTime) {
+            addToast('Check-in time is already recorded and cannot be edited.', 'error');
+            return;
+        }
         if (!timeStr || !date) return;
         const isoDateTime = mergeTimeWithDate(date, timeStr);
 
@@ -206,6 +221,10 @@ export const StaffAttendance: React.FC = () => {
     const handleCheckOutTimeChange = async (row: AttendanceRow, timeStr: string) => {
         if (!isEditable) {
             addToast('Historical attendance records cannot be edited.', 'error');
+            return;
+        }
+        if (row.checkOutTime) {
+            addToast('Check-out time is already recorded and cannot be edited.', 'error');
             return;
         }
         if (!row.checkInTime || !timeStr || !date) return;
@@ -339,7 +358,7 @@ export const StaffAttendance: React.FC = () => {
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <select
                                                     value={row.status}
-                                                    disabled={!isEditable}
+                                                    disabled={!isEditable || !!(row.checkInTime && row.checkOutTime)}
                                                     onChange={(e) => handleStatusChange(row, e.target.value)}
                                                     className="w-full rounded-md border border-gray-300 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300 px-2 py-1 focus:ring-2 focus:ring-orange-400 bg-white dark:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-gray-800"
                                                 >
@@ -355,7 +374,7 @@ export const StaffAttendance: React.FC = () => {
                                                 {showCheckInInput ? (
                                                     <input
                                                         type="time"
-                                                        disabled={!isEditable}
+                                                        disabled={!isEditable || !!row.checkInTime}
                                                         value={isoToTime(row.checkInTime)}
                                                         onChange={(e) => handleCheckInTimeChange(row, e.target.value)}
                                                         className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm focus:ring-2 focus:ring-orange-400 bg-white dark:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-gray-800"
@@ -369,7 +388,7 @@ export const StaffAttendance: React.FC = () => {
                                                 {canEditCheckOut ? (
                                                     <input
                                                         type="time"
-                                                        disabled={!isEditable}
+                                                        disabled={!isEditable || !!row.checkOutTime}
                                                         value={isoToTime(row.checkOutTime)}
                                                         onChange={(e) => handleCheckOutTimeChange(row, e.target.value)}
                                                         className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm focus:ring-2 focus:ring-orange-400 bg-white dark:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-gray-800"

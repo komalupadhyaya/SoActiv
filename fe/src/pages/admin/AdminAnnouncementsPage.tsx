@@ -74,8 +74,8 @@ export const AdminAnnouncementsPage: React.FC = () => {
             formErrors.title = 'Title is required';
         } else {
             const wordCount = titleTrimmed.split(/\s+/).filter(Boolean).length;
-            if (wordCount > 15) {
-                formErrors.title = 'Title cannot exceed 15 words';
+            if (wordCount > 25) {
+                formErrors.title = 'Title cannot exceed 25 words';
             } else if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(titleTrimmed)) {
                 formErrors.title = 'Title can only contain letters, numbers, spaces, and basic punctuation';
             }
@@ -108,8 +108,17 @@ export const AdminAnnouncementsPage: React.FC = () => {
             ? formData.visibleRoles.split(',').map(r => r.trim().toLowerCase()).filter(Boolean)
             : [];
 
-        // Validate future date
-        const expiry = formData.expiresAt ? new Date(formData.expiresAt) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // Default 7 days
+        // Expiry at end of day (23:59:59.999)
+        let expiry: Date;
+        if (formData.expiresAt) {
+            const [year, month, day] = formData.expiresAt.split('-').map(Number);
+            expiry = (year && month && day)
+                ? new Date(year, month - 1, day, 23, 59, 59, 999)
+                : new Date(formData.expiresAt);
+        } else {
+            expiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+            expiry.setHours(23, 59, 59, 999);
+        }
 
         const payload = {
             ...formData,
@@ -146,6 +155,9 @@ export const AdminAnnouncementsPage: React.FC = () => {
         }
     };
 
+    const titleWordCount = formData.title.trim() ? formData.title.trim().split(/\s+/).filter(Boolean).length : 0;
+    const messageWordCount = formData.message.trim() ? formData.message.trim().split(/\s+/).filter(Boolean).length : 0;
+
     return (
         <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="flex justify-between items-center">
@@ -168,9 +180,7 @@ export const AdminAnnouncementsPage: React.FC = () => {
                         className={`border-l-4 ${
                             ann.isPlatformWide
                                 ? 'border-l-purple-500 bg-purple-50/10'
-                                : ann.priority === 'urgent' 
-                                    ? 'border-l-red-500' 
-                                    : 'border-l-blue-500'
+                                : 'border-l-blue-500'
                         }`}
                     >
                         <CardContent className="p-4 flex flex-col md:flex-row justify-between gap-4">
@@ -219,25 +229,37 @@ export const AdminAnnouncementsPage: React.FC = () => {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 title="Create Announcement"
+                closeOnOutsideClick={false}
             >
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <Input
-                        label="Title"
-                        value={formData.title}
-                        onChange={e => {
-                            setFormData({ ...formData, title: e.target.value });
-                            if (errors.title) {
-                                setErrors(prev => {
-                                    const newErrors = { ...prev };
-                                    delete newErrors.title;
-                                    return newErrors;
-                                });
-                            }
-                        }}
-                        required
-                        placeholder="e.g. System Maintenance"
-                        error={errors.title}
-                    />
+                    <div>
+                        <Input
+                            label="Title"
+                            value={formData.title}
+                            onChange={e => {
+                                setFormData({ ...formData, title: e.target.value });
+                                if (errors.title) {
+                                    setErrors(prev => {
+                                        const newErrors = { ...prev };
+                                        delete newErrors.title;
+                                        return newErrors;
+                                    });
+                                }
+                            }}
+                            required
+                            placeholder="e.g. System Maintenance"
+                            error={errors.title}
+                        />
+                        <div className="flex justify-end mt-1">
+                            <span className={`text-xs ${
+                                titleWordCount > 25 
+                                    ? 'text-red-500 font-semibold' 
+                                    : 'text-gray-400 dark:text-gray-500'
+                            }`}>
+                                {titleWordCount}/25 words
+                            </span>
+                        </div>
+                    </div>
 
                     <div className="flex flex-col gap-1">
                         <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Message</label>

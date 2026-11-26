@@ -326,8 +326,8 @@ export const MemberTopbar: React.FC<MemberTopbarProps> = ({
     };
 
     return (
-        <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm">
-            <div className="flex items-center justify-between py-[0.87rem] mx-auto w-full px-4 xl:px-6">
+        <header className="h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm flex items-center px-4 xl:px-6">
+            <div className="flex items-center justify-between w-full">
                 {/* Left side: Mobile Menu Toggle and Logo */}
                 <div className="flex items-center space-x-2 xl:space-x-4">
                     {/* Mobile Menu Toggle (only on mobile) */}

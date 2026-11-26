@@ -83,9 +83,7 @@ export const StaffFollowUps: React.FC = () => {
     }, [user, authLoading, navigate]);
 
     const fetchMyFollowUps = async () => {
-        const filters: any = {};
-        if (statusFilter) filters.status = statusFilter;
-        await getMyFollowUps(filters);
+        await getMyFollowUps();
     };
 
     // Fetch follow-ups
@@ -94,7 +92,7 @@ export const StaffFollowUps: React.FC = () => {
             fetchMyFollowUps();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user, statusFilter]);
+    }, [user]);
 
     // Adjust status filter if a specific follow-up ID is requested
     useEffect(() => {
@@ -224,7 +222,11 @@ export const StaffFollowUps: React.FC = () => {
 
     const filteredFollowUps = followUps.filter(f => !statusFilter || f.status === statusFilter);
     const pendingCount = followUps.filter(f => f.status === 'pending').length;
+    const completedCount = followUps.filter(f => f.status === 'completed').length;
+    const failedCount = followUps.filter(f => f.status === 'failed').length;
+    const rescheduledCount = followUps.filter(f => f.status === 'rescheduled' || f.status === 'reschedule_pending').length;
     const todayFollowUps = followUps.filter(f => isToday(f.scheduledDate) && f.status === 'pending');
+    const totalTasks = followUps.length;
 
     if (loading && followUps.length === 0) {
         return (
@@ -247,46 +249,213 @@ export const StaffFollowUps: React.FC = () => {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card>
-                    <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                                    {isCleaner ? 'Pending Cleaning Tasks' : 'Pending Tasks'}
-                                </p>
-                                <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{pendingCount}</p>
-                            </div>
-                            <AlertCircle className="w-8 h-8 text-orange-500" />
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                                    {isCleaner ? "Today's Cleaning Tasks" : "Today's Tasks"}
-                                </p>
-                                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{todayFollowUps.length}</p>
-                            </div>
-                            <Calendar className="w-8 h-8 text-blue-500" />
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                                    {isCleaner ? 'Total Cleaning Tasks' : 'Total Tasks'}
-                                </p>
-                                <p className="text-2xl font-bold text-gray-900 dark:text-white">{followUps.length}</p>
-                            </div>
-                            <MessageSquare className="w-8 h-8 text-gray-500" />
-                        </div>
-                    </CardContent>
-                </Card>
+            <div className={`grid grid-cols-1 ${statusFilter === '' ? 'md:grid-cols-2' : 'md:grid-cols-3'} gap-4`}>
+                {statusFilter === '' && (
+                    <>
+                        <Card>
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                            {isCleaner ? "Today's Cleaning Tasks" : "Today's Tasks"}
+                                        </p>
+                                        <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{todayFollowUps.length}</p>
+                                    </div>
+                                    <Calendar className="w-8 h-8 text-blue-500" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                            {isCleaner ? 'Total Cleaning Tasks' : 'Total Tasks'}
+                                        </p>
+                                        <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalTasks}</p>
+                                    </div>
+                                    <MessageSquare className="w-8 h-8 text-gray-500" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </>
+                )}
+
+                {statusFilter === 'pending' && (
+                    <>
+                        <Card>
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                            {isCleaner ? 'Pending Cleaning Tasks' : 'Pending Tasks'}
+                                        </p>
+                                        <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{pendingCount}</p>
+                                    </div>
+                                    <AlertCircle className="w-8 h-8 text-orange-500" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                            {isCleaner ? "Today's Cleaning Tasks" : "Today's Tasks"}
+                                        </p>
+                                        <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{todayFollowUps.length}</p>
+                                    </div>
+                                    <Calendar className="w-8 h-8 text-blue-500" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                            {isCleaner ? 'Total Cleaning Tasks' : 'Total Tasks'}
+                                        </p>
+                                        <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalTasks}</p>
+                                    </div>
+                                    <MessageSquare className="w-8 h-8 text-gray-500" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </>
+                )}
+
+                {statusFilter === 'completed' && (
+                    <>
+                        <Card>
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                            {isCleaner ? 'Completed Cleaning Tasks' : 'Completed Tasks'}
+                                        </p>
+                                        <p className="text-2xl font-bold text-green-600 dark:text-green-400">{completedCount}</p>
+                                    </div>
+                                    <CheckCircle className="w-8 h-8 text-green-500" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                            {isCleaner ? "Today's Cleaning Tasks" : "Today's Tasks"}
+                                        </p>
+                                        <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{todayFollowUps.length}</p>
+                                    </div>
+                                    <Calendar className="w-8 h-8 text-blue-500" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                            {isCleaner ? 'Total Cleaning Tasks' : 'Total Tasks'}
+                                        </p>
+                                        <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalTasks}</p>
+                                    </div>
+                                    <MessageSquare className="w-8 h-8 text-gray-500" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </>
+                )}
+
+                {statusFilter === 'failed' && (
+                    <>
+                        <Card>
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                            {isCleaner ? 'Failed Cleaning Tasks' : 'Failed Tasks'}
+                                        </p>
+                                        <p className="text-2xl font-bold text-red-600 dark:text-red-400">{failedCount}</p>
+                                    </div>
+                                    <XCircle className="w-8 h-8 text-red-500" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                            {isCleaner ? "Today's Cleaning Tasks" : "Today's Tasks"}
+                                        </p>
+                                        <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{todayFollowUps.length}</p>
+                                    </div>
+                                    <Calendar className="w-8 h-8 text-blue-500" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                            {isCleaner ? 'Total Cleaning Tasks' : 'Total Tasks'}
+                                        </p>
+                                        <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalTasks}</p>
+                                    </div>
+                                    <MessageSquare className="w-8 h-8 text-gray-500" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </>
+                )}
+
+                {statusFilter === 'rescheduled' && (
+                    <>
+                        <Card>
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                            {isCleaner ? 'Rescheduled Cleaning Tasks' : 'Rescheduled Tasks'}
+                                        </p>
+                                        <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{rescheduledCount}</p>
+                                    </div>
+                                    <Clock className="w-8 h-8 text-blue-500" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                            {isCleaner ? "Today's Cleaning Tasks" : "Today's Tasks"}
+                                        </p>
+                                        <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{todayFollowUps.length}</p>
+                                    </div>
+                                    <Calendar className="w-8 h-8 text-blue-500" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                            {isCleaner ? 'Total Cleaning Tasks' : 'Total Tasks'}
+                                        </p>
+                                        <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalTasks}</p>
+                                    </div>
+                                    <MessageSquare className="w-8 h-8 text-gray-500" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </>
+                )}
             </div>
 
             {/* Filters */}

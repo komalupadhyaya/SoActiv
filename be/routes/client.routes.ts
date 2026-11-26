@@ -9,6 +9,7 @@ import {
   notifyRenewal,
   forwardRenewal,
 } from '../controllers/client.controllers';
+import { getDsrReport, getRevenueReport } from '../controllers/report.controllers';
 import { bulkUploadClients } from '../controllers/client.bulk.controllers';
 import {
   getExpiringPTPackages,
@@ -64,6 +65,20 @@ clientRouter.post('/', checkPlanLimit('members'), createClient);
  * @access  Private
  */
 clientRouter.get('/', getAllClients);
+
+/**
+ * @route   GET /api/v1/client/reports/dsr
+ * @desc    Get DSR Report for specified month and year
+ * @access  Private
+ */
+clientRouter.get('/reports/dsr', asyncHandler(getDsrReport));
+
+/**
+ * @route   GET /api/v1/client/reports/revenue
+ * @desc    Get Annual Revenue Report for specified year
+ * @access  Private
+ */
+clientRouter.get('/reports/revenue', asyncHandler(getRevenueReport));
 
 /**
  * @route   GET /api/v1/client/:id/pt-status

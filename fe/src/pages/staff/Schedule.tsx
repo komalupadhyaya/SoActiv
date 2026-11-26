@@ -75,11 +75,24 @@ export const Schedule: React.FC = () => {
             if (!['expiry', 'tasks', 'holidays', 'followup'].includes(filterType) && event.type !== filterType) return false;
         }
 
+        // For non-admin, non-manager staff (e.g. Receptionist, Trainer, Sales):
+        // Only show events assigned to them, OR gym holidays
+        if (!isAdmin && !isManager && event.type !== 'holiday') {
+            const staffId = user?.staffId || user?._id || user?.id;
+            const isAssigned = event.assignedTo?.some(s =>
+                (typeof s === 'object' && (s._id === staffId || s._id === user?.id || s._id === user?._id || s.email === user?.email)) ||
+                (typeof s === 'string' && (s === staffId || s === user?.id || s === user?._id))
+            );
+            if (!isAssigned) return false;
+        }
+
         // "My Tasks" Filter
         if (showOnlyMyTasks && user && event.type !== 'holiday') {
-            // Check assignment by ID or email
-            const isAssigned = event.assignedTo?.some(s => s._id === user.id || s.email === user.email);
-            // Also include if created by user (for tasks)
+            const staffId = user?.staffId || user?._id || user?.id;
+            const isAssigned = event.assignedTo?.some(s =>
+                (typeof s === 'object' && (s._id === staffId || s._id === user?.id || s._id === user?._id || s.email === user?.email)) ||
+                (typeof s === 'string' && (s === staffId || s === user?.id || s === user?._id))
+            );
             if (!isAssigned) return false;
         }
 
@@ -274,13 +287,13 @@ export const Schedule: React.FC = () => {
 
                                 return (
                                     <div key={event._id} className="p-3 border rounded-lg hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700">
-                                        <div className="flex justify-between">
-                                            <span className="font-medium text-gray-900 dark:text-white">{event.title}</span>
-                                            <span className={`text-xs px-2 py-1 rounded-full ${TYPE_COLORS[event.type] || 'bg-gray-500'} text-white`}>
+                                        <div className="flex justify-between items-start gap-3">
+                                            <span className="font-medium text-gray-900 dark:text-white flex-1 min-w-0 break-words">{event.title}</span>
+                                            <span className={`text-xs px-2.5 py-1 rounded-full shrink-0 whitespace-nowrap self-start font-medium ${TYPE_COLORS[event.type] || 'bg-gray-500 text-white'}`}>
                                                 {event.type}
                                             </span>
                                         </div>
-                                        <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{event.description}</p>
+                                        <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 break-words">{event.description}</p>
                                         {/* Assigned To - Hide for Holiday */}
                                         {event.type !== 'holiday' && event.assignedTo && event.assignedTo.length > 0 && (
                                             <div className="flex items-center gap-1 mt-2 text-xs text-gray-500">

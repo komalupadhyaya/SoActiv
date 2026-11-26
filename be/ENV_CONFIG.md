@@ -6,7 +6,7 @@ Add the following variables to your `.env` file in the `be` directory:
 
 ```env
 # Resend Email Service
-RESEND_API_KEY=re_QZzbeWEq_2dfRZwoENFCv3mauYaNocp59
+RESEND_API_KEY=re_your_resend_api_key
 EMAIL_FROM=SoActiv <noreply@yourdomain.com>
 
 # Application URL (for login links in emails)

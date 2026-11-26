@@ -248,58 +248,52 @@ export const createFollowUp = async (req: Request, res: Response) => {
       scheduledDate,
       scheduledTime,
       note,
+      status: reqStatus,
+      scheduledBy,
+      callStatus,
+      callTag,
+      leadSource,
+      completionNotes,
     } = req.body;
 
     const adminId = await getAdminId(req);
 
     // Validation
-    if (!assignedTo || !type || !relatedId || !relatedName || !scheduledDate || !scheduledTime || !note) {
+    if (!assignedTo || !type || !relatedId || !relatedName || !note) {
       return res.status(400).json({
         success: false,
-        message: 'All fields are required: assignedTo, type, relatedId, relatedName, scheduledDate, scheduledTime, note'
+        message: 'Required fields: assignedTo, type, relatedId, relatedName, note'
       });
     }
 
-    const targetDate = new Date(scheduledDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (targetDate < today) {
-      return res.status(400).json({
-        success: false,
-        message: 'Scheduled date cannot be in the past'
+    const sDate = scheduledDate ? new Date(scheduledDate) : new Date();
+    const sTime = scheduledTime || new Date().toTimeString().substring(0, 5);
+
+    const followUpStatus = reqStatus || 'pending';
+
+    // DUPLICATE PREVENTION CHECK for pending
+    if (followUpStatus === 'pending') {
+      const existingFollowUp = await FollowUp.findOne({
+        assignedTo,
+        scheduledDate: sDate,
+        scheduledTime: sTime,
+        status: 'pending'
       });
-    }
 
-    const noteWordCount = note.trim().split(/\s+/).filter(Boolean).length;
-    if (noteWordCount > 50) {
-      return res.status(400).json({
-        success: false,
-        message: 'Note cannot exceed 50 words'
-      });
-    }
-
-    // DUPLICATE PREVENTION CHECK
-    // Check if a pending follow-up already exists for the same staff at the same date/time
-    const existingFollowUp = await FollowUp.findOne({
-      assignedTo,
-      scheduledDate: new Date(scheduledDate),
-      scheduledTime,
-      status: 'pending'
-    });
-
-    if (existingFollowUp) {
-      return res.status(409).json({
-        success: false,
-        message: 'A pending follow-up already exists for this staff member at the same date and time',
-        data: {
-          existingFollowUp: {
-            id: existingFollowUp._id,
-            relatedName: existingFollowUp.relatedName,
-            type: existingFollowUp.type,
-            note: existingFollowUp.note
+      if (existingFollowUp) {
+        return res.status(409).json({
+          success: false,
+          message: 'A pending follow-up already exists for this staff member at the same date and time',
+          data: {
+            existingFollowUp: {
+              id: existingFollowUp._id,
+              relatedName: existingFollowUp.relatedName,
+              type: existingFollowUp.type,
+              note: existingFollowUp.note
+            }
           }
-        }
-      });
+        });
+      }
     }
 
     const followUp = await FollowUp.create({
@@ -308,14 +302,23 @@ export const createFollowUp = async (req: Request, res: Response) => {
       type,
       relatedId,
       relatedName,
-      scheduledDate: new Date(scheduledDate),
-      scheduledTime,
+      scheduledDate: sDate,
+      scheduledTime: sTime,
       note,
-      status: 'pending',
+      status: followUpStatus,
+      scheduledBy: scheduledBy || null,
+      callStatus: callStatus || null,
+      callTag: callTag || null,
+      leadSource: leadSource || null,
+      completedAt: followUpStatus === 'completed' ? new Date() : null,
+      completedBy: followUpStatus === 'completed' ? (scheduledBy || assignedTo) : null,
+      completionNotes: completionNotes || (followUpStatus === 'completed' ? note : null),
     });
 
     const populatedFollowUp = await FollowUp.findById(followUp._id)
       .populate('assignedTo', 'fullName position email')
+      .populate('scheduledBy', 'fullName position email')
+      .populate('completedBy', 'fullName position email')
       .populate('userId', 'fullname email');
 
     // AUTO-CREATE SCHEDULE EVENT
@@ -395,7 +398,7 @@ export const createFollowUp = async (req: Request, res: Response) => {
  */
 export const getAllFollowUps = async (req: Request, res: Response) => {
   try {
-    const { status, type, assignedTo, date } = req.query;
+    const { status, type, assignedTo, date, relatedId } = req.query;
     const user = (req as any).user;
 
     const tenantFilter = await getFollowUpTenantFilter(req);
@@ -404,6 +407,7 @@ export const getAllFollowUps = async (req: Request, res: Response) => {
     if (status) filter.status = status;
     if (type) filter.type = type;
     if (assignedTo) filter.assignedTo = assignedTo;
+    if (relatedId) filter.relatedId = relatedId;
     if (date) {
       const targetDate = new Date(date as string);
       const nextDay = new Date(targetDate);
@@ -426,8 +430,10 @@ export const getAllFollowUps = async (req: Request, res: Response) => {
 
     const followUps = await FollowUp.find(filter)
       .populate('assignedTo', 'fullName position email')
+      .populate('scheduledBy', 'fullName position email')
+      .populate('completedBy', 'fullName position email')
       .populate('userId', 'fullname email')
-      .sort({ scheduledDate: 1, scheduledTime: 1 });
+      .sort({ createdAt: -1, scheduledDate: -1 });
 
     return res.status(200).json({
       success: true,
@@ -687,7 +693,19 @@ export const getMyFollowUps = async (req: Request, res: Response) => {
     const { status, date } = req.query;
 
     const tenantFilter = await getFollowUpTenantFilter(req);
-    const filter: any = { ...tenantFilter, assignedTo: user.staffId };
+
+    // Auto-generate 2-day PT expiry follow-ups for Sales & Receptionist
+    const adminId = user.adminId || user.id || user._id;
+    const { checkAndGeneratePTExpiryFollowUps } = await import('./pt.controllers');
+    await checkAndGeneratePTExpiryFollowUps(adminId);
+
+    const filter: any = {
+      ...tenantFilter,
+      $or: [
+        { assignedTo: user.staffId },
+        { targetRoles: user.position }
+      ]
+    };
 
     // If user is a cleaner, only allow general / cleaning tasks ('other')
     if (user.position === 'cleaner') {
@@ -750,8 +768,17 @@ export const updateFollowUpStatus = async (req: Request, res: Response) => {
       });
     }
 
-    // Find follow-up and verify it's assigned to this staff member
-    const followUp = await FollowUp.findOne({ _id: id, assignedTo: user.staffId });
+    const tenantFilter = await getFollowUpTenantFilter(req);
+
+    // Find follow-up and verify it's assigned to this staff member or target role
+    const followUp = await FollowUp.findOne({
+      _id: id,
+      ...tenantFilter,
+      $or: [
+        { assignedTo: user.staffId },
+        { targetRoles: user.position }
+      ]
+    });
 
     if (!followUp) {
       return res.status(404).json({
@@ -815,8 +842,16 @@ export const completeFollowUpWithNotes = async (req: Request, res: Response) => 
     const { id } = req.params;
     const { completionNotes } = req.body;
     const user = (req as any).user;
+    const tenantFilter = await getFollowUpTenantFilter(req);
 
-    const followUp = await FollowUp.findOne({ _id: id, assignedTo: user.staffId });
+    const followUp = await FollowUp.findOne({
+      _id: id,
+      ...tenantFilter,
+      $or: [
+        { assignedTo: user.staffId },
+        { targetRoles: user.position }
+      ]
+    });
 
     if (!followUp) {
       return res.status(404).json({
@@ -875,6 +910,7 @@ export const failFollowUp = async (req: Request, res: Response) => {
     const { id } = req.params;
     const { reason } = req.body;
     const user = (req as any).user;
+    const tenantFilter = await getFollowUpTenantFilter(req);
 
     if (!reason) {
       return res.status(400).json({
@@ -883,7 +919,14 @@ export const failFollowUp = async (req: Request, res: Response) => {
       });
     }
 
-    const followUp = await FollowUp.findOne({ _id: id, assignedTo: user.staffId });
+    const followUp = await FollowUp.findOne({
+      _id: id,
+      ...tenantFilter,
+      $or: [
+        { assignedTo: user.staffId },
+        { targetRoles: user.position }
+      ]
+    });
 
     if (!followUp) {
       return res.status(404).json({
@@ -940,6 +983,7 @@ export const rescheduleFollowUp = async (req: Request, res: Response) => {
     const { id } = req.params;
     const { newScheduledDate, newScheduledTime, rescheduleNotes } = req.body;
     const user = (req as any).user;
+    const tenantFilter = await getFollowUpTenantFilter(req);
 
     if (!newScheduledDate || !newScheduledTime || !rescheduleNotes) {
       return res.status(400).json({
@@ -958,8 +1002,15 @@ export const rescheduleFollowUp = async (req: Request, res: Response) => {
       });
     }
 
-    // Find original pending follow-up and verify ownership/assignment to logged-in staff
-    const originalFollowUp = await FollowUp.findOne({ _id: id, assignedTo: user.staffId });
+    // Find original pending follow-up and verify ownership/assignment to logged-in staff or target role
+    const originalFollowUp = await FollowUp.findOne({
+      _id: id,
+      ...tenantFilter,
+      $or: [
+        { assignedTo: user.staffId },
+        { targetRoles: user.position }
+      ]
+    });
     if (!originalFollowUp) {
       return res.status(404).json({
         success: false,

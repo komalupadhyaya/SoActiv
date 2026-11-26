@@ -13,6 +13,9 @@ export interface Staff {
   email: string;
   contactNumber: string;
   joiningDate: string | Date;
+  dateOfJoining?: string | Date;
+  dob?: string | Date;
+  anniversary?: string | Date;
   salary: number;
   status: 'active' | 'inactive';
   notifications: {
@@ -21,6 +24,11 @@ export interface Staff {
     push: boolean;
     whatsapp: boolean;
   };
+  permissions?: Record<string, boolean>;
+  adminRights?: string;
+  jobDesignation?: string;
+  attendanceId?: string;
+  avatar?: string;
   approvalStatus?: 'approved' | 'pending_create' | 'pending_update' | 'pending_delete';
   pendingUpdates?: Record<string, any> | null;
   requestedBy?: string | null;

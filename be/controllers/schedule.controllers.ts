@@ -360,11 +360,11 @@ export const getAllScheduleEvents = async (req: Request, res: Response) => {
                 });
             }
 
-            // MANAGER and RECEPTIONIST see ALL events for their admin
-            if (user.position === 'manager' || user.position === 'receptionist') {
+            // Only MANAGER sees ALL events for their admin
+            if (user.position === 'manager') {
                 filter.adminId = staffDoc.createdBy;
             } else {
-                // STAFF (Trainer, Sales, Receptionist)
+                // STAFF (Receptionist, Trainer, Sales, Cleaner, etc.)
                 // Visibility:
                 // 1. Events assigned to them
                 // 2. OR Events of type 'holiday' (Global Visibility)
@@ -376,11 +376,6 @@ export const getAllScheduleEvents = async (req: Request, res: Response) => {
                     // No need to restrict assignedTo
                 } else {
                     // Show if (Assigned To Me) OR (Type is Holiday)
-                    // If 'type' is specified as something else (e.g. 'task'), this OR clause might let holidays leak in if not careful?
-                    // BUT if user asks for type='task', mongo will filter type='task' AND ($or conditions).
-                    // (Assigned OR Holiday) AND (Type=Task) => (Assigned AND Task) OR (Holiday AND Task) -> Holiday AND Task is impossible.
-                    // So we are safe with just adding the OR condition always.
-
                     filter.$or = [
                         { assignedTo: staffDoc._id },
                         { type: 'holiday' }

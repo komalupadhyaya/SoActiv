@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { usePT, PTAssignment } from '../../hooks/usePT';
 import { Button } from '../../components/ui/Button';
 import { Card, CardContent } from '../../components/ui/Card';
@@ -18,6 +18,38 @@ export const TrainerPTClientsPage: React.FC = () => {
         // For Trainer role, the backend automatically scopes to their ID.
         fetchAssignments();
     }, [fetchAssignments]);
+
+    // Keep only the latest / upgraded active assignment per member
+    const displayAssignments = useMemo(() => {
+        const memberMap = new Map<string, PTAssignment>();
+
+        // Sort assignments so active ones and most recent ones come first
+        const sorted = [...assignments].sort((a, b) => {
+            // Priority 1: Active status first
+            const aActive = a.status === 'active' ? 1 : 0;
+            const bActive = b.status === 'active' ? 1 : 0;
+            if (aActive !== bActive) {
+                return bActive - aActive; // 1 before 0
+            }
+
+            // Priority 2: Newest startDate or expiryDate
+            const aDate = new Date(a.startDate || a.expiryDate || 0).getTime();
+            const bDate = new Date(b.startDate || b.expiryDate || 0).getTime();
+            return bDate - aDate;
+        });
+
+        sorted.forEach((assignment) => {
+            const mId = typeof assignment.memberId === 'object' && assignment.memberId ? assignment.memberId._id : assignment.memberId;
+            const key = mId || assignment._id;
+
+            // Keep the first (best/active) assignment per member
+            if (!memberMap.has(key)) {
+                memberMap.set(key, assignment);
+            }
+        });
+
+        return Array.from(memberMap.values());
+    }, [assignments]);
 
     const handleLogClick = (assignment: PTAssignment) => {
         setSelectedAssignment(assignment);
@@ -46,7 +78,7 @@ export const TrainerPTClientsPage: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {assignments.map((assignment) => (
+                {displayAssignments.map((assignment) => (
                     <Card key={assignment._id} className="border-l-4 border-l-orange-500">
                         <CardContent className="p-6">
                             <div className="flex justify-between items-start mb-4">
@@ -89,7 +121,7 @@ export const TrainerPTClientsPage: React.FC = () => {
                             </Button>
 
                             {/* Recent Logs Preview */}
-                            {assignment.sessionLogs.length > 0 && (
+                            {assignment.sessionLogs && assignment.sessionLogs.length > 0 && (
                                 <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
                                     <p className="text-xs font-medium text-gray-500 uppercase mb-2">Last Session</p>
                                     <div className="text-sm dark:text-gray-300">
@@ -106,7 +138,7 @@ export const TrainerPTClientsPage: React.FC = () => {
                     </Card>
                 ))}
 
-                {assignments.length === 0 && (
+                {displayAssignments.length === 0 && (
                     <div className="col-span-full text-center py-12 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
                         <p className="text-gray-500">No active PT clients assigned to you.</p>
                     </div>

@@ -92,19 +92,23 @@ export const authMiddleware = asyncHandler(
         reqUser.position = 'admin';
       } else if (user.role === 'superadmin') {
         reqUser.position = 'superadmin';
-      } else if (user.role === 'trainer') {
-        reqUser.position = 'trainer';
-        // Check if there is a linked staff record to sync any updates (optional/future)
-      } else if (user.role === 'staff') {
-        // Fetch specific staff position from Staff collection
-        const staffRecord = await Staff.findOne({ userId: user._id });
+      } else if (user.role === 'trainer' || user.role === 'staff') {
+        const staffRecord =
+          (await Staff.findOne({ userId: user._id })) ||
+          (user.email ? await Staff.findOne({ email: user.email.toLowerCase(), gym: user.gym }) : null);
         if (staffRecord) {
-          reqUser.position = staffRecord.position;
+          if (staffRecord.status === 'inactive') {
+            throw new ApiError(HttpStatusCode.UNAUTHORIZED, "Your staff account is inactive. Please contact your administrator.");
+          }
+          if (staffRecord.loginAccess === false) {
+            throw new ApiError(HttpStatusCode.UNAUTHORIZED, "Login access has been disabled for your account.");
+          }
+          reqUser.position = user.role === 'trainer' ? 'trainer' : staffRecord.position;
           reqUser.staffId = staffRecord._id; // Useful for efficient queries
           reqUser.adminId = staffRecord.createdBy; // Important: Staff are scoped by their creator (Admin)
         } else {
           // Fallback if staff record missing (should not happen for valid staff)
-          reqUser.position = 'unknown';
+          reqUser.position = user.role === 'trainer' ? 'trainer' : 'unknown';
         }
       } else {
         reqUser.position = 'member';

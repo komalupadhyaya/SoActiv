@@ -3,10 +3,31 @@ export interface StaffFormData {
     position: string;
     email: string;
     contactNumber: string;
+    countryCode?: string;
+    gender?: 'Male' | 'Female' | 'Other' | string;
+    vaccinated?: 'Yes' | 'No' | string;
+    loginAccess?: boolean;
+    password?: string;
+    resume?: string | null;
+    resumeName?: string;
+    employeeCategory?: string;
+    payoutType?: string;
+    grade?: string;
+    dob?: string;
+    anniversary?: string;
     joiningDate: string;
     salary: number | string;
+    jobDesignation?: string;
+    adminRights?: string;
+    attendanceId?: string;
+    panCard?: string;
+    gstNumber?: string;
+    accountNo?: string;
+    ifsc?: string;
+    hrmsId?: string;
+    avatar?: string;
     status: 'active' | 'inactive';
-    notifications: {
+    notifications?: {
         sms: boolean;
         email: boolean;
         push: boolean;
@@ -17,31 +38,19 @@ export interface StaffFormData {
 export const validateStaffForm = (data: StaffFormData): string | null => {
     // Required fields check
     if (!data.fullName?.trim()) return 'Full Name is required';
-    if (!/^[a-zA-Z\s]+$/.test(data.fullName.trim())) {
-        return 'Full Name must contain only alphabetical characters and spaces';
-    }
-    if (!data.position) return 'Position is required';
-    if (!data.email?.trim()) return 'Email is required';
     if (!data.contactNumber?.trim()) return 'Contact number is required';
-    if (!data.joiningDate) return 'Joining date is required';
-    if (!data.salary) return 'Salary is required';
+    if (!data.email?.trim()) return 'Email is required';
 
-    // Phone validation (exactly 10 digits)
-    const phoneRegex = /^[0-9]{10}$/;
-    if (!phoneRegex.test(data.contactNumber)) {
-        return 'Contact number must be exactly 10 digits';
+    // Phone validation (at least 10 digits)
+    const phoneDigits = data.contactNumber.replace(/\D/g, '');
+    if (phoneDigits.length < 10) {
+        return 'Contact number must be at least 10 digits';
     }
 
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(data.email)) {
         return 'Please enter a valid email address';
-    }
-
-    // Salary validation
-    const salaryNum = Number(data.salary);
-    if (isNaN(salaryNum) || salaryNum <= 0) {
-        return 'Salary must be a valid number greater than 0';
     }
 
     return null;

@@ -12,6 +12,10 @@ import { generateSecurePassword } from '../utils/password.util';
 import { sendClientWelcomeEmail } from '../utils/emailSender';
 import { createNotification } from '../utils/notification.helper';
 
+const escapeRegex = (string: string) => {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+};
+
 /**
  * Helper to get the Organization Owner ID (Admin ID)
  * - If user is Admin/Superadmin: returns their own ID.
@@ -75,8 +79,8 @@ export const createClient = asyncHandler(async (req: Request, res: Response) => 
     if (!req.body.fullName || !req.body.fullName.trim()) {
       return res.status(400).json({ success: false, message: 'Full name is required' });
     }
-    if (!/^[a-zA-Z\s]+$/.test(req.body.fullName.trim())) {
-      return res.status(400).json({ success: false, message: 'Full name must contain only alphabetical characters and spaces' });
+    if (!/^[a-zA-Z0-9\s.'-]+$/.test(req.body.fullName.trim())) {
+      return res.status(400).json({ success: false, message: 'Full name contains invalid characters' });
     }
 
     // Validate Date of Birth
@@ -89,14 +93,12 @@ export const createClient = asyncHandler(async (req: Request, res: Response) => 
       }
     }
 
-    // Validate Membership Period Dates
-    if (!req.body.startDate || !req.body.endDate) {
-      return res.status(400).json({ success: false, message: 'Start date and End date are required' });
-    }
-    const startDate = new Date(req.body.startDate);
-    const endDate = new Date(req.body.endDate);
+    // Membership Period Dates (default to 1 year if not provided)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+
+    const startDate = req.body.startDate ? new Date(req.body.startDate) : new Date(today);
+    const endDate = req.body.endDate ? new Date(req.body.endDate) : new Date(today.getFullYear() + 1, today.getMonth(), today.getDate());
 
     const startOnlyDate = new Date(startDate);
     startOnlyDate.setHours(0, 0, 0, 0);
@@ -104,54 +106,77 @@ export const createClient = asyncHandler(async (req: Request, res: Response) => 
     const endOnlyDate = new Date(endDate);
     endOnlyDate.setHours(0, 0, 0, 0);
 
-    if (startOnlyDate < today) {
-      return res.status(400).json({ success: false, message: 'Start date cannot be in the past' });
-    }
-    if (endOnlyDate < today) {
-      return res.status(400).json({ success: false, message: 'End date cannot be in the past' });
-    }
-    if (startOnlyDate.getTime() === endOnlyDate.getTime()) {
-      return res.status(400).json({ success: false, message: 'End date cannot be the same as start date' });
-    }
     if (endOnlyDate < startOnlyDate) {
       return res.status(400).json({ success: false, message: 'End date must be after start date' });
     }
 
-    // Validate Package Price limits
-    const packagePriceVal = parseFloat(req.body.packagePrice);
-    if (isNaN(packagePriceVal) || packagePriceVal < 1 || packagePriceVal > 100000) {
-      return res.status(400).json({ success: false, message: 'Package price must be between 1 and 100,000' });
-    }
+    // Package Price (defaults to 0 if not provided)
+    const packagePriceVal = req.body.packagePrice !== undefined && req.body.packagePrice !== '' ? parseFloat(req.body.packagePrice) : 0;
 
     // 1. Resolve true Owner ID
     const ownerId = await getOwnerId(req);
 
     // 2. Uniqueness Check for Client record (scoped to this gym owner)
-    const clientEmail = req.body.email?.toLowerCase();
-    const clientPhone = req.body.contactNumber;
+    const rawEmail = req.body.email?.trim();
+    const clientPhone = req.body.contactNumber?.trim();
+    const clientEmail = (rawEmail || `${(clientPhone || Date.now()).toString().replace(/[^0-9]/g, '')}@member.soactiv.com`).toLowerCase();
 
-    const existingClient = await Client.findOne({
-      userId: ownerId,
-      $or: [{ email: clientEmail }, { contactNumber: clientPhone }],
-    });
+    const orConditions: any[] = [];
+    if (rawEmail) orConditions.push({ email: rawEmail.toLowerCase() });
+    if (clientPhone) orConditions.push({ contactNumber: clientPhone });
 
-    if (existingClient) {
-      if (existingClient.email === clientEmail) {
-        console.log('❌ [createClient] Duplicate client email:', clientEmail);
-        return res.status(400).json({ success: false, message: 'Client with this email already exists' });
+    if (orConditions.length > 0) {
+      const existingClient = await Client.findOne({
+        userId: ownerId,
+        $or: orConditions,
+      });
+
+      if (existingClient) {
+        if (rawEmail && existingClient.email === rawEmail.toLowerCase()) {
+          console.log('❌ [createClient] Duplicate client email:', rawEmail);
+          return res.status(400).json({ success: false, message: 'Client with this email already exists' });
+        }
+        console.log('❌ [createClient] Duplicate client phone:', clientPhone);
+        return res.status(400).json({ success: false, message: 'Client with this contact number already exists' });
       }
-      console.log('❌ [createClient] Duplicate client phone:', clientPhone);
-      return res.status(400).json({ success: false, message: 'Client with this contact number already exists' });
+    }
+
+    // 2B. Validate Attendance ID Uniqueness (if provided)
+    const rawAttendanceId = req.body.attendanceId ? String(req.body.attendanceId).trim() : '';
+    if (rawAttendanceId) {
+      const existingClientWithAtt = await Client.findOne({
+        userId: ownerId,
+        attendanceId: { $regex: new RegExp(`^${escapeRegex(rawAttendanceId)}$`, 'i') },
+      });
+      if (existingClientWithAtt) {
+        return res.status(400).json({
+          success: false,
+          message: `Attendance ID "${rawAttendanceId}" is already assigned to member "${existingClientWithAtt.fullName}". Every user must have a unique Attendance ID.`,
+        });
+      }
+
+      const existingStaffWithAtt = await Staff.findOne({
+        createdBy: ownerId,
+        attendanceId: { $regex: new RegExp(`^${escapeRegex(rawAttendanceId)}$`, 'i') },
+      });
+      if (existingStaffWithAtt) {
+        return res.status(400).json({
+          success: false,
+          message: `Attendance ID "${rawAttendanceId}" is already assigned to staff member "${existingStaffWithAtt.fullName}". Every user must have a unique Attendance ID.`,
+        });
+      }
     }
 
     // 3. Check global User email uniqueness (client needs a login account)
     const existingUser = await User.findOne({ email: clientEmail });
     if (existingUser) {
-      console.log('❌ [createClient] Email already in User table:', clientEmail, '| role:', existingUser.get('role'));
-      return res.status(400).json({
-        success: false,
-        message: `This email is already registered as a ${existingUser.get('role')} account. Use a different email.`,
-      });
+      if (rawEmail) {
+        console.log('❌ [createClient] Email already in User table:', clientEmail, '| role:', existingUser.get('role'));
+        return res.status(400).json({
+          success: false,
+          message: `This email is already registered as a ${existingUser.get('role')} account. Use a different email.`,
+        });
+      }
     }
 
     // 4. Fetch gym info (for email + gym linkage)
@@ -186,6 +211,8 @@ export const createClient = asyncHandler(async (req: Request, res: Response) => 
 
     // 6. Create Client record — userId = gym owner (tenant scope)
     try {
+      const isTransfer = req.body.isTransfer || req.body.status === 'inactive';
+
       const allowedFields: Partial<IClient> = {
         fullName: req.body.fullName,
         gender: req.body.gender,
@@ -193,10 +220,11 @@ export const createClient = asyncHandler(async (req: Request, res: Response) => 
         email: req.body.email,
         contactNumber: req.body.contactNumber,
         address: req.body.address,
+        profileImage: req.body.profileImage || '',
 
-        emergencyContactName: req.body.emergencyContactName,
-        emergencyContactNumber: req.body.emergencyContactNumber,
-        emergencyContactRelation: req.body.emergencyContactRelation,
+        emergencyContactName: req.body.emergencyContactName?.trim() || undefined,
+        emergencyContactNumber: req.body.emergencyContactNumber?.trim() || undefined,
+        emergencyContactRelation: req.body.emergencyContactRelation ? req.body.emergencyContactRelation.toLowerCase() : undefined,
 
         salesRep: req.body.salesRep || undefined,
         memberManager: req.body.memberManager || undefined,
@@ -206,17 +234,22 @@ export const createClient = asyncHandler(async (req: Request, res: Response) => 
         clubId: req.body.clubId?.trim() || undefined,
         gstNo: req.body.gstNo?.trim() || undefined,
 
-        startDate: req.body.startDate,
-        endDate: req.body.endDate,
+        startDate: isTransfer ? new Date() : (req.body.startDate ? new Date(req.body.startDate) : new Date()),
+        endDate: isTransfer ? new Date() : (req.body.endDate ? new Date(req.body.endDate) : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)),
+        status: isTransfer ? 'inactive' : (req.body.status || 'active'),
+        remainingDays: isTransfer ? 0 : undefined,
 
-        packagePrice: req.body.packagePrice,
-        hasPersonalTraining: req.body.hasPersonalTraining || false,
-        personalTrainer: (req.body.hasPersonalTraining && req.body.personalTrainer) ? req.body.personalTrainer : undefined,
-        personalTrainingDurationWeeks: req.body.hasPersonalTraining ? req.body.personalTrainingDurationWeeks : undefined,
-        personalTrainingPrice: req.body.hasPersonalTraining ? req.body.personalTrainingPrice : undefined,
+        packagePrice: isTransfer ? 0 : (req.body.packagePrice || 0),
+        hasPersonalTraining: isTransfer ? false : (req.body.hasPersonalTraining || false),
+        personalTrainer: (!isTransfer && req.body.hasPersonalTraining && req.body.personalTrainer) ? req.body.personalTrainer : undefined,
+        personalTrainingDurationWeeks: (!isTransfer && req.body.hasPersonalTraining) ? req.body.personalTrainingDurationWeeks : undefined,
+        personalTrainingPrice: (!isTransfer && req.body.hasPersonalTraining) ? req.body.personalTrainingPrice : undefined,
 
-        plan: req.body.plan,
-        timing: req.body.timing,
+        plan: req.body.plan || 'basic',
+        timing: req.body.timing || 'morning',
+        paymentMode: req.body.paymentMode || (req.body.invoice?.paymentModes?.find((pm: any) => pm.mode && pm.mode !== 'Select')?.mode) || 'Google Pay',
+        invoice: req.body.invoice || undefined,
+        invoices: req.body.invoices || (req.body.invoice ? [req.body.invoice] : []),
         notifications: req.body.notifications || { sms: true, email: true, push: true, whatsapp: true },
       };
 
@@ -447,41 +480,29 @@ export const updateClientById = asyncHandler(async (req: Request, res: Response)
   const currentClient = await Client.findOne({ _id: id, userId: ownerId });
   if (!currentClient) return res.status(404).json({ success: false, message: 'Client not found' });
 
-  // Validate Membership Period Dates for Update
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Helper to extract clean ObjectId string or null/undefined
+  const sanitizeObjectId = (val: any) => {
+    if (val === '' || val === null) return null;
+    if (val === undefined) return undefined;
+    if (typeof val === 'object' && val._id) return val._id;
+    if (typeof val === 'string' && /^[0-9a-fA-F]{24}$/.test(val)) return val;
+    return undefined;
+  };
 
+  // Validate Membership Period Dates for Update
   let finalStart = currentClient.startDate;
   let finalEnd = currentClient.endDate;
 
   if (req.body.startDate !== undefined) {
     const newStart = new Date(req.body.startDate);
-    const newStartOnly = new Date(newStart);
-    newStartOnly.setHours(0, 0, 0, 0);
-
-    const oldStartOnly = new Date(currentClient.startDate);
-    oldStartOnly.setHours(0, 0, 0, 0);
-
-    if (newStartOnly.getTime() !== oldStartOnly.getTime()) {
-      if (newStartOnly < today) {
-        return res.status(400).json({ success: false, message: 'Start date cannot be in the past' });
-      }
+    if (!isNaN(newStart.getTime())) {
       finalStart = newStart;
     }
   }
 
   if (req.body.endDate !== undefined) {
     const newEnd = new Date(req.body.endDate);
-    const newEndOnly = new Date(newEnd);
-    newEndOnly.setHours(0, 0, 0, 0);
-
-    const oldEndOnly = new Date(currentClient.endDate);
-    oldEndOnly.setHours(0, 0, 0, 0);
-
-    if (newEndOnly.getTime() !== oldEndOnly.getTime()) {
-      if (newEndOnly < today) {
-        return res.status(400).json({ success: false, message: 'End date cannot be in the past' });
-      }
+    if (!isNaN(newEnd.getTime())) {
       finalEnd = newEnd;
     }
   }
@@ -491,9 +512,6 @@ export const updateClientById = asyncHandler(async (req: Request, res: Response)
   const finalEndOnly = new Date(finalEnd);
   finalEndOnly.setHours(0, 0, 0, 0);
 
-  if (finalStartOnly.getTime() === finalEndOnly.getTime()) {
-    return res.status(400).json({ success: false, message: 'End date cannot be the same as start date' });
-  }
   if (finalEndOnly < finalStartOnly) {
     return res.status(400).json({ success: false, message: 'End date must be after start date' });
   }
@@ -501,8 +519,8 @@ export const updateClientById = asyncHandler(async (req: Request, res: Response)
   // Validate Package Price limits
   if (req.body.packagePrice !== undefined) {
     const packagePriceVal = parseFloat(req.body.packagePrice);
-    if (isNaN(packagePriceVal) || packagePriceVal < 1 || packagePriceVal > 100000) {
-      return res.status(400).json({ success: false, message: 'Package price must be between 1 and 100,000' });
+    if (isNaN(packagePriceVal) || packagePriceVal < 0 || packagePriceVal > 100000) {
+      return res.status(400).json({ success: false, message: 'Package price must be between 0 and 100,000' });
     }
   }
 
@@ -525,6 +543,35 @@ export const updateClientById = asyncHandler(async (req: Request, res: Response)
     }
   }
 
+  // Validate Attendance ID Uniqueness on update
+  if (req.body.attendanceId !== undefined) {
+    const rawAttId = String(req.body.attendanceId).trim();
+    if (rawAttId) {
+      const existingClientWithAtt = await Client.findOne({
+        userId: ownerId,
+        _id: { $ne: id },
+        attendanceId: { $regex: new RegExp(`^${escapeRegex(rawAttId)}$`, 'i') },
+      });
+      if (existingClientWithAtt) {
+        return res.status(400).json({
+          success: false,
+          message: `Attendance ID "${rawAttId}" is already assigned to member "${existingClientWithAtt.fullName}". Every user must have a unique Attendance ID.`,
+        });
+      }
+
+      const existingStaffWithAtt = await Staff.findOne({
+        createdBy: ownerId,
+        attendanceId: { $regex: new RegExp(`^${escapeRegex(rawAttId)}$`, 'i') },
+      });
+      if (existingStaffWithAtt) {
+        return res.status(400).json({
+          success: false,
+          message: `Attendance ID "${rawAttId}" is already assigned to staff member "${existingStaffWithAtt.fullName}". Every user must have a unique Attendance ID.`,
+        });
+      }
+    }
+  }
+
   const allowedUpdates: UpdateQuery<IClient> = {
     fullName: req.body.fullName,
     gender: req.body.gender,
@@ -532,12 +579,13 @@ export const updateClientById = asyncHandler(async (req: Request, res: Response)
     email: req.body.email,
     contactNumber: req.body.contactNumber,
     address: req.body.address,
+    profileImage: req.body.profileImage,
     emergencyContactName: req.body.emergencyContactName,
     emergencyContactNumber: req.body.emergencyContactNumber,
     emergencyContactRelation: req.body.emergencyContactRelation,
-    salesRep: req.body.salesRep === '' ? null : req.body.salesRep,
-    memberManager: req.body.memberManager === '' ? null : req.body.memberManager,
-    trainer: req.body.trainer === '' ? null : req.body.trainer,
+    salesRep: sanitizeObjectId(req.body.salesRep),
+    memberManager: sanitizeObjectId(req.body.memberManager),
+    trainer: sanitizeObjectId(req.body.trainer),
     attendanceId: req.body.attendanceId ? (req.body.attendanceId.trim() || undefined) : undefined,
     clubId: req.body.clubId ? (req.body.clubId.trim() || undefined) : undefined,
     gstNo: req.body.gstNo ? (req.body.gstNo.trim() || undefined) : undefined,
@@ -545,11 +593,20 @@ export const updateClientById = asyncHandler(async (req: Request, res: Response)
     endDate: req.body.endDate,
     packagePrice: req.body.packagePrice,
     hasPersonalTraining: req.body.hasPersonalTraining,
-    personalTrainer: req.body.hasPersonalTraining ? (req.body.personalTrainer === '' ? null : req.body.personalTrainer) : undefined,
+    personalTrainer: req.body.hasPersonalTraining ? sanitizeObjectId(req.body.personalTrainer) : undefined,
     personalTrainingDurationWeeks: req.body.hasPersonalTraining ? req.body.personalTrainingDurationWeeks : undefined,
     personalTrainingPrice: req.body.hasPersonalTraining ? req.body.personalTrainingPrice : undefined,
     plan: req.body.plan,
     timing: req.body.timing,
+    paymentMode: req.body.paymentMode || (req.body.invoice?.paymentModes?.find((pm: any) => pm.mode && pm.mode !== 'Select')?.mode),
+    invoice: req.body.invoice,
+    invoices: req.body.invoices,
+    transfersSent: req.body.transfersSent,
+    transfersReceived: req.body.transfersReceived,
+    status: req.body.status,
+    freezes: req.body.freezes,
+    freezeInfo: req.body.freezeInfo,
+    dateChanges: req.body.dateChanges,
     notifications: req.body.notifications,
   };
 

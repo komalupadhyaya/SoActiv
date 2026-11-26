@@ -7,7 +7,7 @@
   "main": "index.ts",
   "scripts": {
     "dev": "nodemon --exec bun run index.ts",
-    "start": "node index.ts",
+    "start": "bun run index.ts",
     "build": "bun build index.ts --target bun --outdir dist",
     "create-superadmin": "node utils/createSuperAdmin.mjs",
     "migrate-saas": "ts-node utils/migrateSaaSFields.ts"

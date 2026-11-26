@@ -1,50 +1,106 @@
 
 // src/pages/admin/EnquiryFormPage.tsx
-import React, { useEffect, useState } from 'react';
-import { Save, ArrowLeft } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { Save, ArrowLeft, Calendar } from 'lucide-react';
+import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
 import { Card, CardHeader, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { useStaff } from '../../hooks/useStaff';
 import { useEnquiry } from '../../hooks/useEnquiry';
+import { useGymClass } from '../../hooks/useGymClass';
 import { Staff } from '../../hooks/useStaff';
 import { IEnquiry } from '../../hooks/useEnquiry';
 import { useToast } from '../../contexts/ToastContext';
 
 type EnquiryStatus = 'new' | 'contacted' | 'interested' | 'converted' | 'lost';
 
+const getLocalDateString = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getLocalDateTimeMin = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
+const getCurrentMonthRange = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  return {
+    min: getLocalDateString(firstDay),
+    max: getLocalDateString(lastDay),
+  };
+};
+
 export const EnquiryFormPage: React.FC = () => {
+  const currentMonthRange = useMemo(() => getCurrentMonthRange(), []);
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
+  const { id: paramId } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const id = paramId || searchParams.get('id') || searchParams.get('edit') || searchParams.get('uid');
   const isEditing = !!id;
   const { addToast } = useToast();
   const [countryCode, setCountryCode] = useState('+91');
+  const [isChangingPhone, setIsChangingPhone] = useState(false);
+  const phoneInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
     email: '',
+    gender: '' as 'male' | 'female' | 'other' | '',
+    dateOfBirth: '',
+    enquiryDate: getLocalDateString(),
+    serviceName: '',
     source: '',
+    enquiryType: '',
+    trialType: 'no-trial',
+    trialDateTime: '',
+    trialService: '',
+    trialStaff: '',
+    trialClassDate: getLocalDateString(),
+    trialClass: '',
+    trialSessionDate: getLocalDateString(),
+    trialSession: '',
     status: 'new' as EnquiryStatus,
     assignedStaff: '',
     followUpDate: '',
+    followUpDateTime: '',
+    callTag: '' as 'cold' | 'warm' | 'hot' | '',
+    followUpMessage: '',
     comments: '',
     interests: '',
     budget: '',
   });
 
-  const { staff, loading: loadingStaff, error: staffError, fetchAllStaff } = useStaff();
+  const { staff, loading: loadingStaff, fetchAllStaff } = useStaff();
+  const { classes: gymClasses, fetchClasses, sessions, fetchUpcomingSessions } = useGymClass();
   const { createEnquiry, updateEnquiry, getEnquiryById, error: enquiryError } = useEnquiry();
 
   const [submitting, setSubmitting] = useState(false);
   const [loadingForm, setLoadingForm] = useState(isEditing);
 
-  // Fetch staff list on component mount
+  // Fetch staff list & classes on component mount
   useEffect(() => {
     fetchAllStaff();
-  }, [fetchAllStaff]);
+    fetchClasses();
+    if (fetchUpcomingSessions) {
+      fetchUpcomingSessions();
+    }
+  }, [fetchAllStaff, fetchClasses, fetchUpcomingSessions]);
 
   // Type guard for staff object
   const isStaffObject = (obj: any): obj is { _id: string } => {
@@ -79,14 +135,40 @@ export const EnquiryFormPage: React.FC = () => {
             }
             setCountryCode(codeVal);
 
+            const enquiryAny = enquiry as any;
+            let dobStr = '';
+            if (enquiryAny.dateOfBirth) {
+              const d = new Date(enquiryAny.dateOfBirth);
+              if (!isNaN(d.getTime())) dobStr = d.toISOString().split('T')[0];
+            } else if (enquiryAny.dob) {
+              const d = new Date(enquiryAny.dob);
+              if (!isNaN(d.getTime())) dobStr = d.toISOString().split('T')[0];
+            }
+
             setFormData({
               name: enquiry.name || '',
               phone: phoneVal,
               email: enquiry.email || '',
+              gender: enquiry.gender || '',
+              dateOfBirth: dobStr,
+              enquiryDate: enquiry.enquiryDate ? new Date(enquiry.enquiryDate).toISOString().split('T')[0] : getLocalDateString(),
+              serviceName: enquiry.serviceName || '',
               source: enquiry.source || '',
+              enquiryType: enquiry.enquiryType || '',
+              trialType: enquiry.trialType || 'no-trial',
+              trialDateTime: enquiry.trialDateTime ? new Date(enquiry.trialDateTime).toISOString().slice(0, 16) : '',
+              trialService: enquiry.trialService || '',
+              trialStaff: typeof enquiry.trialStaff === 'object' && enquiry.trialStaff ? (enquiry.trialStaff as any)._id : (enquiry.trialStaff || ''),
+              trialClassDate: enquiry.trialClassDate ? new Date(enquiry.trialClassDate).toISOString().split('T')[0] : getLocalDateString(),
+              trialClass: enquiry.trialClass || '',
+              trialSessionDate: enquiry.trialSessionDate ? new Date(enquiry.trialSessionDate).toISOString().split('T')[0] : getLocalDateString(),
+              trialSession: enquiry.trialSession || '',
               status: enquiry.status || 'new',
               assignedStaff: getAssignedStaffId(enquiry.assignedStaff),
               followUpDate: enquiry.followUpDate ? new Date(enquiry.followUpDate).toISOString().split('T')[0] : '',
+              followUpDateTime: enquiry.followUpDateTime ? new Date(enquiry.followUpDateTime).toISOString().slice(0, 16) : (enquiry.followUpDate ? new Date(enquiry.followUpDate).toISOString().slice(0, 16) : ''),
+              callTag: enquiry.callTag || '',
+              followUpMessage: enquiry.followUpMessage || '',
               comments: enquiry.comments || '',
               interests: enquiry.interests || '',
               budget: enquiry.budget || '',
@@ -102,13 +184,32 @@ export const EnquiryFormPage: React.FC = () => {
     loadEnquiry();
   }, [id, isEditing, getEnquiryById, addToast]);
 
+  // Formatted date for Image 2 display (DD-MM-YYYY)
+  const formattedEnquiryDate = useMemo(() => {
+    if (!formData.enquiryDate) {
+      const now = new Date();
+      const day = String(now.getDate()).padStart(2, '0');
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      return `${day}-${month}-${now.getFullYear()}`;
+    }
+    const d = new Date(formData.enquiryDate);
+    if (isNaN(d.getTime())) return formData.enquiryDate;
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}-${month}-${year}`;
+  }, [formData.enquiryDate]);
+
   // Handle input changes
   const handleInputChange = (field: string, value: string | EnquiryStatus) => {
     let finalValue = value;
     if (field === 'phone' && typeof value === 'string') {
       finalValue = value.replace(/\D/g, '').slice(0, 10);
     }
-    setFormData(prev => ({
+    if (field === 'budget' && typeof value === 'string') {
+      finalValue = value.replace(/\D/g, '');
+    }
+    setFormData((prev) => ({
       ...prev,
       [field]: finalValue,
     }));
@@ -118,42 +219,24 @@ export const EnquiryFormPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!/^[a-zA-Z\s]+$/.test(formData.name)) {
-      addToast('Name must contain only alphabetical characters and spaces', 'error');
+    if (!formData.name.trim()) {
+      addToast('Customer name is required', 'error');
       return;
     }
 
-    if (formData.phone.length !== 10) {
-      addToast('Phone number must be exactly 10 digits', 'error');
+    if (!formData.phone.trim()) {
+      addToast('Phone number is required', 'error');
       return;
     }
 
-    if (!formData.email.trim() || !formData.source || !formData.assignedStaff || !formData.followUpDate || !formData.interests.trim() || !formData.budget.trim()) {
-      addToast('Please fill in all details, including email, source, assigned staff, follow-up date, interests, and budget.', 'error');
+    if (formData.phone.replace(/\D/g, '').length < 7) {
+      addToast('Phone number must be at least 7 digits', 'error');
       return;
     }
 
-    if (!/^[a-zA-Z\s.,\-()]*$/.test(formData.interests)) {
-      addToast('Areas of Interest can only contain letters, spaces, and basic punctuation (no numbers or special characters)', 'error');
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      addToast('Please enter a valid email address', 'error');
       return;
-    }
-
-    const budgetNum = Number(formData.budget);
-    if (isNaN(budgetNum) || budgetNum < 100 || budgetNum > 100000) {
-      addToast('Budget must be a valid number between 100 and 100,000', 'error');
-      return;
-    }
-
-    if (formData.comments) {
-      const commentWords = formData.comments.trim().split(/\s+/).filter(Boolean).length;
-      if (commentWords > 50) {
-        addToast('Comments cannot exceed 50 words', 'error');
-        return;
-      }
-      if (!/^[a-zA-Z\s.,\-()]*$/.test(formData.comments)) {
-        addToast('Comments can only contain alphabetical characters, spaces, and basic punctuation (no numbers or special characters)', 'error');
-        return;
-      }
     }
 
     setSubmitting(true);
@@ -161,16 +244,30 @@ export const EnquiryFormPage: React.FC = () => {
     try {
       const enquiryData = {
         ...formData,
+        gender: (formData.gender as 'male' | 'female' | 'other') || undefined,
         phone: `${countryCode}${formData.phone}`,
-        followUpDate: formData.followUpDate ? new Date(formData.followUpDate).toISOString() : undefined,
+        dateOfBirth: formData.dateOfBirth ? new Date(formData.dateOfBirth).toISOString() : undefined,
+        countryCode: countryCode,
+        enquiryDate: formData.enquiryDate ? new Date(formData.enquiryDate).toISOString() : new Date().toISOString(),
+        trialDateTime: formData.trialType === 'trial-appointment' && formData.trialDateTime ? new Date(formData.trialDateTime).toISOString() : undefined,
+        trialService: formData.trialType === 'trial-appointment' ? formData.trialService : undefined,
+        trialStaff: formData.trialType === 'trial-appointment' && formData.trialStaff ? formData.trialStaff : undefined,
+        trialClassDate: formData.trialType === 'trial-class' && formData.trialClassDate ? new Date(formData.trialClassDate).toISOString() : undefined,
+        trialClass: formData.trialType === 'trial-class' ? formData.trialClass : undefined,
+        trialSessionDate: formData.trialType === 'trial-session' && formData.trialSessionDate ? new Date(formData.trialSessionDate).toISOString() : undefined,
+        trialSession: formData.trialType === 'trial-session' ? formData.trialSession : undefined,
+        followUpDateTime: formData.followUpDateTime ? new Date(formData.followUpDateTime).toISOString() : undefined,
+        followUpDate: formData.followUpDateTime ? new Date(formData.followUpDateTime).toISOString() : (formData.followUpDate ? new Date(formData.followUpDate).toISOString() : undefined),
+        callTag: (formData.callTag as 'cold' | 'warm' | 'hot') || undefined,
+        followUpMessage: formData.followUpMessage || undefined,
       };
 
       if (isEditing && id) {
-        await updateEnquiry(id, enquiryData);
-        addToast('Enquiry updated successfully', 'success');
+        const updated = await updateEnquiry(id, enquiryData);
+        if (!updated) return;
       } else {
-        await createEnquiry(enquiryData);
-        addToast('Enquiry created successfully', 'success');
+        const created = await createEnquiry(enquiryData);
+        if (!created) return;
       }
       navigate('/admin/enquiries');
     } catch (error) {
@@ -181,7 +278,7 @@ export const EnquiryFormPage: React.FC = () => {
   };
 
   const staffOptions = [
-    { value: '', label: 'Select Staff Member' },
+    { value: '', label: 'Select' },
     ...staff
       .filter((s) => s.status === 'active')
       .map((s: Staff) => ({
@@ -190,10 +287,357 @@ export const EnquiryFormPage: React.FC = () => {
       })),
   ];
 
+  const classOptions = useMemo(() => {
+    const active = (gymClasses || []).filter((c) => c.status === 'active');
+    if (active.length > 0) {
+      return [
+        { value: '', label: 'Select Class' },
+        ...active.map((c) => ({
+          value: c.name,
+          label: `${c.name}${c.time ? ` (${c.time})` : ''}`,
+        })),
+      ];
+    }
+    return [
+      { value: '', label: 'Select Class' },
+      { value: 'Yoga', label: 'Yoga' },
+      { value: 'Zumba', label: 'Zumba' },
+      { value: 'CrossFit', label: 'CrossFit' },
+      { value: 'HIIT', label: 'HIIT' },
+      { value: 'Pilates', label: 'Pilates' },
+      { value: 'Spinning', label: 'Spinning' },
+      { value: 'Cardio & Strength', label: 'Cardio & Strength' },
+    ];
+  }, [gymClasses]);
+
+  const sessionOptions = useMemo(() => {
+    const validSessions = (sessions || []).filter((s) => s.status !== 'cancelled');
+    if (validSessions.length > 0) {
+      return [
+        { value: '', label: 'Select Session' },
+        ...validSessions.map((s) => {
+          const className = typeof s.classId === 'object' && s.classId ? (s.classId as any).name : 'Class';
+          return {
+            value: s._id || `${className} (${s.time})`,
+            label: `${className} - ${s.time}`,
+          };
+        }),
+      ];
+    }
+    return [
+      { value: '', label: 'Select Session' },
+      { value: 'Morning Session (06:00 AM - 07:00 AM)', label: 'Morning Session (06:00 AM - 07:00 AM)' },
+      { value: 'Morning Session (07:00 AM - 08:00 AM)', label: 'Morning Session (07:00 AM - 08:00 AM)' },
+      { value: 'Morning Session (08:00 AM - 09:00 AM)', label: 'Morning Session (08:00 AM - 09:00 AM)' },
+      { value: 'Evening Session (05:00 PM - 06:00 PM)', label: 'Evening Session (05:00 PM - 06:00 PM)' },
+      { value: 'Evening Session (06:00 PM - 07:00 PM)', label: 'Evening Session (06:00 PM - 07:00 PM)' },
+      { value: 'Evening Session (07:00 PM - 08:00 PM)', label: 'Evening Session (07:00 PM - 08:00 PM)' },
+      { value: 'Evening Session (08:00 PM - 09:00 PM)', label: 'Evening Session (08:00 PM - 09:00 PM)' },
+    ];
+  }, [sessions]);
+
   if (loadingForm) {
     return (
       <div className="flex justify-center items-center h-64">
         <p className="text-lg text-gray-600 dark:text-gray-400">Loading enquiry...</p>
+      </div>
+    );
+  }
+
+  // Specialized Edit Enquiry view matching Image 2 exactly
+  if (isEditing) {
+    return (
+      <div className="-m-6 bg-white dark:bg-gray-900 min-h-[calc(100vh-64px)] text-gray-800 dark:text-gray-200">
+        {/* Top Breadcrumb matching Image 2: Home / Enquiries / Edit Enquiry */}
+        <div className="bg-white dark:bg-gray-850 px-6 py-2.5 border-b border-gray-200 dark:border-gray-800 text-xs">
+          <div className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
+            <Link to="/admin/dashboard" className="hover:text-gray-800 dark:hover:text-gray-200">
+              Home
+            </Link>
+            <span>/</span>
+            <Link to="/admin/enquiries" className="hover:text-gray-800 dark:hover:text-gray-200">
+              Enquiries
+            </Link>
+            <span>/</span>
+            <span className="text-[#ff5e28] font-medium">Edit Enquiry</span>
+          </div>
+        </div>
+
+        {/* Tab Row: Personal Information matching Image 2 */}
+        <div className="px-6 pt-3 border-b border-gray-200 dark:border-gray-800">
+          <div className="flex items-center gap-6 text-xs sm:text-sm">
+            <button
+              type="button"
+              className="text-[#ff5e28] font-semibold pb-2 border-b-2 border-[#ff5e28] cursor-pointer"
+            >
+              Personal Information
+            </button>
+          </div>
+        </div>
+
+        {/* Main Content Form */}
+        <div className="p-6 max-w-5xl">
+          <form onSubmit={handleSubmit}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 lg:gap-x-16 gap-y-4">
+              
+              {/* Left Column: Personal Details */}
+              <div className="space-y-3">
+                <h3 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-2">
+                  Personal Details
+                </h3>
+
+                {/* 1. Full name* */}
+                <div className="grid grid-cols-[130px_1fr] items-center gap-3">
+                  <label className="text-xs text-gray-700 dark:text-gray-300 font-medium">
+                    Full name<span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => handleInputChange('name', e.target.value)}
+                    className="w-full max-w-[280px] px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
+                  />
+                </div>
+
+                {/* 2. Country Code */}
+                <div className="grid grid-cols-[130px_1fr] items-center gap-3">
+                  <label className="text-xs text-gray-700 dark:text-gray-300 font-medium">
+                    Country Code
+                  </label>
+                  <select
+                    value={countryCode}
+                    onChange={(e) => setCountryCode(e.target.value)}
+                    className="w-full max-w-[280px] px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer"
+                  >
+                    <option value="+91">India (+91)</option>
+                    <option value="+1">United States (+1)</option>
+                    <option value="+44">United Kingdom (+44)</option>
+                    <option value="+61">Australia (+61)</option>
+                    <option value="+971">UAE (+971)</option>
+                    <option value="+65">Singapore (+65)</option>
+                    <option value="+49">Germany (+49)</option>
+                    <option value="+33">France (+33)</option>
+                    <option value="+81">Japan (+81)</option>
+                    <option value="+86">China (+86)</option>
+                  </select>
+                </div>
+
+                {/* 3. Contact Number* + Change */}
+                <div className="grid grid-cols-[130px_1fr] items-center gap-3">
+                  <label className="text-xs text-gray-700 dark:text-gray-300 font-medium">
+                    Contact Number<span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex items-center gap-2 max-w-[280px]">
+                    <input
+                      ref={phoneInputRef}
+                      type="text"
+                      required
+                      value={formData.phone}
+                      onChange={(e) => handleInputChange('phone', e.target.value)}
+                      className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsChangingPhone(true);
+                        phoneInputRef.current?.focus();
+                      }}
+                      className="text-xs text-sky-600 dark:text-sky-400 hover:underline cursor-pointer shrink-0 font-medium"
+                    >
+                      Change
+                    </button>
+                  </div>
+                </div>
+
+                {/* 4. Email */}
+                <div className="grid grid-cols-[130px_1fr] items-center gap-3">
+                  <label className="text-xs text-gray-700 dark:text-gray-300 font-medium">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    className="w-full max-w-[280px] px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
+                  />
+                </div>
+
+                {/* 5. Gender */}
+                <div className="grid grid-cols-[130px_1fr] items-center gap-3">
+                  <label className="text-xs text-gray-700 dark:text-gray-300 font-medium">
+                    Gender
+                  </label>
+                  <div className="flex items-center gap-6">
+                    <label className="inline-flex items-center gap-2 cursor-pointer text-xs text-gray-800 dark:text-gray-200">
+                      <input
+                        type="radio"
+                        name="edit-enquiry-gender"
+                        value="male"
+                        checked={formData.gender?.toLowerCase() === 'male'}
+                        onChange={() => handleInputChange('gender', 'male')}
+                        className="w-4 h-4 text-sky-500 focus:ring-sky-500 accent-sky-500 cursor-pointer"
+                      />
+                      <span>Male</span>
+                    </label>
+                    <label className="inline-flex items-center gap-2 cursor-pointer text-xs text-gray-800 dark:text-gray-200">
+                      <input
+                        type="radio"
+                        name="edit-enquiry-gender"
+                        value="female"
+                        checked={formData.gender?.toLowerCase() === 'female'}
+                        onChange={() => handleInputChange('gender', 'female')}
+                        className="w-4 h-4 text-sky-500 focus:ring-sky-500 accent-sky-500 cursor-pointer"
+                      />
+                      <span>Female</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* 6. Date of Birth */}
+                <div className="grid grid-cols-[130px_1fr] items-center gap-3">
+                  <label className="text-xs text-gray-700 dark:text-gray-300 font-medium">
+                    Date of Birth
+                  </label>
+                  <div className="relative max-w-[280px] w-full">
+                    <input
+                      type="date"
+                      value={formData.dateOfBirth || ''}
+                      onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
+                      className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-orange-500 pr-8 cursor-pointer"
+                      placeholder="Select Date of Birth"
+                    />
+                    <Calendar
+                      size={14}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
+                    />
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Right Column: Lead Information */}
+              <div className="space-y-3">
+                <h3 className="text-xs font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-2">
+                  Lead Information
+                </h3>
+
+                {/* 1. Enquiry Date* (read-only grayed out with calendar icon) */}
+                <div className="grid grid-cols-[130px_1fr] items-center gap-3">
+                  <label className="text-xs text-gray-700 dark:text-gray-300 font-medium">
+                    Enquiry Date<span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative max-w-[280px] w-full">
+                    <input
+                      type="text"
+                      readOnly
+                      disabled
+                      value={formattedEnquiryDate}
+                      className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded bg-[#cbcfd4] dark:bg-gray-700 text-xs text-gray-800 dark:text-gray-200 cursor-not-allowed font-medium pr-8"
+                    />
+                    <Calendar
+                      size={14}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-700 dark:text-gray-300 pointer-events-none"
+                    />
+                  </div>
+                </div>
+
+                {/* 2. Service Name* */}
+                <div className="grid grid-cols-[130px_1fr] items-center gap-3">
+                  <label className="text-xs text-gray-700 dark:text-gray-300 font-medium">
+                    Service Name<span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    required
+                    value={formData.serviceName}
+                    onChange={(e) => handleInputChange('serviceName', e.target.value)}
+                    className="w-full max-w-[280px] px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer"
+                  >
+                    <option value="">Select Service</option>
+                    {formData.serviceName &&
+                      !['CLUB MEMBERSHIP', 'Gym Membership', 'Diet', 'Freezing', 'Group Workout', 'happy hours', 'Personal Session', 'Transfer Fee'].includes(formData.serviceName) && (
+                        <option value={formData.serviceName}>{formData.serviceName}</option>
+                      )}
+                    <option value="CLUB MEMBERSHIP">CLUB MEMBERSHIP</option>
+                    <option value="Gym Membership">Gym Membership</option>
+                    <option value="Diet">Diet</option>
+                    <option value="Freezing">Freezing</option>
+                    <option value="Group Workout">Group Workout</option>
+                    <option value="happy hours">happy hours</option>
+                    <option value="Personal Session">Personal Session</option>
+                    <option value="Transfer Fee">Transfer Fee</option>
+                  </select>
+                </div>
+
+                {/* 3. Lead source */}
+                <div className="grid grid-cols-[130px_1fr] items-center gap-3">
+                  <label className="text-xs text-gray-700 dark:text-gray-300 font-medium">
+                    Lead source
+                  </label>
+                  <select
+                    value={formData.source || 'Walk-in'}
+                    onChange={(e) => handleInputChange('source', e.target.value)}
+                    className="w-full max-w-[280px] px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer"
+                  >
+                    <option value="Walk-in">Walk-in</option>
+                    {formData.source &&
+                      !['Walk-in', 'Social Media', 'Website', 'Referral', 'Phone Call', 'Google', 'Others'].includes(formData.source) && (
+                        <option value={formData.source}>{formData.source}</option>
+                      )}
+                    <option value="Social Media">Social Media</option>
+                    <option value="Website">Website</option>
+                    <option value="Referral">Referral</option>
+                    <option value="Phone Call">Phone Call</option>
+                    <option value="Google">Google</option>
+                    <option value="Others">Others</option>
+                  </select>
+                </div>
+
+                {/* 4. Enquiry Type */}
+                <div className="grid grid-cols-[130px_1fr] items-center gap-3">
+                  <label className="text-xs text-gray-700 dark:text-gray-300 font-medium">
+                    Enquiry Type
+                  </label>
+                  <select
+                    value={formData.enquiryType || 'Walk-in'}
+                    onChange={(e) => handleInputChange('enquiryType', e.target.value)}
+                    className="w-full max-w-[280px] px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer"
+                  >
+                    <option value="Walk-in">Walk-in</option>
+                    {formData.enquiryType &&
+                      !['Walk-in', 'Telephonic', 'Online', 'Referral', 'Event'].includes(formData.enquiryType) && (
+                        <option value={formData.enquiryType}>{formData.enquiryType}</option>
+                      )}
+                    <option value="Telephonic">Telephonic</option>
+                    <option value="Online">Online</option>
+                    <option value="Referral">Referral</option>
+                    <option value="Event">Event</option>
+                  </select>
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* Buttons matching image 2: [Save enquiry] [Cancel] */}
+            <div className="flex items-center justify-center gap-4 pt-10 pb-8">
+              <button
+                type="submit"
+                disabled={submitting}
+                className="px-6 py-2 bg-[#ff5e28] hover:bg-[#e04f1d] text-white text-xs font-semibold rounded shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {submitting ? 'Saving...' : 'Save enquiry'}
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/admin/enquiries')}
+                className="px-6 py-2 bg-[#ff5e28] hover:bg-[#e04f1d] text-white text-xs font-semibold rounded shadow-xs transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     );
   }
@@ -206,12 +650,10 @@ export const EnquiryFormPage: React.FC = () => {
         </Button>
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {isEditing ? 'Edit Enquiry' : 'Add New Enquiry'}
+            Add New Enquiry
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            {isEditing
-              ? 'Update the details of this customer enquiry'
-              : 'Manually add a new customer enquiry to the system'}
+            Manually add a new customer enquiry to the system
           </p>
         </div>
       </div>
@@ -224,7 +666,7 @@ export const EnquiryFormPage: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">
-                Contact Information
+                Personal Details
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
@@ -267,103 +709,345 @@ export const EnquiryFormPage: React.FC = () => {
                   </div>
                 </div>
                 <Input
-                  label="Email Address *"
+                  label="Email Address"
                   type="email"
                   placeholder="Enter email address"
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
                 />
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Gender
+                  </label>
+                  <div className="flex items-center space-x-6 h-10">
+                    <label className="inline-flex items-center cursor-pointer">
+                      <input
+                        type="radio"
+                        name="gender"
+                        value="male"
+                        checked={formData.gender === 'male'}
+                        onChange={() => handleInputChange('gender', 'male')}
+                        className="w-4 h-4 text-orange-500 border-gray-300 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-800"
+                      />
+                      <span className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">Male</span>
+                    </label>
+                    <label className="inline-flex items-center cursor-pointer">
+                      <input
+                        type="radio"
+                        name="gender"
+                        value="female"
+                        checked={formData.gender === 'female'}
+                        onChange={() => handleInputChange('gender', 'female')}
+                        className="w-4 h-4 text-orange-500 border-gray-300 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-800"
+                      />
+                      <span className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">Female</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">
+                Lead Information
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  label="Enquiry Date *"
+                  type="date"
+                  value={formData.enquiryDate}
+                  onChange={(e) => handleInputChange('enquiryDate', e.target.value)}
+                  min={currentMonthRange.min}
+                  max={currentMonthRange.max}
+                  required
+                />
                 <Select
-                  label="Source *"
+                  label="Service Name *"
                   options={[
-                    { value: '', label: 'Select Source' },
-                    { value: 'website', label: 'Website' },
-                    { value: 'social-media', label: 'Social Media' },
-                    { value: 'referral', label: 'Referral' },
-                    { value: 'walk-in', label: 'Walk-in' },
-                    { value: 'advertisement', label: 'Advertisement' },
-                    { value: 'other', label: 'Other' },
+                    { value: '', label: 'Select' },
+                    { value: 'CLUB MEMBERSHIP', label: 'CLUB MEMBERSHIP' },
+                    { value: 'Gym Membership', label: 'Gym Membership' },
+                    { value: 'Diet', label: 'Diet' },
+                    { value: 'Freezing', label: 'Freezing' },
+                    { value: 'Group Workout', label: 'Group Workout' },
+                    { value: 'happy hours', label: 'happy hours' },
+                    { value: 'Personal Session', label: 'Personal Session' },
+                    { value: 'Transfer Fee', label: 'Transfer Fee' },
+                  ]}
+                  value={formData.serviceName}
+                  onChange={(value) => handleInputChange('serviceName', value)}
+                />
+                <Select
+                  label="Lead source"
+                  options={[
+                    { value: '', label: 'Select' },
+                    { value: 'Aktivity', label: 'Aktivity' },
+                    { value: 'Corporate', label: 'Corporate' },
+                    { value: 'e-mail', label: 'e-mail' },
+                    { value: 'Facebook', label: 'Facebook' },
+                    { value: 'Flyers/Banners', label: 'Flyers/Banners' },
+                    { value: 'Google', label: 'Google' },
+                    { value: 'Hoardings', label: 'Hoardings' },
+                    { value: 'Justdial', label: 'Justdial' },
+                    { value: 'Listing sites', label: 'Listing sites' },
+                    { value: 'Magazine', label: 'Magazine' },
+                    { value: 'Member App', label: 'Member App' },
+                    { value: 'Missed call app', label: 'Missed call app' },
+                    { value: 'Newspapers', label: 'Newspapers' },
+                    { value: 'Others', label: 'Others' },
+                    { value: 'Passing By', label: 'Passing By' },
+                    { value: 'Phone', label: 'Phone' },
+                    { value: 'Posters', label: 'Posters' },
+                    { value: 'Promotional consultant', label: 'Promotional consultant' },
+                    { value: 'Radio', label: 'Radio' },
+                    { value: 'Referral', label: 'Referral' },
+                    { value: 'Signboard', label: 'Signboard' },
+                    { value: 'SMS', label: 'SMS' },
+                    { value: 'Social media', label: 'Social media' },
+                    { value: 'Staff', label: 'Staff' },
+                    { value: 'TV', label: 'TV' },
+                    { value: 'Walk-in', label: 'Walk-in' },
+                    { value: 'Website', label: 'Website' },
+                    { value: 'Word of mouth', label: 'Word of mouth' },
+                    { value: 'SoActiv', label: 'SoActiv' },
                   ]}
                   value={formData.source}
                   onChange={(value) => handleInputChange('source', value)}
                 />
+                <Select
+                  label="Enquiry Type"
+                  options={[
+                    { value: '', label: 'Select' },
+                    { value: 'Walk-in', label: 'Walk-in' },
+                    { value: 'Phone', label: 'Phone' },
+                    { value: 'e-mail', label: 'e-mail' },
+                    { value: 'Social media', label: 'Social media' },
+                    { value: 'Website', label: 'Website' },
+                  ]}
+                  value={formData.enquiryType}
+                  onChange={(value) => handleInputChange('enquiryType', value)}
+                />
               </div>
             </div>
 
             <div>
               <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">
-                Enquiry Management
+                Schedule a trial / meeting
               </h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Select
-                  label="Status"
-                  options={[
-                    { value: 'new', label: 'New' },
-                    { value: 'contacted', label: 'Contacted' },
-                    { value: 'interested', label: 'Interested' },
-                    { value: 'converted', label: 'Converted' },
-                    { value: 'lost', label: 'Lost' },
-                  ]}
-                  value={formData.status}
-                  onChange={(value) => handleInputChange('status', value as EnquiryStatus)}
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6">
+                <label className="inline-flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    name="trialType"
+                    value="no-trial"
+                    checked={formData.trialType === 'no-trial'}
+                    onChange={() => handleInputChange('trialType', 'no-trial')}
+                    className="w-4 h-4 text-orange-500 border-gray-300 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-800"
+                  />
+                  <span className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    No Trial
+                  </span>
+                </label>
+                <label className="inline-flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    name="trialType"
+                    value="trial-appointment"
+                    checked={formData.trialType === 'trial-appointment'}
+                    onChange={() => handleInputChange('trialType', 'trial-appointment')}
+                    className="w-4 h-4 text-orange-500 border-gray-300 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-800"
+                  />
+                  <span className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Trial Appointment
+                  </span>
+                </label>
+                <label className="inline-flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    name="trialType"
+                    value="trial-class"
+                    checked={formData.trialType === 'trial-class'}
+                    onChange={() => handleInputChange('trialType', 'trial-class')}
+                    className="w-4 h-4 text-orange-500 border-gray-300 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-800"
+                  />
+                  <span className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Trial Class
+                  </span>
+                </label>
+                <label className="inline-flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    name="trialType"
+                    value="trial-session"
+                    checked={formData.trialType === 'trial-session'}
+                    onChange={() => handleInputChange('trialType', 'trial-session')}
+                    className="w-4 h-4 text-orange-500 border-gray-300 focus:ring-orange-500 dark:border-gray-600 dark:bg-gray-800"
+                  />
+                  <span className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Trial Session
+                  </span>
+                </label>
+              </div>
 
+              {formData.trialType === 'trial-appointment' && (
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Input
+                    label="Date & Time *"
+                    type="datetime-local"
+                    value={formData.trialDateTime}
+                    onChange={(e) => handleInputChange('trialDateTime', e.target.value)}
+                    min={getLocalDateTimeMin()}
+                    required
+                  />
+                  <Select
+                    label="Service *"
+                    options={[
+                      { value: '', label: 'Select' },
+                      { value: 'CLUB MEMBERSHIP', label: 'CLUB MEMBERSHIP' },
+                      { value: 'Gym Membership', label: 'Gym Membership' },
+                      { value: 'Diet', label: 'Diet' },
+                      { value: 'Freezing', label: 'Freezing' },
+                      { value: 'Group Workout', label: 'Group Workout' },
+                      { value: 'happy hours', label: 'happy hours' },
+                      { value: 'Personal Session', label: 'Personal Session' },
+                      { value: 'Transfer Fee', label: 'Transfer Fee' },
+                    ]}
+                    value={formData.trialService}
+                    onChange={(value) => handleInputChange('trialService', value)}
+                    required
+                  />
+                  <Select
+                    label="Staff Name *"
+                    options={staffOptions}
+                    value={formData.trialStaff}
+                    onChange={(value) => handleInputChange('trialStaff', value)}
+                    required
+                  />
+                </div>
+              )}
+
+              {formData.trialType === 'trial-class' && (
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input
+                    label="Date *"
+                    type="date"
+                    value={formData.trialClassDate}
+                    onChange={(e) => handleInputChange('trialClassDate', e.target.value)}
+                    min={getLocalDateString()}
+                    required
+                  />
+                  <Select
+                    label="Class *"
+                    options={classOptions}
+                    value={formData.trialClass}
+                    onChange={(value) => handleInputChange('trialClass', value)}
+                    required
+                  />
+                </div>
+              )}
+
+              {formData.trialType === 'trial-session' && (
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input
+                    label="Date *"
+                    type="date"
+                    value={formData.trialSessionDate}
+                    onChange={(e) => handleInputChange('trialSessionDate', e.target.value)}
+                    min={getLocalDateString()}
+                    required
+                  />
+                  <Select
+                    label="Session *"
+                    options={sessionOptions}
+                    value={formData.trialSession}
+                    onChange={(value) => handleInputChange('trialSession', value)}
+                    required
+                  />
+                </div>
+              )}
+            </div>
+
+            <div>
+              <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">
+                Schedule enquiry follow-up
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Select
-                  label="Assigned Staff *"
+                  label="Staff Name"
                   options={staffOptions}
                   value={formData.assignedStaff}
                   onChange={(value) => handleInputChange('assignedStaff', value)}
                 />
-
                 <Input
-                  label="Follow-up Date *"
-                  type="date"
-                  value={formData.followUpDate}
-                  onChange={(e) => handleInputChange('followUpDate', e.target.value)}
+                  label="Date & Time"
+                  type="datetime-local"
+                  value={formData.followUpDateTime}
+                  onChange={(e) => handleInputChange('followUpDateTime', e.target.value)}
+                  min={getLocalDateTimeMin()}
                 />
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Call Tag
+                  </label>
+                  <div className="flex items-center space-x-6 h-10">
+                    <label className="inline-flex items-center cursor-pointer">
+                      <input
+                        type="radio"
+                        name="callTag"
+                        value="cold"
+                        checked={formData.callTag === 'cold'}
+                        onChange={() => handleInputChange('callTag', 'cold')}
+                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800"
+                      />
+                      <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded border border-blue-600 text-blue-600 font-medium text-sm">
+                        Cold
+                      </span>
+                    </label>
+                    <label className="inline-flex items-center cursor-pointer">
+                      <input
+                        type="radio"
+                        name="callTag"
+                        value="warm"
+                        checked={formData.callTag === 'warm'}
+                        onChange={() => handleInputChange('callTag', 'warm')}
+                        className="w-4 h-4 text-amber-500 border-gray-300 focus:ring-amber-500 dark:border-gray-600 dark:bg-gray-800"
+                      />
+                      <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded border border-amber-500 text-amber-500 font-medium text-sm">
+                        Warm
+                      </span>
+                    </label>
+                    <label className="inline-flex items-center cursor-pointer">
+                      <input
+                        type="radio"
+                        name="callTag"
+                        value="hot"
+                        checked={formData.callTag === 'hot'}
+                        onChange={() => handleInputChange('callTag', 'hot')}
+                        className="w-4 h-4 text-red-600 border-gray-300 focus:ring-red-500 dark:border-gray-600 dark:bg-gray-800"
+                      />
+                      <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded border border-red-600 text-red-600 font-medium text-sm">
+                        Hot
+                      </span>
+                    </label>
+                  </div>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Message
+                  </label>
+                  <textarea
+                    rows={3}
+                    maxLength={250}
+                    placeholder="Maximum 250 characters"
+                    value={formData.followUpMessage}
+                    onChange={(e) => handleInputChange('followUpMessage', e.target.value)}
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors dark:bg-gray-800 dark:border-gray-600 dark:text-white dark:placeholder-gray-500 text-sm"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-right">
+                    {formData.followUpMessage.length}/250
+                  </p>
+                </div>
               </div>
-
-              {loadingStaff && (
-                <p className="text-sm text-gray-500 dark:text-gray-400">Loading staff...</p>
-              )}
-              {staffError && (
-                <p className="text-sm text-red-500 dark:text-red-400">
-                  Failed to load staff: {staffError}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">
-                Additional Information
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  label="Areas of Interest *"
-                  placeholder="e.g., Weight training, Cardio, Yoga"
-                  value={formData.interests}
-                  onChange={(e) => handleInputChange('interests', e.target.value)}
-                />
-                <Input
-                  label="Budget Range *"
-                  placeholder="e.g., $50-100/month"
-                  value={formData.budget}
-                  onChange={(e) => handleInputChange('budget', e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Comments & Notes
-              </label>
-              <textarea
-                rows={4}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors dark:bg-gray-800 dark:border-gray-600 dark:text-white dark:placeholder-gray-500"
-                placeholder="Add any additional notes or comments about this enquiry..."
-                value={formData.comments}
-                onChange={(e) => handleInputChange('comments', e.target.value)}
-              />
             </div>
 
             {enquiryError && (

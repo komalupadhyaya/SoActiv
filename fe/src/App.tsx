@@ -33,10 +33,14 @@ import { ProtectedRoute } from './components/routing/ProtectedRoute';
 // Admin Pages
 import { DashboardPage } from './pages/admin/DashboardPage';
 import { EnquiriesPage } from './pages/admin/EnquiriesPage';
+import { EnquiryCallsPage } from './pages/admin/EnquiryCallsPage';
 import { EnquiryFormPage } from './pages/admin/EnquiryFormPage';
 import { ClientListPage } from './pages/admin/ClientListPage';
 import { ClientFormPage } from './pages/admin/ClientFormPage';
 import { StaffManagerPage } from './pages/admin/StaffManagerPage';
+import { StaffTargetPage } from './pages/admin/StaffTargetPage';
+import { StaffTargetFormPage } from './pages/admin/StaffTargetFormPage';
+import { StaffAdminRightsPage } from './pages/admin/StaffAdminRightsPage';
 import { ReportsPage } from './pages/admin/ReportsPage';
 import { AttendanceSheet } from './pages/admin/staffAttendance';
 import { UserProfilePage } from './pages/common/UserProfilePage'; // For Admin (gym owner)
@@ -59,6 +63,7 @@ import BookClassPage from './pages/staff/receptionist/BookClassPage';
 import BookAppointmentPage from './pages/staff/receptionist/BookAppointmentPage';
 import RegisterComplaintPage from './pages/staff/receptionist/RegisterComplaintPage';
 import { StaffEnquiryFormPage } from './pages/staff/StaffEnquiryFormPage';
+import BiometricManagementPage from './pages/admin/BiometricManagementPage';
 
 // Super Admin Pages
 import { SuperAdminLoginPage } from './pages/superAdmin/SuperAdminLoginPage';
@@ -87,6 +92,23 @@ import { MemberSupportPage } from './pages/member/MemberSupportPage';
 import { ClassManagementPage } from './pages/admin/ClassManagementPage';
 import { TrainerClassesPage } from './pages/staff/TrainerClassesPage';
 import { MemberClassesPage } from './pages/member/MemberClassesPage';
+import { ServiceManagementPage } from './pages/admin/ServiceManagementPage';
+import { AddServicePage } from './pages/admin/AddServicePage';
+import { MailInvoicePage } from './pages/admin/MailInvoicePage';
+import { DailyCollectionReportPage } from './pages/admin/DailyCollectionReportPage';
+import { ClientPaymentsPage } from './pages/admin/ClientPaymentsPage';
+import { ClientServiceCardPage } from './pages/admin/ClientServiceCardPage';
+import { ClientAppointmentsPage } from './pages/admin/ClientAppointmentsPage';
+import { ClientTrainingPage } from './pages/admin/ClientTrainingPage';
+import { ClientFreezePage } from './pages/admin/ClientFreezePage';
+import { ClientChangeDatePage } from './pages/admin/ClientChangeDatePage';
+import { ClientRefundCancellationPage } from './pages/admin/ClientRefundCancellationPage';
+import { ProFormaInvoiceDetailsPage } from './pages/admin/ProFormaInvoiceDetailsPage';
+import { MembershipExpiryReportPage } from './pages/admin/MembershipExpiryReportPage';
+import { PTExpiryReportPage } from './pages/admin/PTExpiryReportPage';
+import { ClientTransfersPage } from './pages/admin/ClientTransfersPage';
+import { DSRReportPage } from './pages/admin/DSRReportPage';
+import { RevenueReportPage } from './pages/admin/RevenueReportPage';
 
 
 function App() {
@@ -117,15 +139,74 @@ function App() {
                   <Route index element={<DashboardPage />} />
                   <Route path="dashboard" element={<DashboardPage />} />
                   <Route path="enquiries" element={<EnquiriesPage />} />
+                  <Route path="enquiries/archive" element={<EnquiriesPage isArchivePage={true} />} />
+                  <Route path="enquiries-archive" element={<EnquiriesPage isArchivePage={true} />} />
+                  <Route path="memshipequ.aspx" element={<EnquiriesPage />} />
+                  <Route path="enquiry-calls" element={<EnquiryCallsPage />} />
+                  <Route path="enquiry-calls/:id" element={<EnquiryCallsPage />} />
+                  <Route path="memeqcallog.aspx" element={<EnquiryCallsPage />} />
                   <Route path="enquiry-form" element={<EnquiryFormPage />} />
+                  <Route path="enquiry-form/:id" element={<EnquiryFormPage />} />
+                  <Route path="memadenq.aspx" element={<EnquiryFormPage />} />
                   <Route path="enquiries/edit/:id" element={<EnquiryFormPage />} />
                   <Route path="enquiries-expiring" element={<EnquiriesExpiringPage />} />
                   <Route path="clients" element={<ClientListPage />} />
+                  <Route path="memshiplist.aspx" element={<ClientListPage />} />
+                  <Route path="memgroup.aspx" element={<ClientListPage />} />
+                  <Route path="clients/payments/:id" element={<ClientPaymentsPage />} />
+                  <Route path="clients/payments" element={<ClientPaymentsPage />} />
+                  <Route path="mempaydt.aspx" element={<ClientPaymentsPage />} />
+                  <Route path="clients/service-card/:id" element={<ClientServiceCardPage />} />
+                  <Route path="clients/service-card" element={<ClientServiceCardPage />} />
+                  <Route path="memsvcard.aspx" element={<ClientServiceCardPage />} />
+                  <Route path="clients/appointments/:id" element={<ClientAppointmentsPage />} />
+                  <Route path="clients/appointments" element={<ClientAppointmentsPage />} />
+                  <Route path="memappnt.aspx" element={<ClientAppointmentsPage />} />
+                  <Route path="memappts.aspx" element={<ClientAppointmentsPage />} />
+                  <Route path="clients/training/:id" element={<ClientTrainingPage />} />
+                  <Route path="clients/training" element={<ClientTrainingPage />} />
+                  <Route path="viewmemwkday.aspx" element={<ClientTrainingPage />} />
+                  <Route path="clients/freeze/:id" element={<ClientFreezePage />} />
+                  <Route path="clients/freeze" element={<ClientFreezePage />} />
+                  <Route path="memfreeze.aspx" element={<ClientFreezePage />} />
+                  <Route path="clients/change-date/:id" element={<ClientChangeDatePage />} />
+                  <Route path="clients/change-date" element={<ClientChangeDatePage />} />
+                  <Route path="memsvmsg.aspx" element={<ClientChangeDatePage />} />
+                  <Route path="clients/refund-cancellation/:id" element={<ClientRefundCancellationPage />} />
+                  <Route path="clients/refund-cancellation" element={<ClientRefundCancellationPage />} />
+                  <Route path="clients/cancel-refund/:id" element={<ClientRefundCancellationPage />} />
+                  <Route path="clients/cancel-refund" element={<ClientRefundCancellationPage />} />
+                  <Route path="memcnclsv.aspx" element={<ClientRefundCancellationPage />} />
+                  <Route path="memcancel.aspx" element={<ClientRefundCancellationPage />} />
+                  <Route path="clients/transfers-sent/:id" element={<ClientTransfersPage />} />
+                  <Route path="clients/transfers-sent" element={<ClientTransfersPage />} />
+                  <Route path="clients/transfers-received/:id" element={<ClientTransfersPage />} />
+                  <Route path="clients/transfers-received" element={<ClientTransfersPage />} />
+                  <Route path="memtransfers.aspx" element={<ClientTransfersPage />} />
+                  <Route path="reports/proforma-invoice-details/:clientId/:invoiceId" element={<ProFormaInvoiceDetailsPage />} />
+                  <Route path="reports/proforma-invoice-details/:clientId" element={<ProFormaInvoiceDetailsPage />} />
+                  <Route path="reports/proforma-invoice-details" element={<ProFormaInvoiceDetailsPage />} />
+                  <Route path="proforma-invoice-details/:clientId/:invoiceId" element={<ProFormaInvoiceDetailsPage />} />
+                  <Route path="proforma-invoice-details/:clientId" element={<ProFormaInvoiceDetailsPage />} />
+                  <Route path="proforma-invoice-details" element={<ProFormaInvoiceDetailsPage />} />
+                  <Route path="memproformadt.aspx" element={<ProFormaInvoiceDetailsPage />} />
                   <Route path="client-form" element={<ClientFormPage />} />
                   <Route path="client-form/:id" element={<ClientFormPage />} />
                   <Route path="pt-expiring" element={<PTExpiringPage />} />
                   <Route path="staff" element={<StaffManagerPage />} />
                   <Route path="staff-page" element={<StaffManagerPage />} />
+                  <Route path="staff-form" element={<Navigate to="/admin/staff?action=add" replace />} />
+                  <Route path="staff-target" element={<StaffTargetPage />} />
+                  <Route path="staff-target/new" element={<StaffTargetFormPage />} />
+                  <Route path="staff-target/edit/:id" element={<StaffTargetFormPage />} />
+                  <Route path="staff-target/form" element={<StaffTargetFormPage />} />
+                  <Route path="staff/target" element={<StaffTargetPage />} />
+                  <Route path="staff/add-target" element={<StaffTargetFormPage />} />
+                  <Route path="stftarget.aspx" element={<StaffTargetPage />} />
+                  <Route path="staff/rights/:id" element={<StaffAdminRightsPage />} />
+                  <Route path="staff-rights/:id" element={<StaffAdminRightsPage />} />
+                  <Route path="staff-rights" element={<StaffAdminRightsPage />} />
+                  <Route path="memstfrights.aspx" element={<StaffAdminRightsPage />} />
                   <Route path="follow-ups" element={<FollowUpsPage />} />
                   <Route path="follow-ups/new" element={<FollowUpFormPage />} />
                   <Route path="follow-ups/edit/:id" element={<FollowUpFormPage />} />
@@ -137,11 +218,42 @@ function App() {
                   <Route path="attendance" element={<Attendance />} />
                   <Route path="pt-plans" element={<PTPlansPage />} />
                   <Route path="pt-assignments" element={<PTAssignmentsPage />} />
-                  <Route path="announcements" element={<AdminAnnouncementsPage />} />
+                   <Route path="announcements" element={<AdminAnnouncementsPage />} />
                   <Route path="cleaning" element={<AdminCleaningPage />} />
+                  <Route path="cleaning-log" element={<AdminCleaningPage />} />
                   <Route path="exercises" element={<AdminExerciseLibrary />} />
+                  <Route path="exercise-library" element={<AdminExerciseLibrary />} />
                   <Route path="contact-support" element={<ContactSupportPage />} />
                   <Route path="member-support" element={<AdminSupportInboxPage />} />
+                  <Route path="support-inbox" element={<AdminSupportInboxPage />} />
+                  <Route path="services" element={<ServiceManagementPage />} />
+                   <Route path="biometric" element={<BiometricManagementPage />} />
+                   <Route path="biometric-management" element={<BiometricManagementPage />} />
+                  <Route path="services/new" element={<AddServicePage />} />
+                  <Route path="services/edit/:id" element={<AddServicePage />} />
+                  <Route path="setup/services" element={<ServiceManagementPage />} />
+                  <Route path="setup/services/new" element={<AddServicePage />} />
+                  <Route path="setup/services/edit/:id" element={<AddServicePage />} />
+                  <Route path="mail-invoice" element={<MailInvoicePage />} />
+                  <Route path="reports/finance/mail-invoice" element={<MailInvoicePage />} />
+                  <Route path="billmail.aspx" element={<MailInvoicePage />} />
+                  <Route path="reports/daily-collection" element={<DailyCollectionReportPage />} />
+                  <Route path="reports/finance/daily-collection" element={<DailyCollectionReportPage />} />
+                  <Route path="daily-collection" element={<DailyCollectionReportPage />} />
+                  <Route path="reports/sales/dsr-report" element={<DSRReportPage />} />
+                  <Route path="reports/dsr-report" element={<DSRReportPage />} />
+                  <Route path="reports/dsr" element={<DSRReportPage />} />
+                  <Route path="dsr-report" element={<DSRReportPage />} />
+                  <Route path="memdsrreport.aspx" element={<DSRReportPage />} />
+                  <Route path="reports/sales/revenue" element={<RevenueReportPage />} />
+                  <Route path="reports/revenue" element={<RevenueReportPage />} />
+                  <Route path="revenue" element={<RevenueReportPage />} />
+                  <Route path="cntrlrevgrwth.aspx" element={<RevenueReportPage />} />
+                  <Route path="reports/membership-expiry" element={<MembershipExpiryReportPage />} />
+                  <Route path="reports/client-management/membership-expiry" element={<MembershipExpiryReportPage />} />
+                  <Route path="memshipandptrenewrpt.aspx" element={<MembershipExpiryReportPage />} />
+                  <Route path="reports/pt-expiry" element={<PTExpiryReportPage />} />
+                  <Route path="reports/client-management/pt-expiry" element={<PTExpiryReportPage />} />
                   <Route
                     path="classes"
                     element={
@@ -242,7 +354,7 @@ function App() {
                   <Route
                     path="team-attendance"
                     element={
-                      <ProtectedRoute allowedPositions={['manager']}>
+                      <ProtectedRoute allowedPositions={['manager', 'receptionist']}>
                         <StaffAttendance />
                       </ProtectedRoute>
                     }

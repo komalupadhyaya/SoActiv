@@ -38,8 +38,8 @@ export const LoginPage: React.FC = () => {
       } else {
         navigate('/admin/dashboard'); // Default fallback
       }
-    } catch (err) {
-      setError('Invalid credentials. Please try again.');
+    } catch (err: any) {
+      setError(err?.message || 'Invalid credentials. Please try again.');
     } finally {
       setIsLoading(false);
     }

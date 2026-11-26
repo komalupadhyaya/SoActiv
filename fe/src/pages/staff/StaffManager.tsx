@@ -261,7 +261,7 @@ export const StaffManager: React.FC = () => {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 <Card>
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between">
@@ -294,21 +294,108 @@ export const StaffManager: React.FC = () => {
                         </div>
                     </CardContent>
                 </Card>
-                <Card>
-                    <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Trainers</p>
-                                <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                                    {staff.filter((s) => s.position.toLowerCase().includes('trainer')).length}
-                                </p>
+                {staff.filter((s) => s.position.toLowerCase().includes('trainer')).length > 0 && (
+                    <Card>
+                        <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Trainers</p>
+                                    <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                                        {staff.filter((s) => s.position.toLowerCase().includes('trainer')).length}
+                                    </p>
+                                </div>
+                                <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                                    <User className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+                                </div>
                             </div>
-                            <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
-                                <User className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+                        </CardContent>
+                    </Card>
+                )}
+                {staff.filter((s) => s.position.toLowerCase().includes('manager')).length > 0 && (
+                    <Card>
+                        <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Managers</p>
+                                    <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                                        {staff.filter((s) => s.position.toLowerCase().includes('manager')).length}
+                                    </p>
+                                </div>
+                                <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                                    <User className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                                </div>
                             </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                )}
+                {staff.filter((s) => s.position.toLowerCase().includes('receptionist')).length > 0 && (
+                    <Card>
+                        <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Receptionists</p>
+                                    <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+                                        {staff.filter((s) => s.position.toLowerCase().includes('receptionist')).length}
+                                    </p>
+                                </div>
+                                <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
+                                    <User className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+                {staff.filter((s) => s.position.toLowerCase().includes('sales')).length > 0 && (
+                    <Card>
+                        <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Sales</p>
+                                    <p className="text-2xl font-bold text-pink-600 dark:text-pink-400">
+                                        {staff.filter((s) => s.position.toLowerCase().includes('sales')).length}
+                                    </p>
+                                </div>
+                                <div className="p-3 bg-pink-100 dark:bg-pink-900/30 rounded-lg">
+                                    <User className="w-6 h-6 text-pink-600 dark:text-pink-400" />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+                {staff.filter((s) => s.position.toLowerCase().includes('cleaner')).length > 0 && (
+                    <Card>
+                        <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Cleaners</p>
+                                    <p className="text-2xl font-bold text-cyan-600 dark:text-cyan-400">
+                                        {staff.filter((s) => s.position.toLowerCase().includes('cleaner')).length}
+                                    </p>
+                                </div>
+                                <div className="p-3 bg-cyan-100 dark:bg-cyan-900/30 rounded-lg">
+                                    <User className="w-6 h-6 text-cyan-600 dark:text-cyan-400" />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+                {staff.filter((s) => s.position.toLowerCase().includes('maintenance')).length > 0 && (
+                    <Card>
+                        <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Maintenance</p>
+                                    <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                                        {staff.filter((s) => s.position.toLowerCase().includes('maintenance')).length}
+                                    </p>
+                                </div>
+                                <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
+                                    <User className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
                 <Card>
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between">

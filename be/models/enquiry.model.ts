@@ -3,13 +3,7 @@ import mongoose, { Schema, Document, Types, Model } from 'mongoose';
 
 // Define the Status and Source enums
 type EnquiryStatus = 'new' | 'contacted' | 'interested' | 'converted' | 'lost';
-type EnquirySource =
-  | 'website'
-  | 'social-media'
-  | 'referral'
-  | 'walk-in'
-  | 'advertisement'
-  | 'other';
+type EnquirySource = string;
 
 // Interface for the Enquiry document (single record)
 export interface IEnquiry extends Document {
@@ -18,13 +12,30 @@ export interface IEnquiry extends Document {
   name: string;
   phone: string;
   email: string;
+  gender?: 'male' | 'female' | 'other';
+  enquiryDate?: Date;
+  serviceName?: string;
+  enquiryType?: string;
+  trialType?: 'no-trial' | 'trial-appointment' | 'trial-class' | 'trial-session' | string;
+  trialDateTime?: Date | null;
+  trialService?: string;
+  trialStaff?: Types.ObjectId | null;
+  trialClassDate?: Date | null;
+  trialClass?: string;
+  trialSessionDate?: Date | null;
+  trialSession?: string;
   source: EnquirySource;
   status: EnquiryStatus;
   assignedStaff: Types.ObjectId | null; // Reference to Staff _id (can be null)
   followUpDate: Date | null;
+  followUpDateTime?: Date | null;
+  callTag?: 'cold' | 'warm' | 'hot' | '';
+  followUpMessage?: string;
   comments: string;
   interests: string;
   budget: string;
+  dateOfBirth?: Date | null;
+  countryCode?: string;
   expiryDays: number; // Number of days until enquiry expires (default: 14)
   expiryDate: Date; // Calculated expiry date
   isExpired: boolean; // Auto-calculated based on current date
@@ -68,15 +79,64 @@ const EnquirySchema = new Schema<IEnquiry, IEnquiryModel>(
       type: String,
       required: false,
       lowercase: true,
-      match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email address'],
+      trim: true,
+      default: '',
+    },
+    gender: {
+      type: String,
+      enum: ['male', 'female', 'other', ''],
+      required: false,
+    },
+    enquiryDate: {
+      type: Date,
+      default: Date.now,
+    },
+    serviceName: {
+      type: String,
+      default: '',
+    },
+    enquiryType: {
+      type: String,
+      default: '',
+    },
+    trialType: {
+      type: String,
+      enum: ['no-trial', 'trial-appointment', 'trial-class', 'trial-session', ''],
+      default: 'no-trial',
+    },
+    trialDateTime: {
+      type: Date,
+      default: null,
+    },
+    trialService: {
+      type: String,
+      default: '',
+    },
+    trialStaff: {
+      type: Schema.Types.ObjectId,
+      ref: 'Staff',
+      default: null,
+    },
+    trialClassDate: {
+      type: Date,
+      default: null,
+    },
+    trialClass: {
+      type: String,
+      default: '',
+    },
+    trialSessionDate: {
+      type: Date,
+      default: null,
+    },
+    trialSession: {
+      type: String,
+      default: '',
     },
     source: {
       type: String,
-      enum: {
-        values: ['website', 'social-media', 'referral', 'walk-in', 'advertisement', 'other'],
-        message: 'Invalid source type',
-      },
-      required: true,
+      default: 'Walk-in',
+      required: false,
     },
     status: {
       type: String,
@@ -96,6 +156,20 @@ const EnquirySchema = new Schema<IEnquiry, IEnquiryModel>(
       type: Date,
       default: null,
     },
+    followUpDateTime: {
+      type: Date,
+      default: null,
+    },
+    callTag: {
+      type: String,
+      enum: ['cold', 'warm', 'hot', ''],
+      default: '',
+    },
+    followUpMessage: {
+      type: String,
+      default: '',
+      maxlength: [250, 'Message cannot exceed 250 characters'],
+    },
     comments: {
       type: String,
       default: '',
@@ -110,6 +184,14 @@ const EnquirySchema = new Schema<IEnquiry, IEnquiryModel>(
       type: String,
       default: '',
       maxlength: [100, 'Budget range cannot exceed 100 characters'],
+    },
+    dateOfBirth: {
+      type: Date,
+      default: null,
+    },
+    countryCode: {
+      type: String,
+      default: '+91',
     },
     expiryDays: {
       type: Number,

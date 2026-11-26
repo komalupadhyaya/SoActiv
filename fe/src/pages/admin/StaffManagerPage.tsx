@@ -1,926 +1,624 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import {
-    Plus,
-    Search,
-    Filter,
-    User,
-    Phone,
-    Calendar,
-    DollarSign,
-    Trash2,
-    Upload,
-    Edit,
-    Check,
-    X,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Plus,
+  X,
 } from 'lucide-react';
-import { Card, CardHeader, CardContent } from '../../components/ui/Card';
-import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
-import { Select } from '../../components/ui/Select';
-import { Badge } from '../../components/ui/Badge';
-import { Modal } from '../../components/ui/Modal';
-import { BulkUploadModal } from '../../components/common/BulkUploadModal';
-import { UploadResultsReport } from '../../components/common/UploadResultsReport';
-import { useStaff, type BulkUploadResult, Staff } from '../../hooks/useStaff';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useStaff, Staff } from '../../hooks/useStaff';
 import { StaffFormModal } from '../admin/StaffFormModal';
 import { StaffFormData } from '../admin/StaffValidation';
 import { useToast } from '../../contexts/ToastContext';
 import { useAuth } from '../../contexts/AuthContext';
 
-const statusColors = {
-    active: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-    inactive: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+const JOB_DESIGNATION_OPTIONS = [
+  'Business Partner',
+  'Center Manager',
+  'Client Relationship Executive',
+  'Client Relationship Manager',
+  'Club Manager',
+  'Diet Coach',
+  'Director',
+  'Fitness Coach',
+  'Fitness Manager',
+  'Fitness Trainer',
+  'Front Desk',
+  'General Trainer',
+  'House Keeping',
+  'Nutritionist',
+  'Owner',
+  'Personal Trainer',
+  'Physiotherapist',
+  'Sales Executive',
+  'Sales Manager',
+  'Sales Representative',
+  'Sports Coach',
+  'Trainer',
+];
+
+const ADMIN_RIGHTS_OPTIONS = [
+  'Master Admin',
+  'Admin',
+  'Finance',
+  'Training',
+  'Sales',
+  'Client Management',
+  'Customer Service',
+  'Housekeeping',
+];
+
+export const getEffectiveAdminRights = (member: any): string => {
+  if (member?.adminRights && typeof member.adminRights === 'string' && member.adminRights.trim()) {
+    return member.adminRights;
+  }
+  const pos = (member?.position || member?.jobDesignation || '').toLowerCase();
+  if (pos.includes('manager') || pos.includes('owner') || pos.includes('partner') || pos.includes('director')) return 'Admin';
+  if (pos.includes('sales')) return 'Sales';
+  if (pos.includes('clean') || pos.includes('house')) return 'Housekeeping';
+  if (pos.includes('desk') || pos.includes('receptionist') || pos.includes('relationship')) return 'Customer Service';
+  if (pos.includes('finance') || pos.includes('account')) return 'Finance';
+  return 'Training';
 };
 
 export const StaffManagerPage: React.FC = () => {
-    const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
-    const targetId = searchParams.get('id');
-    const [highlightedId, setHighlightedId] = useState<string | null>(null);
-    const { user, isLoading: authLoading } = useAuth();
-    const { staff, createStaff, updateStaff, deleteStaff, approveStaff, rejectStaff, bulkUpload, loading, error, fetchAllStaff } = useStaff();
-    const { isToastVisible } = useToast();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const { user, isLoading: authLoading } = useAuth();
+  const {
+    staff,
+    createStaff,
+    updateStaff,
+    deleteStaff,
+    fetchAllStaff,
+  } = useStaff();
+  const { addToast } = useToast();
 
-    // State Management
-    const [searchQuery, setSearchQuery] = useState('');
-    const [roleFilter, setRoleFilter] = useState('');
-    const [statusFilter, setStatusFilter] = useState('');
+  // Filter States
+  const [searchInput, setSearchInput] = useState('');
+  const [activeSearch, setActiveSearch] = useState('');
+  const [communicateFilter, setCommunicateFilter] = useState('');
+  const [designationFilter, setDesignationFilter] = useState('');
+  const [adminRightsFilter, setAdminRightsFilter] = useState('');
 
-    // ============================================================
-    // [1] STRICT ACCESS CONTROL GUARD
-    // ============================================================
-    // Only Admin OR (Staff with Manager position) can access this page
-    // All other staff positions must be redirected
-    useEffect(() => {
-        if (authLoading) return; // Wait for auth to load
+  // Table selection & pagination
+  const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
 
-        if (!user) {
-            navigate('/login');
-            return;
-        }
+  // Modals state
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState<Staff | any | undefined>(undefined);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [infoModalContent, setInfoModalContent] = useState<{ title: string; text: string } | null>(null);
 
-        // Check if user has permission to access this page
-        const isAdmin = user.role === 'admin' || user.role === 'superadmin';
-        const isManager = user.role === 'staff' && user.position === 'manager';
+  // Access Control Guard
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    const isAdmin = user.role === 'admin' || user.role === 'superadmin';
+    const isManager = user.role === 'staff' && user.position === 'manager';
+    if (!isAdmin && !isManager) {
+      navigate('/not-authorized');
+    } else {
+      fetchAllStaff();
+    }
+  }, [user, authLoading, navigate, fetchAllStaff]);
 
-        if (!isAdmin && !isManager) {
-            // Redirect unauthorized staff (trainer, sales, maintenance, cleaner, etc.)
-            navigate('/not-authorized');
-        } else {
-            // Fetch staff if authorized
-            fetchAllStaff();
-        }
-    }, [user, authLoading, navigate, fetchAllStaff]);
+  // Automatically open Add Staff modal if navigated with action=add or add=true
+  useEffect(() => {
+    if (searchParams.get('action') === 'add' || searchParams.get('add') === 'true') {
+      setSelectedStaff(undefined);
+      setIsFormModalOpen(true);
+    }
+  }, [searchParams, location.key]);
 
-    // Adjust status/role filters if a specific staff ID is requested
-    useEffect(() => {
-        if (targetId && staff.length > 0) {
-            const targetMember = staff.find(s => s._id === targetId);
-            if (targetMember) {
-                if (statusFilter !== '' && targetMember.status !== statusFilter) {
-                    setStatusFilter('');
-                }
-                if (roleFilter !== '' && !targetMember.position.toLowerCase().includes(roleFilter.toLowerCase())) {
-                    setRoleFilter('');
-                }
-            }
-        }
-    }, [targetId, staff, statusFilter, roleFilter]);
+  // Filter staff list from database
+  const filteredStaff = useMemo(() => {
+    return staff.filter((member) => {
+      const q = activeSearch.toLowerCase().trim();
+      const matchesSearch =
+        !q ||
+        member.fullName?.toLowerCase().includes(q) ||
+        member.email?.toLowerCase().includes(q) ||
+        member.contactNumber?.includes(q) ||
+        (member as any).attendanceId?.toLowerCase().includes(q);
 
-    // Handle scroll and highlight for target staff member
-    useEffect(() => {
-        if (!loading && targetId && staff.some(s => s._id === targetId)) {
-            setHighlightedId(targetId);
+      const matchesDesignation =
+        !designationFilter ||
+        ((member as any).jobDesignation && (member as any).jobDesignation.toLowerCase() === designationFilter.toLowerCase()) ||
+        (member.position && member.position.toLowerCase() === designationFilter.toLowerCase());
 
-            const timer = setTimeout(() => {
-                const element = document.getElementById(`staff-${targetId}`);
-                if (element) {
-                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            }, 250);
+      const memberRights = getEffectiveAdminRights(member);
+      const matchesAdminRights =
+        !adminRightsFilter ||
+        (memberRights.toLowerCase() === adminRightsFilter.toLowerCase());
 
-            const clearTimer = setTimeout(() => {
-                setHighlightedId(null);
-            }, 5000);
-
-            return () => {
-                clearTimeout(timer);
-                clearTimeout(clearTimer);
-            };
-        }
-    }, [loading, targetId, staff]);
-
-    // ============================================================
-    // [2] PERMISSION LEVELS
-    // ============================================================
-    // Admin: Full CRUD (Create, Read, Update, Delete)
-    // Manager: CRU only (Create, Read, Update) - NO DELETE
-    const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
-    const isManager = user?.role === 'staff' && user?.position === 'manager';
-    const canManageStaff = isAdmin || isManager;
-    const canDelete = isAdmin || isManager; // Admin or Manager can delete
-
-    const [isFormModalOpen, setIsFormModalOpen] = useState(false);
-    const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
-    const [isResultsModalOpen, setIsResultsModalOpen] = useState(false);
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [selectedStaff, setSelectedStaff] = useState<Staff | undefined>(undefined);
-    const [deletingStaff, setDeletingStaff] = useState<Staff | null>(null);
-    const [uploadResult, setUploadResult] = useState<BulkUploadResult | null>(null);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    
-    // Approval states
-    const [viewingChangesStaff, setViewingChangesStaff] = useState<Staff | null>(null);
-    const [isChangesModalOpen, setIsChangesModalOpen] = useState(false);
-
-    const filteredStaff = staff.filter((member) => {
-        const matchesSearch =
-            member.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            member.contactNumber.includes(searchQuery) ||
-            member.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            member.position.toLowerCase().includes(searchQuery.toLowerCase());
-
-        const matchesRole =
-            !roleFilter || member.position.toLowerCase().includes(roleFilter.toLowerCase());
-        const matchesStatus = !statusFilter || member.status === statusFilter;
-
-        return matchesSearch && matchesRole && matchesStatus;
+      return matchesSearch && matchesDesignation && matchesAdminRights;
     });
+  }, [staff, activeSearch, designationFilter, adminRightsFilter]);
 
-    // Handlers
-    const handleCreate = () => {
-        setSelectedStaff(undefined);
-        setIsFormModalOpen(true);
-    };
+  // Pagination calculation
+  const totalPages = Math.max(1, Math.ceil(filteredStaff.length / itemsPerPage));
+  const paginatedStaff = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredStaff.slice(start, start + itemsPerPage);
+  }, [filteredStaff, currentPage]);
 
-    const handleEdit = (staffMember: Staff) => {
-        setSelectedStaff(staffMember);
-        setIsFormModalOpen(true);
-    };
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setActiveSearch(searchInput);
+    setCurrentPage(1);
+  };
 
-    const handleDeleteClick = (staffMember: Staff) => {
-        setDeletingStaff(staffMember);
-        setIsDeleteModalOpen(true);
-    };
-
-    const handleConfirmDelete = async () => {
-        if (!deletingStaff) return;
-        const result = await deleteStaff(deletingStaff._id);
-        if (result) {
-            setDeletingStaff(null);
-            setIsDeleteModalOpen(false);
-        }
-    };
-
-    const handleApproveRequest = async (id: string) => {
-        await approveStaff(id);
-    };
-
-    const handleRejectRequest = async (id: string) => {
-        await rejectStaff(id);
-    };
-
-    const handleViewChanges = (staffMember: Staff) => {
-        setViewingChangesStaff(staffMember);
-        setIsChangesModalOpen(true);
-    };
-
-    const handleFormSubmit = async (formData: StaffFormData) => {
-        setIsSubmitting(true);
-        try {
-            const submissionData = {
-                ...formData,
-                salary: Number(formData.salary),
-            };
-
-            let result;
-            if (selectedStaff) {
-                result = await updateStaff(selectedStaff._id, submissionData);
-            } else {
-                result = await createStaff(submissionData);
-            }
-
-            if (result) {
-                setIsFormModalOpen(false);
-                setSelectedStaff(undefined);
-            }
-        } catch (error) {
-            // Error handled by useStaff hook (toast)
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const handleBulkUpload = async (file: File) => {
-        const result = await bulkUpload(file);
-        if (result) {
-            setUploadResult(result);
-            setIsBulkUploadModalOpen(false);
-            setIsResultsModalOpen(true);
-        }
-        return result;
-    };
-
-    if (loading && staff.length === 0) {
-        return (
-            <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
-            </div>
-        );
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedStaffIds(paginatedStaff.map((s) => s._id));
+    } else {
+      setSelectedStaffIds([]);
     }
+  };
 
-    if (error && staff.length === 0) {
-        return <div className="p-6 text-red-500">Error: {error}</div>;
-    }
-
-    return (
-        <div className="space-y-3 px-2 py-3 max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Staff Management</h1>
-                    <p className="text-gray-600 dark:text-gray-400 mt-1">
-                        Manage your gym staff, roles, and payroll
-                    </p>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                    {/* Mark Attendance → ADMIN ONLY */}
-                    {isAdmin && (
-                        <Button
-                            variant="outline"
-                            onClick={() => navigate('/admin/staff-attendance')}
-                            disabled={isToastVisible}
-                        >
-                            Mark Attendance
-                        </Button>
-                    )}
-
-                    {canManageStaff && (
-                        <>
-                            {isAdmin && (
-                                <Button variant="outline" onClick={() => setIsBulkUploadModalOpen(true)} disabled={isToastVisible}>
-                                    <Upload size={16} className="mr-2" />
-                                    Bulk Upload
-                                </Button>
-                            )}
-                            <Button onClick={handleCreate} disabled={isToastVisible}>
-                                <Plus size={16} className="mr-2" />
-                                Add Staff
-                            </Button>
-                        </>
-                    )}
-                </div>
-            </div>
-
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card>
-                    <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                                    Total Staff
-                                </p>
-                                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                                    {staff.length}
-                                </p>
-                            </div>
-                            <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                                <User className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Active</p>
-                                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                                    {staff.filter((s) => s.status === 'active').length}
-                                </p>
-                            </div>
-                            <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                                <User className="w-6 h-6 text-green-600 dark:text-green-400" />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Trainers</p>
-                                <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                                    {staff.filter((s) => s.position.toLowerCase().includes('trainer')).length}
-                                </p>
-                            </div>
-                            <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
-                                <User className="w-6 h-6 text-orange-600 dark:text-orange-400" />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                                    Total Payroll
-                                </p>
-                                <p className="text-2xl font-bold text-teal-600 dark:text-teal-400">
-                                    ₹{staff.reduce((sum, s) => sum + s.salary, 0).toLocaleString()}
-                                </p>
-                            </div>
-                            <div className="p-3 bg-teal-100 dark:bg-teal-900/30 rounded-lg">
-                                <DollarSign className="w-6 h-6 text-teal-600 dark:text-teal-400" />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Filters */}
-            <Card>
-                <CardContent className="p-4">
-                    <div className="flex flex-col lg:flex-row gap-4">
-                        <div className="flex-1">
-                            <Input
-                                placeholder="Search by name, phone, email, or position..."
-                                leftIcon={<Search size={16} />}
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full"
-                            />
-                        </div>
-                        <div className="w-full lg:w-48">
-                            <Select
-                                options={[
-                                    { value: '', label: 'All Roles' },
-                                    { value: 'trainer', label: 'Trainers' },
-                                    { value: 'receptionist', label: 'Receptionists' },
-                                    { value: 'manager', label: 'Managers' },
-                                    { value: 'sales', label: 'Sales' },
-                                    { value: 'cleaner', label: 'Cleaners' },
-                                ]}
-                                value={roleFilter}
-                                onChange={(value) => setRoleFilter(value)}
-                                placeholder="All Roles"
-                            />
-                        </div>
-                        <div className="w-full lg:w-48">
-                            <Select
-                                options={[
-                                    { value: '', label: 'All Status' },
-                                    { value: 'active', label: 'Active' },
-                                    { value: 'inactive', label: 'Inactive' },
-                                ]}
-                                value={statusFilter}
-                                onChange={(value) => setStatusFilter(value)}
-                                placeholder="All Status"
-                            />
-                        </div>
-                        <Button variant="outline" className="lg:w-auto">
-                            <Filter size={16} className="mr-2" />
-                            More Filters
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Staff Table (Desktop) */}
-            <Card className="hidden md:block">
-                <CardHeader>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                        All Staff ({filteredStaff.length})
-                    </h3>
-                </CardHeader>
-                <CardContent className="p-0">
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead className="bg-gray-50 dark:bg-gray-800">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                        Staff Member
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                        Contact
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                        Joining Date
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                        Salary
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                        Status
-                                    </th>
-                                    {canManageStaff && (
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                            Actions
-                                        </th>
-                                    )}
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                                {filteredStaff.map((member) => (
-                                    <tr 
-                                        key={member._id} 
-                                        id={`staff-${member._id}`}
-                                        className={`transition-all duration-500 hover:bg-gray-50 dark:hover:bg-gray-700 ${
-                                            highlightedId === member._id
-                                                ? 'ring-2 ring-orange-500 dark:ring-orange-450 bg-orange-50/50 dark:bg-orange-950/20'
-                                                : ''
-                                        }`}
-                                    >
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                                {member.fullName}
-                                            </div>
-                                            <div className="text-sm text-gray-500 dark:text-gray-400">
-                                                {member.position}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="space-y-1">
-                                                <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                                                    <Phone size={12} className="mr-1" />
-                                                    {member.contactNumber}
-                                                </div>
-                                                <div className="text-sm text-gray-500 dark:text-gray-400">
-                                                    {member.email}
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                                                <Calendar size={12} className="mr-1" />
-                                                {new Date(member.joiningDate).toLocaleDateString()}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="flex items-center text-sm font-medium text-gray-900 dark:text-white">
-                                                ₹ {member.salary.toLocaleString()}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="flex flex-col gap-1">
-                                                <Badge className={statusColors[member.status as keyof typeof statusColors]}>
-                                                    {member.status}
-                                                </Badge>
-                                                {member.approvalStatus && member.approvalStatus !== 'approved' && (
-                                                    <Badge className={
-                                                        member.approvalStatus === 'pending_create' ? 'bg-yellow-100 text-yellow-850 dark:bg-yellow-950/40 dark:text-yellow-400' :
-                                                        member.approvalStatus === 'pending_update' ? 'bg-blue-100 text-blue-850 dark:bg-blue-950/40 dark:text-blue-400' :
-                                                        'bg-rose-100 text-rose-850 dark:bg-rose-950/40 dark:text-rose-400'
-                                                    }>
-                                                        {member.approvalStatus === 'pending_create' ? 'Creation Pending' :
-                                                         member.approvalStatus === 'pending_update' ? 'Update Pending' :
-                                                         'Deletion Pending'}
-                                                    </Badge>
-                                                )}
-                                            </div>
-                                        </td>
-                                        {canManageStaff && (
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                <div className="flex space-x-2">
-                                                    {isAdmin && member.approvalStatus && member.approvalStatus !== 'approved' ? (
-                                                        <>
-                                                            {member.approvalStatus === 'pending_create' && (
-                                                                 <>
-                                                                     <Button
-                                                                         size="sm"
-                                                                         variant="ghost"
-                                                                         className="text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30"
-                                                                         onClick={() => handleRejectRequest(member._id)}
-                                                                         disabled={isToastVisible}
-                                                                         title="Reject Request"
-                                                                     >
-                                                                         <X size={16} />
-                                                                     </Button>
-                                                                     <Button
-                                                                         size="sm"
-                                                                         variant="ghost"
-                                                                         className="text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30"
-                                                                         onClick={() => handleApproveRequest(member._id)}
-                                                                         disabled={isToastVisible}
-                                                                         title="Approve Creation"
-                                                                     >
-                                                                         <Check size={16} />
-                                                                     </Button>
-                                                                 </>
-                                                             )}
-                                                            {member.approvalStatus === 'pending_update' && (
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    onClick={() => handleViewChanges(member)}
-                                                                    disabled={isToastVisible}
-                                                                >
-                                                                    View Changes
-                                                                </Button>
-                                                            )}
-                                                            {member.approvalStatus === 'pending_delete' && (
-                                                                 <>
-                                                                     <Button
-                                                                         size="sm"
-                                                                         variant="ghost"
-                                                                         className="text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30"
-                                                                         onClick={() => handleRejectRequest(member._id)}
-                                                                         disabled={isToastVisible}
-                                                                         title="Reject Request"
-                                                                     >
-                                                                         <X size={16} />
-                                                                     </Button>
-                                                                     <Button
-                                                                         size="sm"
-                                                                         variant="ghost"
-                                                                         className="text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30"
-                                                                         onClick={() => handleApproveRequest(member._id)}
-                                                                         disabled={isToastVisible}
-                                                                         title="Approve Deletion"
-                                                                     >
-                                                                         <Check size={16} />
-                                                                     </Button>
-                                                                 </>
-                                                             )}
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="ghost"
-                                                                className="text-orange-600 hover:bg-orange-100 dark:hover:bg-orange-900/30"
-                                                                title="Edit"
-                                                                onClick={() => handleEdit(member)}
-                                                                disabled={isToastVisible || (member.approvalStatus && member.approvalStatus !== 'approved')}
-                                                            >
-                                                                <Edit size={16} />
-
-                                                            </Button>
-                                                            {/* [2] ONLY ADMIN CAN DELETE - Manager cannot */}
-                                                            {canDelete && (
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="ghost"
-                                                                    className="text-red-500 hover:bg-red-100 dark:hover:bg-red-900"
-                                                                    onClick={() => handleDeleteClick(member)}
-                                                                    disabled={isToastVisible || (member.approvalStatus && member.approvalStatus !== 'approved')}
-                                                                >
-                                                                    <Trash2 size={14} />
-                                                                </Button>
-                                                            )}
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        )}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Staff Cards (Mobile & Tablet) */}
-            <Card className="md:hidden">
-                <CardHeader>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                        All Staff ({filteredStaff.length})
-                    </h3>
-                </CardHeader>
-                <CardContent className="space-y-4 p-4">
-                    {filteredStaff.length === 0 ? (
-                        <p className="text-center text-gray-500 dark:text-gray-400">No staff found.</p>
-                    ) : (
-                        filteredStaff.map((member) => (
-                            <Card 
-                                key={member._id} 
-                                id={`staff-${member._id}`}
-                                className={`border transition-all duration-500 ${
-                                    highlightedId === member._id
-                                        ? 'ring-2 ring-orange-500 dark:ring-orange-450 bg-orange-50/50 dark:bg-orange-950/20 border-orange-500'
-                                        : 'border-gray-200 dark:border-gray-700'
-                                }`}
-                            >
-                                <CardContent className="p-4">
-                                    <div className="flex items-start justify-between gap-3 mb-3">
-                                        <div>
-                                            <div className="text-base font-semibold text-gray-900 dark:text-white">
-                                                {member.fullName}
-                                            </div>
-                                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                                                {member.position}
-                                            </div>
-                                        </div>
-                                        <div className="flex flex-col gap-1 items-end">
-                                            <Badge className={statusColors[member.status as keyof typeof statusColors]}>
-                                                {member.status}
-                                            </Badge>
-                                            {member.approvalStatus && member.approvalStatus !== 'approved' && (
-                                                <Badge className={
-                                                    member.approvalStatus === 'pending_create' ? 'bg-yellow-100 text-yellow-850 dark:bg-yellow-950/40 dark:text-yellow-400' :
-                                                    member.approvalStatus === 'pending_update' ? 'bg-blue-100 text-blue-850 dark:bg-blue-950/40 dark:text-blue-400' :
-                                                    'bg-rose-100 text-rose-850 dark:bg-rose-950/40 dark:text-rose-400'
-                                                }>
-                                                    {member.approvalStatus === 'pending_create' ? 'Creation Pending' :
-                                                     member.approvalStatus === 'pending_update' ? 'Update Pending' :
-                                                     'Deletion Pending'}
-                                                </Badge>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Contact */}
-                                    <div className="flex flex-col gap-1 text-sm text-gray-700 dark:text-gray-300 mb-2">
-                                        <div className="flex items-center gap-2">
-                                            <Phone size={14} className="text-gray-400" />
-                                            <span>{member.contactNumber}</span>
-                                        </div>
-                                        <div className="text-xs text-gray-500 dark:text-gray-400 pl-6">
-                                            {member.email}
-                                        </div>
-                                    </div>
-
-                                    {/* Joining date & salary */}
-                                    <div className="flex flex-wrap items-center justify-between gap-2 text-sm mb-3 pt-2 border-t border-gray-100 dark:border-gray-800">
-                                        <div className="flex items-center text-gray-500 dark:text-gray-400 gap-2">
-                                            <Calendar size={14} />
-                                            <span>{new Date(member.joiningDate).toLocaleDateString()}</span>
-                                        </div>
-                                        <div className="flex items-center font-medium text-gray-900 dark:text-white gap-1">
-                                            <DollarSign size={14} />
-                                            <span>₹ {member.salary.toLocaleString()}</span>
-                                        </div>
-                                    </div>
-
-                                    {/* Actions */}
-                                    {canManageStaff && (
-                                        <div className="mt-2 flex flex-wrap justify-end gap-2 w-full">
-                                            {isAdmin && member.approvalStatus && member.approvalStatus !== 'approved' ? (
-                                                <>
-                                                    {member.approvalStatus === 'pending_create' && (
-                                                         <>
-                                                             <Button
-                                                                 size="sm"
-                                                                 variant="ghost"
-                                                                 className="text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 flex-1"
-                                                                 onClick={() => handleRejectRequest(member._id)}
-                                                                 disabled={isToastVisible}
-                                                                 title="Reject Request"
-                                                             >
-                                                                 <X size={16} />
-                                                             </Button>
-                                                             <Button
-                                                                 size="sm"
-                                                                 variant="ghost"
-                                                                 className="text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30 flex-1"
-                                                                 onClick={() => handleApproveRequest(member._id)}
-                                                                 disabled={isToastVisible}
-                                                                 title="Approve Creation"
-                                                             >
-                                                                 <Check size={16} />
-                                                             </Button>
-                                                         </>
-                                                     )}
-                                                    {member.approvalStatus === 'pending_update' && (
-                                                         <Button
-                                                             size="sm"
-                                                             variant="outline"
-                                                             onClick={() => handleViewChanges(member)}
-                                                             disabled={isToastVisible}
-                                                             className="w-full"
-                                                         >
-                                                             View Changes
-                                                         </Button>
-                                                     )}
-                                                    {member.approvalStatus === 'pending_delete' && (
-                                                         <>
-                                                             <Button
-                                                                 size="sm"
-                                                                 variant="ghost"
-                                                                 className="text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 flex-1"
-                                                                 onClick={() => handleRejectRequest(member._id)}
-                                                                 disabled={isToastVisible}
-                                                                 title="Reject Request"
-                                                             >
-                                                                 <X size={16} />
-                                                             </Button>
-                                                             <Button
-                                                                 size="sm"
-                                                                 variant="ghost"
-                                                                 className="text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30 flex-1"
-                                                                 onClick={() => handleApproveRequest(member._id)}
-                                                                 disabled={isToastVisible}
-                                                                 title="Approve Deletion"
-                                                             >
-                                                                 <Check size={16} />
-                                                             </Button>
-                                                         </>
-                                                     )}
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() => handleEdit(member)}
-                                                        className="flex-1"
-                                                        disabled={isToastVisible || (member.approvalStatus && member.approvalStatus !== 'approved')}
-                                                    >
-                                                        <Edit size={14} className="mr-1" />
-                                                        Edit
-                                                    </Button>
-                                                    {/* [2] ONLY ADMIN CAN DELETE - Manager cannot */}
-                                                    {canDelete && (
-                                                        <Button
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            className="text-red-500 hover:bg-red-100 dark:hover:bg-red-900"
-                                                            onClick={() => handleDeleteClick(member)}
-                                                            disabled={isToastVisible || (member.approvalStatus && member.approvalStatus !== 'approved')}
-                                                        >
-                                                            <Trash2 size={14} />
-                                                        </Button>
-                                                    )}
-                                                </>
-                                            )}
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        ))
-                    )}
-                </CardContent>
-            </Card>
-
-            {/* Modals */}
-            <StaffFormModal
-                isOpen={isFormModalOpen}
-                onClose={() => {
-                    setIsFormModalOpen(false);
-                    setSelectedStaff(undefined);
-                }}
-                onSubmit={handleFormSubmit}
-                initialData={selectedStaff as StaffFormData}
-                isSubmitting={isSubmitting}
-            />
-
-            {deletingStaff && (
-                <Modal
-                    isOpen={isDeleteModalOpen}
-                    onClose={() => {
-                        setIsDeleteModalOpen(false);
-                        setDeletingStaff(null);
-                    }}
-                    title="Confirm Delete"
-                    size="md"
-                >
-                    <div className="p-1">
-                        <p className="text-gray-700 dark:text-gray-300 mb-6">
-                            Are you sure you want to delete <strong>{deletingStaff.fullName}</strong>? This
-                            action cannot be undone.
-                        </p>
-                        <div className="flex justify-end space-x-3">
-                            <Button variant="outline" onClick={() => {
-                                setIsDeleteModalOpen(false);
-                                setDeletingStaff(null);
-                            }}>
-                                Cancel
-                            </Button>
-                            <Button
-                                className="bg-red-600 hover:bg-red-700 text-white"
-                                onClick={handleConfirmDelete}
-                            >
-                                Delete
-                            </Button>
-                        </div>
-                    </div>
-                </Modal>
-            )}
-
-            <BulkUploadModal
-                isOpen={isBulkUploadModalOpen}
-                onClose={() => setIsBulkUploadModalOpen(false)}
-                onUpload={handleBulkUpload}
-                type="staff"
-            />
-
-            <UploadResultsReport
-                isOpen={isResultsModalOpen}
-                onClose={() => setIsResultsModalOpen(false)}
-                result={uploadResult}
-                type="staff"
-            />
-
-            {viewingChangesStaff && viewingChangesStaff.pendingUpdates && (
-                <Modal
-                    isOpen={isChangesModalOpen}
-                    onClose={() => {
-                        setIsChangesModalOpen(false);
-                        setViewingChangesStaff(null);
-                    }}
-                    title="Compare Proposed Updates"
-                    size="md"
-                >
-                    <div className="p-1">
-                        <p className="text-gray-700 dark:text-gray-300 mb-4">
-                            Review changes proposed for staff member <strong>{viewingChangesStaff.fullName}</strong>.
-                        </p>
-                        <div className="overflow-hidden border border-gray-200 dark:border-gray-700 rounded-lg mb-6">
-                            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                                <thead className="bg-gray-50 dark:bg-gray-800">
-                                    <tr>
-                                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Field</th>
-                                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Current</th>
-                                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Proposed</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-                                    {Object.keys(viewingChangesStaff.pendingUpdates)
-                                        .filter((key) => ['fullName', 'email', 'position', 'contactNumber', 'joiningDate', 'salary', 'status', 'notifications'].includes(key))
-                                        .map((key) => {
-                                            const currentValue = (viewingChangesStaff as any)[key];
-                                            const proposedValue = (viewingChangesStaff.pendingUpdates as any)[key];
-
-                                            const areEqual = (a: any, b: any, fieldKey: string) => {
-                                                if (a === b) return true;
-                                                if (fieldKey === 'joiningDate' && a && b) {
-                                                    const timeA = Date.parse(a);
-                                                    const timeB = Date.parse(b);
-                                                    if (!isNaN(timeA) && !isNaN(timeB)) {
-                                                        return new Date(timeA).toLocaleDateString() === new Date(timeB).toLocaleDateString();
-                                                    }
-                                                }
-                                                if (typeof a === 'object' && typeof b === 'object' && a !== null && b !== null) {
-                                                    return JSON.stringify(a) === JSON.stringify(b);
-                                                }
-                                                return false;
-                                            };
-
-                                            if (areEqual(currentValue, proposedValue, key) || proposedValue === undefined) return null;
-
-                                            const fieldLabel = key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1');
-                                            const formatVal = (v: any, fieldKey: string) => {
-                                                if (v instanceof Date || (typeof v === 'string' && !isNaN(Date.parse(v)) && v.includes('-'))) {
-                                                    return new Date(v).toLocaleDateString();
-                                                }
-                                                if (fieldKey === 'notifications' && typeof v === 'object' && v !== null) {
-                                                    const activeChannels = Object.entries(v)
-                                                        .filter(([_, enabled]) => enabled === true)
-                                                        .map(([channel]) => channel.toUpperCase());
-                                                    return activeChannels.length > 0 ? activeChannels.join(', ') : 'None';
-                                                }
-                                                if (typeof v === 'object' && v !== null) {
-                                                    return JSON.stringify(v);
-                                                }
-                                                return String(v);
-                                            };
-
-                                            return (
-                                                <tr key={key} className="text-sm">
-                                                    <td className="px-4 py-2 font-medium text-gray-900 dark:text-white">{fieldLabel}</td>
-                                                    <td className="px-4 py-2 text-gray-500 dark:text-gray-400 line-through">{formatVal(currentValue, key)}</td>
-                                                    <td className="px-4 py-2 text-green-600 dark:text-green-400 font-semibold">{formatVal(proposedValue, key)}</td>
-                                                </tr>
-                                            );
-                                        })}
-                                </tbody>
-                            </table>
-                        </div>
-                        <div className="flex justify-end space-x-3">
-                            <Button variant="outline" onClick={() => {
-                                setIsChangesModalOpen(false);
-                                setViewingChangesStaff(null);
-                            }}>
-                                Close
-                            </Button>
-                            <Button
-                                className="bg-red-600 hover:bg-red-700 text-white"
-                                onClick={async () => {
-                                    await rejectStaff(viewingChangesStaff._id);
-                                    setIsChangesModalOpen(false);
-                                    setViewingChangesStaff(null);
-                                }}
-                            >
-                                Reject Changes
-                            </Button>
-                            <Button
-                                className="bg-green-600 hover:bg-green-700 text-white"
-                                onClick={async () => {
-                                    await approveStaff(viewingChangesStaff._id);
-                                    setIsChangesModalOpen(false);
-                                    setViewingChangesStaff(null);
-                                }}
-                            >
-                                Approve Changes
-                            </Button>
-                        </div>
-                    </div>
-                </Modal>
-            )}
-        </div>
+  const handleSelectOne = (id: string) => {
+    setSelectedStaffIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
+  };
+
+  const handleCreate = () => {
+    setSelectedStaff(undefined);
+    setIsFormModalOpen(true);
+  };
+
+  const handleEdit = (staffMember: any) => {
+    setSelectedStaff(staffMember);
+    setIsFormModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsFormModalOpen(false);
+    setSelectedStaff(undefined);
+    if (searchParams.get('action') === 'add' || searchParams.get('add') === 'true') {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('action');
+        next.delete('add');
+        return next;
+      }, { replace: true });
+    }
+  };
+
+  const handleToggleStatus = async (staffMember: any) => {
+    const nextStatus = staffMember.status === 'active' ? 'inactive' : 'active';
+    try {
+      await updateStaff(staffMember._id, { status: nextStatus });
+    } catch (err: any) {
+      addToast(err?.message || 'Failed to update status', 'error');
+    }
+  };
+
+  const handleDelete = async (staffMember: any) => {
+    if (window.confirm(`Are you sure you want to delete ${staffMember.fullName}?`)) {
+      try {
+        await deleteStaff(staffMember._id);
+      } catch (err: any) {
+        addToast(err?.message || 'Failed to delete staff', 'error');
+      }
+    }
+  };
+
+  const handleFormSubmit = async (formData: StaffFormData) => {
+    setIsSubmitting(true);
+    try {
+      if (selectedStaff) {
+        const res = await updateStaff(selectedStaff._id, formData as any);
+        if (res) {
+          handleCloseModal();
+        }
+      } else {
+        const res = await createStaff(formData as any);
+        if (res) {
+          handleCloseModal();
+        }
+      }
+    } catch (err: any) {
+      addToast(err?.message || 'Something went wrong', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50/50 dark:bg-gray-900 p-4 sm:p-6 space-y-4 font-sans text-xs">
+      {/* 1. Breadcrumb Navigation */}
+      <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 gap-2">
+        <Link to="/admin/dashboard" className="hover:text-gray-700 dark:hover:text-gray-200">
+          Home
+        </Link>
+        <span>/</span>
+        <span className="text-[#ff5e28] font-semibold">Staff Management</span>
+      </div>
+
+      {/* 2. Top Action & Filter Panel */}
+      <div className="bg-white dark:bg-gray-800 rounded-sm border border-gray-200/90 dark:border-gray-700 p-3 shadow-2xs">
+        <form
+          onSubmit={handleSearchSubmit}
+          className="flex flex-wrap items-center justify-between gap-3 text-xs"
+        >
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Search Input */}
+            <input
+              type="text"
+              placeholder="Search by Staff Name / Mail"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="w-56 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-xs bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 placeholder-gray-400"
+            />
+
+            {/* Communicate Dropdown */}
+            <div className="flex items-center gap-1.5">
+              <span className="font-semibold text-gray-800 dark:text-gray-200">Communicate</span>
+              <select
+                value={communicateFilter}
+                onChange={(e) => setCommunicateFilter(e.target.value)}
+                className="px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 rounded-xs bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer min-w-[100px]"
+              >
+                <option value="">Select</option>
+                <option value="SMS">SMS</option>
+                <option value="Email">Email</option>
+                <option value="WhatsApp">WhatsApp</option>
+                <option value="Push">Push Notification</option>
+              </select>
+            </div>
+
+            {/* Designation Dropdown */}
+            <div className="flex items-center gap-1.5">
+              <span className="font-semibold text-gray-800 dark:text-gray-200">Designation</span>
+              <select
+                value={designationFilter}
+                onChange={(e) => setDesignationFilter(e.target.value)}
+                className="px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 rounded-xs bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer min-w-[100px]"
+              >
+                <option value="">Select</option>
+                {JOB_DESIGNATION_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Admin Rights Dropdown */}
+            <div className="flex items-center gap-1.5">
+              <span className="font-semibold text-gray-800 dark:text-gray-200">Admin Rights</span>
+              <select
+                value={adminRightsFilter}
+                onChange={(e) => setAdminRightsFilter(e.target.value)}
+                className="px-2.5 py-1.5 border border-gray-300 dark:border-gray-600 rounded-xs bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 cursor-pointer min-w-[100px]"
+              >
+                <option value="">Select</option>
+                {ADMIN_RIGHTS_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Go Button */}
+            <button
+              type="submit"
+              className="px-4 py-1.5 bg-[#ff5e28] hover:bg-[#e04f1d] text-white font-semibold text-xs rounded-xs shadow-2xs transition-colors cursor-pointer"
+            >
+              Go
+            </button>
+          </div>
+
+          {/* Add Staff Button */}
+          <div>
+            <button
+              type="button"
+              onClick={handleCreate}
+              className="px-4 py-1.5 bg-[#ff5e28] hover:bg-[#e04f1d] text-white font-semibold text-xs rounded-xs shadow-2xs transition-colors cursor-pointer flex items-center gap-1"
+            >
+              <Plus size={14} />
+              <span>Add Staff</span>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* 3. Pagination Bar */}
+      <div className="flex justify-center items-center gap-3 py-1 text-gray-600 dark:text-gray-400 text-xs font-medium">
+        <button
+          type="button"
+          onClick={() => setCurrentPage(1)}
+          disabled={currentPage === 1}
+          className="hover:text-gray-900 dark:hover:text-white disabled:opacity-30 cursor-pointer"
+          title="First Page"
+        >
+          <ChevronsLeft size={16} />
+        </button>
+        <button
+          type="button"
+          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+          disabled={currentPage === 1}
+          className="hover:text-gray-900 dark:hover:text-white disabled:opacity-30 cursor-pointer"
+          title="Previous Page"
+        >
+          <ChevronLeft size={16} />
+        </button>
+
+        <span className="px-2">
+          Page {currentPage} of {totalPages}
+        </span>
+
+        <button
+          type="button"
+          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+          disabled={currentPage === totalPages}
+          className="hover:text-gray-900 dark:hover:text-white disabled:opacity-30 cursor-pointer"
+          title="Next Page"
+        >
+          <ChevronRight size={16} />
+        </button>
+        <button
+          type="button"
+          onClick={() => setCurrentPage(totalPages)}
+          disabled={currentPage === totalPages}
+          className="hover:text-gray-900 dark:hover:text-white disabled:opacity-30 cursor-pointer"
+          title="Last Page"
+        >
+          <ChevronsRight size={16} />
+        </button>
+      </div>
+
+      {/* 4. Staff Table */}
+      <div className="bg-white dark:bg-gray-800 rounded-sm border border-gray-200/90 dark:border-gray-700 overflow-x-auto shadow-2xs">
+        <table className="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr className="border-b border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-bold bg-gray-50/50 dark:bg-gray-800/80">
+              <th className="py-2.5 px-3 w-10 text-center">
+                <input
+                  type="checkbox"
+                  checked={
+                    paginatedStaff.length > 0 &&
+                    paginatedStaff.every((s) => selectedStaffIds.includes(s._id))
+                  }
+                  onChange={handleSelectAll}
+                  className="rounded-xs text-orange-600 focus:ring-orange-500 cursor-pointer"
+                />
+              </th>
+              <th className="py-2.5 px-3 w-14 font-bold text-gray-800 dark:text-gray-200">S.No</th>
+              <th className="py-2.5 px-3 font-bold text-gray-800 dark:text-gray-200">Staff ID</th>
+              <th className="py-2.5 px-3 font-bold text-gray-800 dark:text-gray-200">Staff Name</th>
+              <th className="py-2.5 px-3 font-bold text-gray-800 dark:text-gray-200">Mail</th>
+              <th className="py-2.5 px-3 font-bold text-gray-800 dark:text-gray-200">Attendance ID</th>
+              <th className="py-2.5 px-3 font-bold text-gray-800 dark:text-gray-200">Active</th>
+              <th className="py-2.5 px-3 font-bold text-gray-800 dark:text-gray-200">Admin Rights</th>
+              <th className="py-2.5 px-3 font-bold text-gray-800 dark:text-gray-200">Target</th>
+              <th className="py-2.5 px-3 font-bold text-gray-800 dark:text-gray-200">Rep Change</th>
+              <th className="py-2.5 px-3 font-bold text-gray-800 dark:text-gray-200">Commission</th>
+              <th className="py-2.5 px-3 font-bold text-gray-800 dark:text-gray-200 text-center">Delete</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60 bg-white dark:bg-gray-800">
+            {paginatedStaff.length === 0 ? (
+              <tr>
+                <td colSpan={12} className="py-8 text-center text-gray-500 dark:text-gray-400">
+                  No staff members found.
+                </td>
+              </tr>
+            ) : (
+              paginatedStaff.map((member, idx) => {
+                const sNo = (currentPage - 1) * itemsPerPage + idx + 1;
+                const staffId =
+                  member.staffId ||
+                  member.attendanceId?.replace(/^S/i, '') ||
+                  member._id.slice(-5);
+                const attId =
+                  member.attendanceId ||
+                  `S${staffId}`;
+                const isActive = member.status === 'active';
+                const isMasterAdmin =
+                  member.adminRights?.toLowerCase().includes('master') ||
+                  member.position?.toLowerCase().includes('master');
+
+                return (
+                  <tr
+                    key={member._id}
+                    className="hover:bg-gray-50/70 dark:hover:bg-gray-700/40 transition-colors"
+                  >
+                    {/* Checkbox */}
+                    <td className="py-2 px-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedStaffIds.includes(member._id)}
+                        onChange={() => handleSelectOne(member._id)}
+                        className="rounded-xs text-orange-600 focus:ring-orange-500 cursor-pointer"
+                      />
+                    </td>
+
+                    {/* S.No */}
+                    <td className="py-2 px-3 text-gray-700 dark:text-gray-300 font-normal">
+                      {sNo}
+                    </td>
+
+                    {/* Staff ID */}
+                    <td className="py-2 px-3 text-gray-700 dark:text-gray-300 font-normal">
+                      {staffId}
+                    </td>
+
+                    {/* Staff Name (Clickable) */}
+                    <td className="py-2 px-3">
+                      <button
+                        type="button"
+                        onClick={() => handleEdit(member)}
+                        className="text-[#ff5e28] hover:underline font-normal text-xs text-left cursor-pointer transition-colors"
+                      >
+                        {member.fullName}
+                      </button>
+                    </td>
+
+                    {/* Mail */}
+                    <td className="py-2 px-3 text-gray-700 dark:text-gray-300 font-normal">
+                      {member.email}
+                    </td>
+
+                    {/* Attendance ID */}
+                    <td className="py-2 px-3 text-gray-700 dark:text-gray-300 font-normal">
+                      {attId}
+                    </td>
+
+                    {/* Active Toggle Switch */}
+                    <td className="py-2 px-3">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleStatus(member)}
+                        className={`w-[52px] h-[22px] rounded-xs border p-[1px] flex items-center transition-colors cursor-pointer bg-white dark:bg-gray-800 ${
+                          isActive ? 'border-[#00c853]' : 'border-[#fbc02d]'
+                        }`}
+                        title={isActive ? 'Active (Click to deactivate)' : 'Inactive (Click to activate)'}
+                      >
+                        <div
+                          className={`h-full text-white text-[10px] font-bold flex items-center justify-center rounded-xs transition-transform duration-150 ${
+                            isActive
+                              ? 'w-[25px] bg-[#00c853] translate-x-0'
+                              : 'w-[27px] bg-[#fbc02d] translate-x-[22px]'
+                          }`}
+                        >
+                          {isActive ? 'ON' : 'OFF'}
+                        </div>
+                      </button>
+                    </td>
+
+                    {/* Admin Rights */}
+                    <td className="py-2 px-3">
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/admin/staff/rights/${member._id}`)}
+                        className="text-[#ff5e28] hover:underline font-normal text-xs text-left cursor-pointer transition-colors"
+                      >
+                        {getEffectiveAdminRights(member)}
+                      </button>
+                    </td>
+
+                    {/* Target */}
+                    <td className="py-2 px-3">
+                      <button
+                        type="button"
+                        onClick={() => navigate('/admin/staff-target')}
+                        className="text-[#ff5e28] hover:underline cursor-pointer font-normal"
+                      >
+                        View
+                      </button>
+                    </td>
+
+                    {/* Rep Change */}
+                    <td className="py-2 px-3">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setInfoModalContent({
+                            title: `Representative Assignment - ${member.fullName}`,
+                            text: `Assigned Clients: 24 active members. Click Change to reassign clients to another trainer or manager.`,
+                          })
+                        }
+                        className="text-[#ff5e28] hover:underline cursor-pointer font-normal"
+                      >
+                        Change
+                      </button>
+                    </td>
+
+                    {/* Commission */}
+                    <td className="py-2 px-3">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setInfoModalContent({
+                            title: `Commission Structure - ${member.fullName}`,
+                            text: `Base Salary: ₹${member.salary || '25,000'}/month. Commission rate: 10% on PT packages, 5% on memberships.`,
+                          })
+                        }
+                        className="text-[#ff5e28] hover:underline cursor-pointer font-normal"
+                      >
+                        View
+                      </button>
+                    </td>
+
+                    {/* Delete */}
+                    <td className="py-2 px-3 text-center">
+                      {isMasterAdmin ? (
+                        <span className="text-gray-400 font-bold">-</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(member)}
+                          className="text-red-400 hover:text-red-600 transition-colors p-1 cursor-pointer"
+                          title="Delete staff member"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Staff Form Modal (Add / Edit) */}
+      <StaffFormModal
+        isOpen={isFormModalOpen}
+        onClose={handleCloseModal}
+        onSubmit={handleFormSubmit}
+        initialData={selectedStaff}
+        isSubmitting={isSubmitting}
+        existingStaff={staff}
+      />
+
+      {/* Info Modal for Target / Rep Change / Commission */}
+      {infoModalContent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-md shadow-2xl max-w-md w-full p-5 space-y-4 border border-gray-200 dark:border-gray-700 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-2">
+              <h3 className="font-bold text-sm text-gray-900 dark:text-white">
+                {infoModalContent.title}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setInfoModalContent(null)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+              {infoModalContent.text}
+            </p>
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setInfoModalContent(null)}
+                className="px-4 py-1.5 bg-[#ff5e28] text-white rounded-xs text-xs font-semibold hover:bg-[#e04f1d] cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
+
+export default StaffManagerPage;

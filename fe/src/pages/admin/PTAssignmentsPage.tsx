@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { usePT } from '../../hooks/usePT';
+import React, { useEffect, useState, useMemo } from 'react';
+import { usePT, PTAssignment } from '../../hooks/usePT';
 import { Button } from '../../components/ui/Button';
 import { Card, CardContent, CardHeader } from '../../components/ui/Card';
-import { Plus, Search, Filter } from 'lucide-react';
+import { Plus, Search, Filter, X, TrendingUp } from 'lucide-react';
 import { Input } from '../../components/ui/Input';
+import { Select } from '../../components/ui/Select';
 import { Badge } from '../../components/ui/Badge';
 import { PTAssignModal } from '../../components/pt/PTAssignModal';
 import { useAuth } from '../../contexts/AuthContext';
@@ -20,7 +21,16 @@ const statusColors = {
 export const PTAssignmentsPage: React.FC = () => {
     const { assignments, fetchAssignments } = usePT();
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+    const [upgradeMember, setUpgradeMember] = useState<{
+        memberId: string;
+        memberName: string;
+        trainerId?: string;
+    } | null>(null);
+
     const [searchQuery, setSearchQuery] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [trainerFilter, setTrainerFilter] = useState('all');
+    const [showFilters, setShowFilters] = useState(false);
     const { user } = useAuth();
     const { addToast } = useToast();
 
@@ -28,54 +38,208 @@ export const PTAssignmentsPage: React.FC = () => {
         fetchAssignments();
     }, [fetchAssignments]);
 
-    const filteredAssignments = assignments.filter(a =>
-        (a.memberId?.fullName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (a.trainerId?.fullName || '').toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const statusOptions = [
+        { value: 'all', label: 'All Statuses' },
+        { value: 'active', label: 'Active' },
+        { value: 'expired', label: 'Expired' },
+        { value: 'completed', label: 'Completed' },
+        { value: 'cancelled', label: 'Cancelled' },
+    ];
+
+    const trainerOptions = useMemo(() => {
+        const map = new Map<string, string>();
+        assignments.forEach(a => {
+            if (a.trainerId?._id && a.trainerId?.fullName) {
+                map.set(a.trainerId._id, a.trainerId.fullName);
+            }
+        });
+        return [
+            { value: 'all', label: 'All Trainers' },
+            ...Array.from(map.entries()).map(([id, name]) => ({ value: id, label: name }))
+        ];
+    }, [assignments]);
+
+    const activeFilterCount = (statusFilter !== 'all' ? 1 : 0) + (trainerFilter !== 'all' ? 1 : 0);
+    const hasActiveFilters = activeFilterCount > 0;
+
+    const clearFilters = () => {
+        setStatusFilter('all');
+        setTrainerFilter('all');
+    };
+
+    // Keep only the latest / upgraded active assignment per member
+    const displayAssignments = useMemo(() => {
+        const memberMap = new Map<string, PTAssignment>();
+
+        const sorted = [...assignments].sort((a, b) => {
+            const aActive = a.status === 'active' ? 1 : 0;
+            const bActive = b.status === 'active' ? 1 : 0;
+            if (aActive !== bActive) {
+                return bActive - aActive;
+            }
+            const aDate = new Date(a.startDate || a.expiryDate || 0).getTime();
+            const bDate = new Date(b.startDate || b.expiryDate || 0).getTime();
+            return bDate - aDate;
+        });
+
+        sorted.forEach(a => {
+            const mId = typeof a.memberId === 'object' && a.memberId ? a.memberId._id : a.memberId;
+            const key = mId || a._id;
+            if (!memberMap.has(key)) {
+                memberMap.set(key, a);
+            }
+        });
+
+        return Array.from(memberMap.values());
+    }, [assignments]);
+
+    const filteredAssignments = displayAssignments.filter(a => {
+        const memberName = (a.memberId?.fullName || '').toLowerCase();
+        const memberContact = a.memberId?.contactNumber || '';
+        const trainerName = (a.trainerId?.fullName || '').toLowerCase();
+        const planName = (a.planId?.name || '').toLowerCase();
+
+        const query = searchQuery.toLowerCase();
+        const matchesSearch =
+            !query ||
+            memberName.includes(query) ||
+            memberContact.includes(query) ||
+            trainerName.includes(query) ||
+            planName.includes(query);
+
+        const matchesStatus = statusFilter === 'all' || a.status === statusFilter;
+        const matchesTrainer = trainerFilter === 'all' || a.trainerId?._id === trainerFilter;
+
+        return matchesSearch && matchesStatus && matchesTrainer;
+    });
 
     const handleAssignClick = () => {
         if (user?.gymFeatures?.pt === false) {
             addToast('Personal Training features have been disabled by platform administration.', 'error');
             return;
         }
+        setUpgradeMember(null);
+        setIsAssignModalOpen(true);
+    };
+
+    const handleTopUpgradeClick = () => {
+        if (user?.gymFeatures?.pt === false) {
+            addToast('Personal Training features have been disabled by platform administration.', 'error');
+            return;
+        }
+        setUpgradeMember({
+            memberId: '',
+            memberName: '',
+            trainerId: ''
+        });
+        setIsAssignModalOpen(true);
+    };
+
+    const handleUpgradeClick = (assignment: PTAssignment) => {
+        if (user?.gymFeatures?.pt === false) {
+            addToast('Personal Training features have been disabled by platform administration.', 'error');
+            return;
+        }
+        const memberId = typeof assignment.memberId === 'object' ? assignment.memberId?._id : assignment.memberId;
+        const memberName = typeof assignment.memberId === 'object' ? assignment.memberId?.fullName : 'Member';
+        const trainerId = typeof assignment.trainerId === 'object' ? assignment.trainerId?._id : assignment.trainerId;
+
+        setUpgradeMember({
+            memberId: memberId || '',
+            memberName: memberName || 'Member',
+            trainerId: trainerId || ''
+        });
         setIsAssignModalOpen(true);
     };
 
     return (
         <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white">PT Assignments</h1>
-                    <p className="text-gray-500 dark:text-gray-400">View and manage member personal training subscriptions</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">View and manage member personal training subscriptions</p>
                 </div>
-                <Button onClick={handleAssignClick}>
-                    <Plus size={16} className="mr-2" />
-                    Assign PT
-                </Button>
+                <div className="flex flex-wrap items-center gap-3">
+                    <Button
+                        variant="outline"
+                        onClick={handleTopUpgradeClick}
+                        className="border-orange-500 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/30 font-medium"
+                    >
+                        <TrendingUp size={16} className="mr-2" /> Upgrade Plan
+                    </Button>
+                    <Button onClick={handleAssignClick}>
+                        <Plus size={16} className="mr-2" /> Assign PT
+                    </Button>
+                </div>
             </div>
 
             {/* Filters */}
             <Card>
-                <CardContent className="p-4 flex gap-4">
-                    <div className="flex-1">
-                        <Input
-                            placeholder="Search Member or Trainer..."
-                            leftIcon={<Search size={16} />}
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
+                <CardContent className="p-4 space-y-4">
+                    <div className="flex flex-col sm:flex-row gap-4 items-center">
+                        <div className="flex-1 w-full">
+                            <Input
+                                placeholder="Search Member or Trainer..."
+                                leftIcon={<Search size={16} />}
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+                        <Button
+                            variant={hasActiveFilters ? "primary" : "outline"}
+                            onClick={() => setShowFilters(!showFilters)}
+                            className="w-full sm:w-auto relative"
+                        >
+                            <Filter size={16} className="mr-2" />
+                            Filter
+                            {activeFilterCount > 0 && (
+                                <span className="ml-2 px-2 py-0.5 text-xs bg-white text-orange-600 rounded-full font-bold">
+                                    {activeFilterCount}
+                                </span>
+                            )}
+                        </Button>
                     </div>
-                    <Button variant="outline">
-                        <Filter size={16} className="mr-2" />
-                        Filter
-                    </Button>
+
+                    {showFilters && (
+                        <div className="pt-4 border-t border-gray-100 dark:border-gray-800 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Status</label>
+                                <Select
+                                    options={statusOptions}
+                                    value={statusFilter}
+                                    onChange={setStatusFilter}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Trainer</label>
+                                <Select
+                                    options={trainerOptions}
+                                    value={trainerFilter}
+                                    onChange={setTrainerFilter}
+                                />
+                            </div>
+                            {hasActiveFilters && (
+                                <div>
+                                    <Button
+                                        variant="ghost"
+                                        onClick={clearFilters}
+                                        className="text-xs text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                    >
+                                        <X size={14} className="mr-1" /> Clear Filters
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 
             {/* Table */}
             <Card className="w-full">
                 <CardHeader>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Active Assignments</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                        {statusFilter === 'all' ? 'All Assignments' : `${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)} Assignments`}
+                    </h3>
                 </CardHeader>
                 <CardContent className="p-0">
                     <div className="overflow-x-auto w-full">
@@ -88,6 +252,7 @@ export const PTAssignmentsPage: React.FC = () => {
                                     <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider min-w-[120px]">Progress</th>
                                     <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider min-w-[110px]">Expiry</th>
                                     <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider min-w-[90px]">Status</th>
+                                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider min-w-[130px]">Action</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -123,11 +288,21 @@ export const PTAssignmentsPage: React.FC = () => {
                                                 {assignment.status}
                                             </Badge>
                                         </td>
+                                        <td className="px-3 py-2.5 whitespace-nowrap">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => handleUpgradeClick(assignment)}
+                                                className="text-xs py-1 px-2.5 border-orange-500 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/30 flex items-center gap-1 font-medium"
+                                            >
+                                                <TrendingUp size={13} /> Upgrade Plan
+                                            </Button>
+                                        </td>
                                     </tr>
                                 ))}
                                 {filteredAssignments.length === 0 && (
                                     <tr>
-                                        <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                                        <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
                                             No assignments found.
                                         </td>
                                     </tr>
@@ -140,8 +315,18 @@ export const PTAssignmentsPage: React.FC = () => {
 
             <PTAssignModal
                 isOpen={isAssignModalOpen}
-                onClose={() => setIsAssignModalOpen(false)}
-                onSuccess={() => fetchAssignments()}
+                onClose={() => {
+                    setIsAssignModalOpen(false);
+                    setUpgradeMember(null);
+                }}
+                onSuccess={() => {
+                    fetchAssignments();
+                    setUpgradeMember(null);
+                }}
+                preSelectedMemberId={upgradeMember?.memberId}
+                preSelectedTrainerId={upgradeMember?.trainerId}
+                memberName={upgradeMember?.memberName}
+                isUpgrade={!!upgradeMember}
             />
         </div>
     );

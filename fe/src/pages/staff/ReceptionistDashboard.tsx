@@ -251,9 +251,26 @@ export const ReceptionistDashboard: React.FC = () => {
 
 
 
+  const getLocalDateString = (date = new Date()) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // Action: Log Enquiry
   const handleCreateEnquiry = async (e: React.FormEvent) => {
     e.preventDefault();
+    const todayStr = getLocalDateString();
+    if (enquiryForm.followUpDate && enquiryForm.followUpDate < todayStr) {
+      addToast('Next follow-up date cannot be in the past', 'error');
+      return;
+    }
+    const budgetNum = Number(enquiryForm.budget);
+    if (!isNaN(budgetNum) && budgetNum < 0) {
+      addToast('Budget cannot be a negative value', 'error');
+      return;
+    }
     const data = await createEnquiry({
       name: enquiryForm.name,
       phone: enquiryForm.phone,
@@ -1126,7 +1143,7 @@ export const ReceptionistDashboard: React.FC = () => {
               <Input
                 type="text"
                 value={enquiryForm.budget}
-                onChange={(e) => setEnquiryForm({ ...enquiryForm, budget: e.target.value })}
+                onChange={(e) => setEnquiryForm({ ...enquiryForm, budget: e.target.value.replace(/-/g, '') })}
                 className="text-xs"
                 placeholder="e.g. 5000/month"
               />
@@ -1152,6 +1169,7 @@ export const ReceptionistDashboard: React.FC = () => {
                 type="date"
                 value={enquiryForm.followUpDate}
                 onChange={(e) => setEnquiryForm({ ...enquiryForm, followUpDate: e.target.value })}
+                min={getLocalDateString()}
                 className="text-xs"
               />
             </div>

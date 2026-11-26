@@ -166,24 +166,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, password: string) => {
-    // TEMPORARY BYPASS FOR TESTING
-    if (email === 'admin@test.com' && password === 'password') {
-      const dummyUser: User = {
-        _id: '1',
-        id: '1',
-        name: 'Test Admin',
-        email,
-        role: 'admin',
-        gym: 'test_gym',
-        phone: '0000000000',
-        createdAt: new Date().toISOString()
-      };
-      setUser(dummyUser);
-      localStorage.setItem('user', JSON.stringify(dummyUser));
-      localStorage.setItem('role', 'admin');
-      return;
-    }
-
     // ===== BROWSER-SCOPED SESSION ENFORCEMENT =====
     // Clear ALL auth data in THIS browser before new login
     clearSession();

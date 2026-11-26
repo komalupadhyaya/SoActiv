@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+out/
+
+# Environment & secret files
+.env
+.env.*
+!.env.example
+be/serviceAccountKey.json
+
+# Uploads & logs
+uploads/
+*.log
+.DS_Store

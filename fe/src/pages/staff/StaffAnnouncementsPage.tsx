@@ -25,7 +25,7 @@ export const StaffAnnouncementsPage: React.FC = () => {
     const { confirm, confirmState, handleConfirm, handleCancel } = useConfirm();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
-    const [errors, setErrors] = useState<Record<string, string>>({});
+    const [_errors, setErrors] = useState<Record<string, string>>({});
     const [formData, setFormData] = useState({
         title: '',
         message: '',
@@ -70,13 +70,58 @@ export const StaffAnnouncementsPage: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
+        const formErrors: Record<string, string> = {};
+
+        const titleTrimmed = formData.title.trim();
+        if (!titleTrimmed) {
+            formErrors.title = 'Title is required';
+        } else {
+            const wordCount = titleTrimmed.split(/\s+/).filter(Boolean).length;
+            if (wordCount > 25) {
+                formErrors.title = 'Title cannot exceed 25 words';
+            } else if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(titleTrimmed)) {
+                formErrors.title = 'Title can only contain letters, numbers, spaces, and basic punctuation';
+            }
+        }
+
+        const messageTrimmed = formData.message.trim();
+        if (!messageTrimmed) {
+            formErrors.message = 'Message is required';
+        } else {
+            const wordCount = messageTrimmed.split(/\s+/).filter(Boolean).length;
+            if (wordCount > 50) {
+                formErrors.message = 'Message cannot exceed 50 words';
+            } else if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(messageTrimmed)) {
+                formErrors.message = 'Message can only contain letters, numbers, spaces, and basic punctuation';
+            }
+        }
+
+        const todayStr = getLocalDateString();
+        if (formData.expiresAt && formData.expiresAt < todayStr) {
+            formErrors.expiresAt = 'Expiry date cannot be in the past';
+        }
+
+        if (Object.keys(formErrors).length > 0) {
+            setErrors(formErrors);
+            return;
+        }
+
         // Parse roles
         const roles = formData.visibleRoles
             ? formData.visibleRoles.split(',').map(r => r.trim().toLowerCase()).filter(Boolean)
             : [];
 
-        // Validate future date
-        const expiry = formData.expiresAt ? new Date(formData.expiresAt) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // Default 7 days
+        // Expiry at end of day (23:59:59.999)
+        let expiry: Date;
+        if (formData.expiresAt) {
+            const [year, month, day] = formData.expiresAt.split('-').map(Number);
+            expiry = (year && month && day)
+                ? new Date(year, month - 1, day, 23, 59, 59, 999)
+                : new Date(formData.expiresAt);
+        } else {
+            expiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+            expiry.setHours(23, 59, 59, 999);
+        }
 
         const payload = {
             ...formData,
@@ -102,6 +147,7 @@ export const StaffAnnouncementsPage: React.FC = () => {
                 expiresAt: '',
                 visibleRoles: ''
             });
+            setErrors({});
             fetchAnnouncements();
         }
     };
@@ -112,6 +158,8 @@ export const StaffAnnouncementsPage: React.FC = () => {
             fetchAnnouncements();
         }
     };
+
+    const titleWordCount = formData.title.trim() ? formData.title.trim().split(/\s+/).filter(Boolean).length : 0;
 
     return (
         <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -133,7 +181,7 @@ export const StaffAnnouncementsPage: React.FC = () => {
 
             <div className="space-y-4">
                 {announcements.map((ann) => (
-                    <Card key={ann._id} className={`border-l-4 ${ann.priority === 'urgent' ? 'border-l-red-500 shadow-md' : 'border-l-blue-500'}`}>
+                    <Card key={ann._id} className="border-l-4 border-l-blue-500">
                         <CardContent className="p-6 flex justify-between gap-4">
                             <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-3">
@@ -176,25 +224,63 @@ export const StaffAnnouncementsPage: React.FC = () => {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 title={editingAnnouncement ? 'Edit Announcement' : 'Create Announcement'}
+                closeOnOutsideClick={false}
             >
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <Input
-                        label="Title"
-                        value={formData.title}
-                        onChange={e => setFormData({ ...formData, title: e.target.value })}
-                        required
-                        placeholder="e.g. System Maintenance"
-                    />
+                    <div>
+                        <Input
+                            label="Title"
+                            value={formData.title}
+                            onChange={e => {
+                                setFormData({ ...formData, title: e.target.value });
+                                if (errors.title) {
+                                    setErrors(prev => {
+                                        const newErrors = { ...prev };
+                                        delete newErrors.title;
+                                        return newErrors;
+                                    });
+                                }
+                            }}
+                            required
+                            placeholder="e.g. System Maintenance"
+                            error={errors.title}
+                        />
+                        <div className="flex justify-end mt-1">
+                            <span className={`text-xs ${
+                                titleWordCount > 25 
+                                    ? 'text-red-500 font-semibold' 
+                                    : 'text-gray-400 dark:text-gray-500'
+                            }`}>
+                                {titleWordCount}/25 words
+                            </span>
+                        </div>
+                    </div>
 
                     <div className="flex flex-col gap-1">
                         <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Message</label>
                         <textarea
-                            className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:text-white"
+                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 dark:bg-gray-700 dark:text-white ${
+                                errors.message
+                                    ? 'border-red-500 focus:ring-red-500'
+                                    : 'border-gray-300 dark:border-gray-600 focus:ring-orange-500'
+                            }`}
                             rows={4}
                             value={formData.message}
-                            onChange={e => setFormData({ ...formData, message: e.target.value })}
+                            onChange={e => {
+                                setFormData({ ...formData, message: e.target.value });
+                                if (errors.message) {
+                                    setErrors(prev => {
+                                        const newErrors = { ...prev };
+                                        delete newErrors.message;
+                                        return newErrors;
+                                    });
+                                }
+                            }}
                             required
                         />
+                        {errors.message && (
+                            <p className="text-xs text-red-500 mt-0.5">{errors.message}</p>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">

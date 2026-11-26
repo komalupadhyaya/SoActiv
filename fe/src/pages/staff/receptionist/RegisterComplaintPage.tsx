@@ -37,6 +37,18 @@ const CATEGORY_LABELS: Record<string, string> = {
   sales: 'Membership Upgrade',
 };
 
+const MAX_COMPLAINT_WORDS = 100;
+
+const countWords = (text: string): number => {
+  const trimmed = text.trim();
+  if (!trimmed) return 0;
+  return trimmed.split(/\s+/).filter(Boolean).length;
+};
+
+const isValidEmail = (email: string): boolean => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+};
+
 export const RegisterComplaintPage: React.FC = () => {
   const { clients, refresh: refreshClients } = useClient();
   const { sendSupportMessage, fetchGymSupportMessages, messages, loading: messagesLoading } = useSupport();
@@ -48,6 +60,7 @@ export const RegisterComplaintPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [emailTouched, setEmailTouched] = useState(false);
 
   const [form, setForm] = useState({
     category: 'support',
@@ -56,6 +69,23 @@ export const RegisterComplaintPage: React.FC = () => {
     customEmail: '',
     customPhone: '',
   });
+
+  const wordCount = useMemo(() => countWords(form.message), [form.message]);
+  const isWordLimitExceeded = wordCount > MAX_COMPLAINT_WORDS;
+
+  const emailError = useMemo(() => {
+    if (!emailTouched && !form.customEmail.trim()) return '';
+    if (!form.customEmail.trim()) return 'Guest email is required';
+    if (!isValidEmail(form.customEmail)) return 'Please enter a valid email address (e.g. name@example.com)';
+    return '';
+  }, [form.customEmail, emailTouched]);
+
+  const phoneError = useMemo(() => {
+    if (form.customPhone && form.customPhone.length > 0 && form.customPhone.length < 7) {
+      return 'Phone number should have at least 7 digits';
+    }
+    return '';
+  }, [form.customPhone]);
 
   useEffect(() => {
     loadData();
@@ -96,13 +126,39 @@ export const RegisterComplaintPage: React.FC = () => {
       ticketEmail = selectedClient.email;
       ticketPhone = selectedClient.contactNumber;
     } else {
-      ticketName = form.customName;
-      ticketEmail = form.customEmail;
-      ticketPhone = form.customPhone;
+      setEmailTouched(true);
+      ticketName = form.customName.trim();
+      ticketEmail = form.customEmail.trim();
+      ticketPhone = form.customPhone.replace(/\D/g, '').trim();
+
+      if (!ticketName) {
+        addToast('Please enter the guest name.', 'warning');
+        return;
+      }
+
+      if (!ticketEmail) {
+        addToast('Please enter the guest email address.', 'warning');
+        return;
+      }
+
+      if (!isValidEmail(ticketEmail)) {
+        addToast('Please enter a valid guest email address (e.g. name@example.com).', 'error');
+        return;
+      }
+
+      if (ticketPhone && (ticketPhone.length < 7 || ticketPhone.length > 15)) {
+        addToast('Please enter a valid phone number (7-15 digits).', 'warning');
+        return;
+      }
     }
 
-    if (!ticketName || !ticketEmail || !form.message) {
+    if (!ticketName || !ticketEmail || !form.message.trim()) {
       addToast('Please specify a member name, email, and the complaint description.', 'warning');
+      return;
+    }
+
+    if (wordCount > MAX_COMPLAINT_WORDS) {
+      addToast(`Complaint details cannot exceed ${MAX_COMPLAINT_WORDS} words (currently ${wordCount} words).`, 'warning');
       return;
     }
 
@@ -112,7 +168,7 @@ export const RegisterComplaintPage: React.FC = () => {
       email: ticketEmail,
       phone: ticketPhone,
       category: form.category,
-      message: form.message,
+      message: form.message.trim(),
       source: 'member', // Sets source to member so it routes to Gym Admin/Manager inbox
     };
 
@@ -121,6 +177,7 @@ export const RegisterComplaintPage: React.FC = () => {
 
     if (success) {
       setSubmitted(true);
+      setEmailTouched(false);
       setForm({
         category: 'support',
         message: '',
@@ -278,25 +335,54 @@ export const RegisterComplaintPage: React.FC = () => {
                         <div className="space-y-2">
                           <Input
                             type="text"
-                            placeholder="Guest Name"
+                            placeholder="Guest Name *"
                             value={form.customName}
                             onChange={e => setForm({ ...form, customName: e.target.value })}
                             className="text-xs"
                           />
-                          <Input
-                            type="email"
-                            placeholder="Guest Email"
-                            value={form.customEmail}
-                            onChange={e => setForm({ ...form, customEmail: e.target.value })}
-                            className="text-xs"
-                          />
-                          <Input
-                            type="text"
-                            placeholder="Guest Phone (optional)"
-                            value={form.customPhone}
-                            onChange={e => setForm({ ...form, customPhone: e.target.value })}
-                            className="text-xs"
-                          />
+                          <div>
+                            <Input
+                              type="email"
+                              placeholder="Guest Email *"
+                              value={form.customEmail}
+                              onChange={e => {
+                                setForm({ ...form, customEmail: e.target.value });
+                                if (emailTouched) setEmailTouched(true);
+                              }}
+                              onBlur={() => setEmailTouched(true)}
+                              error={emailError}
+                              className="text-xs"
+                            />
+                          </div>
+                          <div>
+                            <Input
+                              type="tel"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              maxLength={15}
+                              placeholder="Guest Phone (optional)"
+                              value={form.customPhone}
+                              onChange={e => {
+                                const numbersOnly = e.target.value.replace(/\D/g, '').slice(0, 15);
+                                setForm({ ...form, customPhone: numbersOnly });
+                              }}
+                              onKeyDown={e => {
+                                // Allow navigation and control keys (Backspace, Tab, Delete, Arrow keys, Ctrl/Cmd shortcuts)
+                                if (
+                                  ['Backspace', 'Tab', 'Delete', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Enter'].includes(e.key) ||
+                                  (e.ctrlKey || e.metaKey)
+                                ) {
+                                  return;
+                                }
+                                // Block any non-digit character
+                                if (!/^[0-9]$/.test(e.key)) {
+                                  e.preventDefault();
+                                }
+                              }}
+                              error={phoneError}
+                              className="text-xs"
+                            />
+                          </div>
                         </div>
                       </div>
                     )
@@ -320,19 +406,42 @@ export const RegisterComplaintPage: React.FC = () => {
                     </select>
                   </div>
 
-                  {/* Complaint message */}
+                  {/* Complaint message with word limit */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-700 dark:text-gray-300">
-                      Complaint Details <span className="text-red-500">*</span>
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                        Complaint Details <span className="text-red-500">*</span>
+                      </label>
+                      <span
+                        className={`text-[11px] font-semibold transition-colors ${
+                          isWordLimitExceeded
+                            ? 'text-red-600 dark:text-red-400'
+                            : wordCount >= MAX_COMPLAINT_WORDS * 0.8
+                            ? 'text-amber-600 dark:text-amber-400'
+                            : 'text-gray-400 dark:text-gray-500'
+                        }`}
+                      >
+                        {wordCount} / {MAX_COMPLAINT_WORDS} words
+                      </span>
+                    </div>
                     <textarea
                       rows={4}
                       required
                       value={form.message}
                       onChange={e => setForm({ ...form, message: e.target.value })}
-                      className="w-full text-sm border border-gray-300 dark:border-gray-700/80 rounded-xl p-3 bg-transparent text-gray-900 dark:text-white resize-none focus:outline-none focus:ring-2 focus:ring-orange-400/50 transition"
-                      placeholder="e.g. Locker room 14 lock is broken, or member complained about treadmill alignment..."
+                      className={`w-full text-sm border rounded-xl p-3 bg-transparent text-gray-900 dark:text-white resize-none focus:outline-none focus:ring-2 transition ${
+                        isWordLimitExceeded
+                          ? 'border-red-500 dark:border-red-500 focus:ring-red-400/50'
+                          : 'border-gray-300 dark:border-gray-700/80 focus:ring-orange-400/50'
+                      }`}
+                      placeholder={`e.g. Locker room 14 lock is broken, or member complained about treadmill alignment... (Max ${MAX_COMPLAINT_WORDS} words)`}
                     />
+                    {isWordLimitExceeded && (
+                      <p className="text-[11px] text-red-600 dark:text-red-400 flex items-center gap-1 font-medium">
+                        <AlertCircle size={12} className="shrink-0" />
+                        Complaint details exceed the limit by {wordCount - MAX_COMPLAINT_WORDS} word{wordCount - MAX_COMPLAINT_WORDS === 1 ? '' : 's'}. Max allowed: {MAX_COMPLAINT_WORDS} words.
+                      </p>
+                    )}
                   </div>
 
                   {/* Submit buttons */}
@@ -357,8 +466,8 @@ export const RegisterComplaintPage: React.FC = () => {
                     </Button>
                     <Button
                       type="submit"
-                      disabled={submitting}
-                      className="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold shadow-md flex items-center justify-center gap-1.5"
+                      disabled={submitting || isWordLimitExceeded}
+                      className="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {submitting ? (
                         <span className="flex items-center justify-center gap-2">

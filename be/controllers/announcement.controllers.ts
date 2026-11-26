@@ -18,8 +18,8 @@ export const createAnnouncement = async (req: Request, res: Response, next: Next
             throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Title is required');
         }
         const titleWordCount = title.trim().split(/\s+/).filter(Boolean).length;
-        if (titleWordCount > 15) {
-            throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Title cannot exceed 15 words');
+        if (titleWordCount > 25) {
+            throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Title cannot exceed 25 words');
         }
         if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(title.trim())) {
             throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Title can only contain letters, numbers, spaces, and basic punctuation');
@@ -36,14 +36,24 @@ export const createAnnouncement = async (req: Request, res: Response, next: Next
             throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Message can only contain letters, numbers, spaces, and basic punctuation');
         }
 
+        let finalExpiryDate: Date;
         if (expiresAt) {
-            const expiry = new Date(expiresAt);
+            if (typeof expiresAt === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(expiresAt.trim())) {
+                const [year, month, day] = expiresAt.trim().split('-').map(Number);
+                finalExpiryDate = new Date(year, month - 1, day, 23, 59, 59, 999);
+            } else {
+                finalExpiryDate = new Date(expiresAt);
+            }
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-            if (expiry < today) {
+            if (finalExpiryDate < today) {
                 throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Expiry date cannot be in the past');
             }
+        } else {
+            finalExpiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+            finalExpiryDate.setHours(23, 59, 59, 999);
         }
+
         const user = (req as any).user;
         const adminId = user.adminId || user.id || user._id;
         const isSuperAdmin = user.role === 'superadmin';
@@ -57,7 +67,7 @@ export const createAnnouncement = async (req: Request, res: Response, next: Next
             priority: priority || 'normal',
             createdBy: user.id || user._id,
             adminId,
-            expiresAt: new Date(expiresAt),
+            expiresAt: finalExpiryDate,
             isActive: true,
             isPlatformWide: isSuperAdmin
         });
@@ -193,8 +203,8 @@ export const updateAnnouncement = async (req: Request, res: Response, next: Next
                 throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Title is required');
             }
             const titleWordCount = updates.title.trim().split(/\s+/).filter(Boolean).length;
-            if (titleWordCount > 15) {
-                throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Title cannot exceed 15 words');
+            if (titleWordCount > 25) {
+                throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Title cannot exceed 25 words');
             }
             if (!/^[a-zA-Z0-9\s.,!?'"\-()]*$/.test(updates.title.trim())) {
                 throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Title can only contain letters, numbers, spaces, and basic punctuation');
@@ -215,12 +225,19 @@ export const updateAnnouncement = async (req: Request, res: Response, next: Next
         }
 
         if (updates.expiresAt !== undefined) {
-            const expiry = new Date(updates.expiresAt);
+            let finalExpiryDate: Date;
+            if (typeof updates.expiresAt === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(updates.expiresAt.trim())) {
+                const [year, month, day] = updates.expiresAt.trim().split('-').map(Number);
+                finalExpiryDate = new Date(year, month - 1, day, 23, 59, 59, 999);
+            } else {
+                finalExpiryDate = new Date(updates.expiresAt);
+            }
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-            if (expiry < today) {
+            if (finalExpiryDate < today) {
                 throw new ApiError(HttpStatusCode.BAD_REQUEST, 'Expiry date cannot be in the past');
             }
+            updates.expiresAt = finalExpiryDate;
         }
 
         const announcement = await Announcement.findById(id);
